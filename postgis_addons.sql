@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.x for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.4 for PostGIS 2.1.x and PostgreSQL 9.x
 -- https://github.com/pedrogit/postgisaddons/releases
 -- 
 -- The PostGIS add-ons attempt to gathers, in a single .sql file, useful and 
