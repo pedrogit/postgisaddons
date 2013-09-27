@@ -6,24 +6,34 @@
 -- The PostGIS add-ons attempt to gathers, in a single .sql file, useful and 
 -- generic user contributed PL/pgSQL functions and to provide a fast and Agile 
 -- way to release them. The last version number of the postgis_addons.sql file
--- is the actual version of the product. 
--- This file should ALWAYS be left in a stable, installable and tested state.
+-- is the actual version of the product and thus every commit to the file is a new 
+-- version. This is why this file should ALWAYS be left in a stable, installable 
+-- and tested state.
+--
 -- Function signatures and return values should not change from minor revision to 
 -- minor revision.
 --
--- To be included a function:
+-- PostGIS PL/pgSQL Add-ons tries to make life as easy as possible for users
+-- wishing to contribute their functions. This is why it limit itself to 
+-- only three files: the main function executable file, a test file and an 
+-- unsinstall file. All function are documented inside the main function file 
+-- (this file). 
+--
+-- To be included, a function:
 -- 
 --   - Must be of generic enough to be useful to many PostGIS users.
---   - Must be documented according to the rules defined in this readme file.
---   - Must be accompagned by a series of test in the postgis_addons_test.sql file
+--   - Must be documented according to the rules defined in this file.
+--   - Must be accompagned by a series of test in the postgis_addons_test.sql file.
 --   - Must have a drop statement in the postgis_addons_uninstall.sql file.
 -- 
 -- Companion files
 -- 
---   - postgis_addons.sql             Main redistributable file containing all the functions.
+--   - postgis_addons.sql             Main redistributable file containing all the 
+--                                    functions.
 --   - postgis_addons_uninstall.sql   Uninstallation file.
---   - postgis_addons_test.sql        Self contained test file to be executed after installation 
---                                       and before any commit of the main file.
+--   - postgis_addons_test.sql        Self contained test file to be executed after  
+--                                    installation and before any commit of the main 
+--                                    file.
 -- 
 -------------------------------------------------------------------------------
 -- Documentation
