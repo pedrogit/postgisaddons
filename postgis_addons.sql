@@ -9,8 +9,8 @@
 -- for every significant change or addition. They should ALWAYS be left in a 
 -- stable, installable and tested state.
 --
--- Function signatures and return values should not change from minor revision to 
--- minor revision.
+-- Signatures and return values for existing functions should not change from 
+-- minor revision to minor revision. New functions might be added though.
 --
 -- PostGIS PL/pgSQL Add-ons tries to make life as easy as possible for users
 -- wishing to contribute their functions. This is why it limit itself to 
