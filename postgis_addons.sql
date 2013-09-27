@@ -5,10 +5,9 @@
 -- 
 -- The PostGIS add-ons attempt to gathers, in a single .sql file, useful and 
 -- generic user contributed PL/pgSQL functions and to provide a fast and Agile 
--- way to release them. The last version number of the postgis_addons.sql file
--- is the actual version of the product and thus every commit to the file is a new 
--- version. This is why this file should ALWAYS be left in a stable, installable 
--- and tested state.
+-- way to release them. Files will be tagged with an incremental version number
+-- for every significant change or addition. They should ALWAYS be left in a 
+-- stable, installable and tested state.
 --
 -- Function signatures and return values should not change from minor revision to 
 -- minor revision.
