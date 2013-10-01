@@ -1,6 +1,6 @@
--------------------------------------------------------------------------------
+﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.4 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.5 for PostGIS 2.1.x and PostgreSQL 9.x
 -- https://github.com/pedrogit/postgisaddons/releases
 -- 
 -- The PostGIS add-ons attempt to gathers, in a single .sql file, useful and 
@@ -97,5 +97,100 @@ CREATE OR REPLACE FUNCTION ST_DeleteBand(
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
-
+-- ST_CreateIndexRaster
+--
+--   rast raster          - Raster from which are copied the metadata to build the new, index raster. 
+--                          Generally created from scratch with ST_MakeEmptyRaster().
+--   pixeltype text       - Pixel type of the new index raster. The default is 32BUI.
+--   startvalue int       - The first value assigned to the index raster. The default is 0.
+--   incwithx boolean     - When true (default), indexes increase with the x raster coordinate of the pixel.
+--   incwithy boolean     - When true (default), indexes increase with the y raster coordinate of the pixel.
+--                          (When scaley is negative, indexes decrease with y.)
+--   rowsfirst boolean    - When true (default), indexes increase vertically first, and then horizontally.
+--   rowscanorder boolean - When true (default), indexes increase always in the same direction (row scan). 
+--                          When false indexes increase alternatively in direction and then in the other
+--                          direction (row-prime scan).
+--   colinc int           - Colums increment value. Must be greater than rowinc * (ST_Height() - 1) when 
+--                          columnfirst is true.
+--   rowinc int           - Row increment value. Must be greater than colinc * (ST_Width() - 1) when 
+--                          columnfirst is false.
+--
+-- Create a new raster as an index grid.
+-----------------------------------------------------------
+-- Self contained example:
+--
+-- SELECT (gvxy).geom, (gvxy).val
+-- FROM ST_PixelAsPolygons(ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 0, 0, 1, 1, 0, 0), '8BUI')) gvxy;
+--
+-- Typical example creating a z scanned raster with rows incrementing by 10 and columns incrementing by 1000:
+--
+-- CREATE TABLE newraster AS
+-- SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 0, 0, 1, 1, 0, 0), '32BUI', 0, true, true, true, false, 1000, 10) rast;
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 27/09/2013 v. 0.5
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_CreateIndexRaster(
+    rast raster, 
+    pixeltype text DEFAULT '32BUI', 
+    startvalue int DEFAULT 0, 
+    incwithx boolean DEFAULT true, 
+    incwithy boolean DEFAULT true,
+    rowsfirst boolean DEFAULT true,
+    rowscanorder boolean DEFAULT true,
+    colinc int DEFAULT NULL,
+    rowinc int DEFAULT NULL
+)
+    RETURNS raster AS
+    $$
+    DECLARE
+        newraster raster := ST_AddBand(ST_MakeEmptyRaster(rast), pixeltype);
+        x int;
+        y int;
+        w int := ST_Width(newraster);
+        h int := ST_Height(newraster);
+        rowincx int := Coalesce(rowinc, w);
+        colincx int := Coalesce(colinc, h);
+        rowincy int := Coalesce(rowinc, 1);
+        colincy int := Coalesce(colinc, 1);
+        xdir int := CASE WHEN Coalesce(incwithx, true) THEN 1 ELSE w END;
+        ydir int := CASE WHEN Coalesce(incwithy, true) THEN 1 ELSE h END;
+        xdflag int := Coalesce(incwithx::int, 1);
+        ydflag int := Coalesce(incwithy::int, 1);
+        rsflag int := Coalesce(rowscanorder::int, 1);
+        newstartvalue int := Coalesce(startvalue, 0);
+        newrowsfirst boolean := Coalesce(rowsfirst, true);
+    BEGIN
+        IF newrowsfirst THEN
+            IF colincx <= (h - 1) * rowincy THEN
+                RAISE EXCEPTION 'Column increment (now %) must be greater than the number of index on one column (now % pixel x % = %)...', colincx, h - 1, rowincy, (h - 1) * rowincy;
+            END IF;
+            --RAISE NOTICE 'abs([rast.x] - %) * % + abs([rast.y] - (% ^ ((abs([rast.x] - % + 1) % 2) | % # ))::int) * % + %', xdir::text, colincx::text, h::text, xdir::text, rsflag::text, ydflag::text, rowincy::text, newstartvalue::text;
+            newraster = ST_SetBandNodataValue(
+                          ST_MapAlgebra(newraster, 
+                                        pixeltype, 
+                                        'abs([rast.x] - ' || xdir::text || ') * ' || colincx::text || 
+                                        ' + abs([rast.y] - (' || h::text || ' ^ ((abs([rast.x] - ' || 
+                                        xdir::text || ' + 1) % 2) | ' || rsflag::text || ' # ' || 
+                                        ydflag::text || '))::int) * ' || rowincy::text || ' + ' || newstartvalue::text),
+                          ST_BandNodataValue(newraster)
+                        );
+        ELSE
+            IF rowincx <= (w - 1) * colincy THEN
+                RAISE EXCEPTION 'Row increment (now %) must be greater than the number of index on one row (now % pixel x % = %)...', rowincx, w - 1, colincy, (w - 1) * colincy;
+            END IF;
+            newraster = ST_SetBandNodataValue(
+                          ST_MapAlgebra(newraster, 
+                                        pixeltype, 
+                                        'abs([rast.x] - (' || w::text || ' ^ ((abs([rast.y] - ' || 
+                                        ydir::text || ' + 1) % 2) | ' || rsflag::text || ' # ' || 
+                                        xdflag::text || '))::int) * ' || colincy::text || ' + abs([rast.y] - ' || 
+                                        ydir::text || ') * ' || rowincx::text || ' + ' || newstartvalue::text), 
+                          ST_BandNodataValue(newraster)
+                        );
+        END IF;    
+    RETURN newraster;
+END;
+$$
+LANGUAGE plpgsql IMMUTABLE;
 -------------------------------------------------------------------------------
