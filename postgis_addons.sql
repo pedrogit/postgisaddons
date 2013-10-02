@@ -3,9 +3,9 @@
 -- Version 1.6 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
--- The PostGIS add-ons attempt to gathers, in a single .sql file, useful and 
+-- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
 -- generic user contributed PL/pgSQL functions and to provide a fast and Agile 
--- way to release them. Files will be tagged with an incremental version number
+-- release cycle. Files will be tagged with an incremental version number
 -- for every significant change or addition. They should ALWAYS be left in a 
 -- stable, installable and tested state.
 --
