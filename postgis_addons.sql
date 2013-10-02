@@ -1,7 +1,7 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.5 for PostGIS 2.1.x and PostgreSQL 9.x
--- https://github.com/pedrogit/postgisaddons/releases
+-- Version 1.6 for PostGIS 2.1.x and PostgreSQL 9.x
+-- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gathers, in a single .sql file, useful and 
 -- generic user contributed PL/pgSQL functions and to provide a fast and Agile 
@@ -24,6 +24,7 @@
 --   - Must be documented according to the rules defined in this file.
 --   - Must be accompagned by a series of test in the postgis_addons_test.sql file.
 --   - Must have a drop statement in the postgis_addons_uninstall.sql file.
+--   - Must be indented like the existing functions (4 spaces, no tabs).
 -- 
 -- Companion files
 -- 
@@ -58,7 +59,7 @@
 --   rast raster - Raster in which to remove a band.
 --   band int    - Number of the band to remove.
 --
--- Remove a band from a raster. Band number starts at 1.
+-- Removes a band from a raster. Band number starts at 1.
 -----------------------------------------------------------
 -- Self contained example:
 --
@@ -73,18 +74,23 @@
 -- UPDATE rastertable SET rast = ST_DeleteBand(rast, 2);
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 26/09/2013 v. 0.1
+-- 26/09/2013 v. 1.4
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_DeleteBand(
     rast raster,
     band int
 ) 
-    RETURNS raster AS 
-    $$
+RETURNS raster AS $$
     DECLARE
         numband int := ST_NumBands(rast);
         newrast raster := ST_MakeEmptyRaster(rast);
     BEGIN
+        IF rast IS NULL THEN
+            RETURN null;
+        END IF;
+        IF band IS NULL THEN
+            RETURN rast;
+        END IF;
         FOR b IN 1..numband LOOP
             IF b != band THEN
                 newrast := ST_AddBand(newrast, rast, b, NULL);
@@ -92,8 +98,7 @@ CREATE OR REPLACE FUNCTION ST_DeleteBand(
         END LOOP;
         RETURN newrast;
     END;
-    $$
-    LANGUAGE 'plpgsql';
+$$ LANGUAGE 'plpgsql';
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -115,7 +120,7 @@ CREATE OR REPLACE FUNCTION ST_DeleteBand(
 --   rowinc int           - Row increment value. Must be greater than colinc * (ST_Width() - 1) when 
 --                          columnfirst is false.
 --
--- Create a new raster as an index grid.
+-- Creates a new raster as an index grid.
 -----------------------------------------------------------
 -- Self contained example:
 --
@@ -128,7 +133,7 @@ CREATE OR REPLACE FUNCTION ST_DeleteBand(
 -- SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 0, 0, 1, 1, 0, 0), '32BUI', 0, true, true, true, false, 1000, 10) rast;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 27/09/2013 v. 0.5
+-- 27/09/2013 v. 1.5
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_CreateIndexRaster(
     rast raster, 
@@ -141,8 +146,7 @@ CREATE OR REPLACE FUNCTION ST_CreateIndexRaster(
     colinc int DEFAULT NULL,
     rowinc int DEFAULT NULL
 )
-    RETURNS raster AS
-    $$
+RETURNS raster AS $$
     DECLARE
         newraster raster := ST_AddBand(ST_MakeEmptyRaster(rast), pixeltype);
         x int;
@@ -189,8 +193,81 @@ CREATE OR REPLACE FUNCTION ST_CreateIndexRaster(
                           ST_BandNodataValue(newraster)
                         );
         END IF;    
-    RETURN newraster;
-END;
-$$
-LANGUAGE plpgsql IMMUTABLE;
+        RETURN newraster;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_RandomPoints
+--
+--   geom - Geometry in which to create the random points. Should be a polygon 
+--          or a multipolygon.
+--   nb   - Number of random points to create.
+--   seed - Value between -1.0 and 1.0, inclusive, setting the seek if repeatable 
+--          results are desired. Default to null.
+--
+-- Generates points located randomly inside a geometry.
+-----------------------------------------------------------
+-- Self contained example creating 100 points:
+--
+-- SELECT ST_RandomPoints(ST_GeomFromText('POLYGON((-73 48,-72 49,-71 48,-69 49,-69 48,-71 47,-73 48))'), 1000, 0.5) geom;
+--
+-- Typical example creating a table of 1000 points inside the union of all the geometries of a table:
+--
+-- CREATE TABLE random_points AS
+-- SELECT ST_RandomPoints(ST_Union(geom), 1000) geom FROM geomtable;
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 10/01/2013 v. 1.6
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_RandomPoints(
+    geom geometry, 
+    nb integer,
+    seed numeric DEFAULT NULL
+) 
+RETURNS SETOF geometry AS $$ 
+    DECLARE 
+        pt geometry; 
+        xmin float8; 
+        xmax float8; 
+        ymin float8; 
+        ymax float8; 
+        xrange float8; 
+        yrange float8; 
+        srid int; 
+        count integer := 0; 
+        gtype text; 
+    BEGIN 
+        SELECT ST_GeometryType(geom) INTO gtype; 
+
+        IF (gtype IS NULL OR (gtype != 'ST_Polygon') AND (gtype != 'ST_MultiPolygon')) THEN 
+            RAISE NOTICE 'Attempting to get random points in a non polygon geometry';
+            RETURN NEXT null;
+            RETURN;
+        END IF; 
+
+        SELECT ST_XMin(geom), ST_XMax(geom), ST_YMin(geom), ST_YMax(geom), ST_SRID(geom) 
+        INTO xmin, xmax, ymin, ymax, srid; 
+
+        SELECT xmax - xmin, ymax - ymin 
+        INTO xrange, yrange; 
+
+        IF seed IS NOT NULL THEN 
+            PERFORM setseed(seed); 
+        END IF; 
+
+        WHILE count < nb LOOP 
+            SELECT ST_SetSRID(ST_MakePoint(xmin + xrange * random(), ymin + yrange * random()), srid) 
+            INTO pt; 
+
+            IF ST_Contains(geom, pt) THEN 
+                count := count + 1; 
+                RETURN NEXT pt; 
+            END IF; 
+        END LOOP; 
+        RETURN; 
+    END; 
+$$ LANGUAGE 'plpgsql';
+-------------------------------------------------------------------------------
+
