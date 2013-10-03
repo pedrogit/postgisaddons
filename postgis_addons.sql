@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.6 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.7 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -13,7 +13,7 @@
 -- minor revision to minor revision. New functions might be added though.
 --
 -- PostGIS PL/pgSQL Add-ons tries to make life as easy as possible for users
--- wishing to contribute their functions. This is why it limit itself to 
+-- wishing to contribute their functions. This is why it limits itself to 
 -- only three files: the main function executable file, a test file and an 
 -- unsinstall file. All function are documented inside the main function file 
 -- (this file). 
@@ -24,7 +24,7 @@
 --   - Must be documented according to the rules defined in this file.
 --   - Must be accompagned by a series of test in the postgis_addons_test.sql file.
 --   - Must have a drop statement in the postgis_addons_uninstall.sql file.
---   - Must be indented like the existing functions (4 spaces, no tabs).
+--   - Must be indented similarly to the already existing functions (4 spaces, no tabs).
 -- 
 -- Companion files
 -- 
@@ -51,8 +51,18 @@
 --   - Links to more examples on the web (blog post, etc...),
 --   - Authors names with emails,
 --   - Date and version of availability (date of inclusion in PostGIS Add-ons).
+--
 -------------------------------------------------------------------------------
-
+-- Function list
+--
+--   ST_DeleteBand - Removes a band from a raster. Band number starts at 1.
+--   ST_CreateIndexRaster - Creates a new raster as an index grid.
+--   ST_RandomPoints - Generates points located randomly inside a geometry.
+--   ST_ColumnExists - Return true if a column exist in a table.
+--   ST_AddUniqueID - Add a column to a table and fill it with a unique integer starting at 1.
+--
+-------------------------------------------------------------------------------
+-- Begin Function Definitions...
 -------------------------------------------------------------------------------
 -- ST_DeleteBand
 --
@@ -91,6 +101,7 @@ RETURNS raster AS $$
         IF band IS NULL THEN
             RETURN rast;
         END IF;
+        -- Reconstruct the raster skippind the band to delete
         FOR b IN 1..numband LOOP
             IF b != band THEN
                 newrast := ST_AddBand(newrast, rast, b, NULL);
@@ -98,7 +109,7 @@ RETURNS raster AS $$
         END LOOP;
         RETURN newrast;
     END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE 'plpgsql' VOLATILE;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -241,22 +252,27 @@ RETURNS SETOF geometry AS $$
     BEGIN 
         SELECT ST_GeometryType(geom) INTO gtype; 
 
+        -- Make sure the geometry is some kind of polygon
         IF (gtype IS NULL OR (gtype != 'ST_Polygon') AND (gtype != 'ST_MultiPolygon')) THEN 
             RAISE NOTICE 'Attempting to get random points in a non polygon geometry';
             RETURN NEXT null;
             RETURN;
         END IF; 
 
+        -- Compute the extent
         SELECT ST_XMin(geom), ST_XMax(geom), ST_YMin(geom), ST_YMax(geom), ST_SRID(geom) 
         INTO xmin, xmax, ymin, ymax, srid; 
 
+        -- and the range of the extent
         SELECT xmax - xmin, ymax - ymin 
         INTO xrange, yrange; 
 
+        -- Set the seed if provided
         IF seed IS NOT NULL THEN 
             PERFORM setseed(seed); 
         END IF; 
 
+        -- Find valid points one after the other checking if they are inside the polygon
         WHILE count < nb LOOP 
             SELECT ST_SetSRID(ST_MakePoint(xmin + xrange * random(), ymin + yrange * random()), srid) 
             INTO pt; 
@@ -268,6 +284,123 @@ RETURNS SETOF geometry AS $$
         END LOOP; 
         RETURN; 
     END; 
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE 'plpgsql' VOLATILE STRICT;
 -------------------------------------------------------------------------------
 
+-------------------------------------------------------------------------------
+-- ST_ColumnExists
+--
+--   schemaname - Name of the schema containing the table in which to check for 
+--                the existance of a column.
+--   tablename  - Name of the table in which to check for the existance of a column.
+--   columnname - Name of the column to check for the existence of.
+--
+-- Return true if a column exist in a table. Mainly defined to be used by ST_AddUniqueID().
+-----------------------------------------------------------
+-- Self contained example:
+--
+-- SELECT ST_ColumnExists('public', 'spatial_ref_sys', 'srid') ;
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 10/02/2013 v. 1.7
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_ColumnExists(
+    schemaname name, 
+    tablename name, 
+    columnname name
+)
+RETURNS BOOLEAN AS $$
+    DECLARE
+    BEGIN
+        PERFORM 1 FROM information_schema.COLUMNS 
+        WHERE table_schema=schemaname AND table_name=tablename AND column_name=columnname;
+        RETURN FOUND;
+    END;
+$$ LANGUAGE plpgsql VOLATILE STRICT;
+
+-- Variant defaulting to the 'public' schemaname
+CREATE OR REPLACE FUNCTION ST_ColumnExists(
+    tablename name, 
+    columnname name
+) 
+RETURNS BOOLEAN AS $$
+    SELECT ST_ColumnExists('public', $1, $2)
+$$ LANGUAGE sql VOLATILE STRICT;
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_AddUniqueID
+--
+--   schemaname    - Name of the schema containing the table in which to check for 
+--                   the existance of a column.
+--   tablename     - Name of the table in which to check for the existance of a column.
+--   columnname    - Name of the column to check for the existence of.
+--   replacecolumn - If set to true, drop and replace the column if it already exists.
+--
+-- Add a column to a table and fill it with a unique integer starting at 1.
+-- This is useful when you don't want to create a new table for whatever reason.
+-- If you want to create a new table just:
+--
+-- CREATE SEQUENCE foo_id_seq;
+-- CREATE TABLE newtable AS
+-- SELECT *, nextval('foo_id_seq') id
+-- FROM oldtable;
+-----------------------------------------------------------
+-- Self contained example:
+--
+-- SELECT ST_AddUniqueID('spatial_ref_sys', 'id', true);
+-- ALTER TABLE spatial_ref_sys DROP COLUMN if;
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 10/02/2013 v. 1.7
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_AddUniqueID(
+    schemaname name, 
+    tablename name, 
+    columnname name, 
+    replacecolumn boolean DEFAULT false
+)
+RETURNS boolean AS $$
+    DECLARE
+        seqname text;
+        fqtn text;
+    BEGIN
+        -- Determine the complete name of the table
+        fqtn := '';
+        IF length(schemaname) > 0 THEN
+            fqtn := quote_ident(schemaname) || '.';
+        END IF;
+        fqtn := fqtn || quote_ident(tablename);
+
+        -- Check if the requested column name already exists
+        IF ST_ColumnExists(schemaname, tablename, columnname) THEN
+            IF replacecolumn THEN
+                EXECUTE 'ALTER TABLE ' || fqtn || ' DROP COLUMN ' || quote_ident(columnname); 
+            ELSE
+                RAISE NOTICE 'Column already exist. Add ''true'' as the last argument if you want to replace the column.';
+                RETURN false;
+            END IF;
+         END IF;
+
+         -- Create a new sequence
+         seqname = schemaname || '_' || tablename || '_seq';
+         EXECUTE 'DROP SEQUENCE IF EXISTS ' || quote_ident(seqname);
+         EXECUTE 'CREATE SEQUENCE ' || quote_ident(seqname);
+
+         -- Add the new column and update it with nextval('sequence')
+         EXECUTE 'ALTER TABLE ' || fqtn || ' ADD COLUMN ' || quote_ident(columnname) || ' INTEGER';
+         EXECUTE 'UPDATE ' || fqtn || ' SET ' || quote_ident(columnname) || ' = nextval(''' || quote_ident(seqname) || ''')';
+
+         RETURN true;
+    END;
+$$ LANGUAGE 'plpgsql' VOLATILE STRICT;
+
+-- Variant defaulting to the 'public' schemaname
+CREATE OR REPLACE FUNCTION ST_AddUniqueID(
+    tablename name, 
+    columnname name, 
+    replacecolumn boolean DEFAULT false
+) 
+RETURNS BOOLEAN AS $$
+    SELECT ST_AddUniqueID('public', $1, $2, $3)
+$$ LANGUAGE sql VOLATILE STRICT;

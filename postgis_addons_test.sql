@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.6 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.7 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This test file return a table of two columns: 
@@ -21,6 +21,13 @@
 --   - a null geometry or a null raster
 --   - a no band raster
 --
+-----------------------------------------------------------
+-- Table necessary to test ST_AddUniqueID
+DROP TABLE IF EXISTS public.test_adduniqueid;
+CREATE TABLE public.test_adduniqueid AS
+SELECT * FROM (VALUES ('one'), ('two'), ('three')) AS t (column1);
+
+SELECT ST_AddUniqueID('public', 'test_adduniqueid', 'column2');
 -----------------------------------------------------------
 -- Comment out the following line and the last one of the file to display 
 -- only failing tests
@@ -94,6 +101,7 @@ FROM (SELECT ST_AddBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1),
                         ARRAY[ROW(NULL, '8BUI', 255, 0), 
                               ROW(NULL, '16BUI', 1, 2)]::addbandarg[]) rast
      ) foo
+
 ---------------------------------------------------------
 -- Test ST_CreateIndexRaster
 ---------------------------------------------------------
@@ -231,6 +239,7 @@ SELECT '2.15'::text number,
 
 ---------------------------------------------------------
 -- Test ST_RandomPoints
+---------------------------------------------------------
 
 UNION ALL
 SELECT '3.1'::text number,
@@ -252,16 +261,50 @@ SELECT '3.3'::text number,
         ST_RandomPoints(ST_GeomFromText('GEOMETRYCOLLECTION EMPTY'), 10, 0.5) IS NULL
 
 ---------------------------------------------------------
--- To add a text, copy the next test template above...
----------------------------------------------------------
--- Test ST_FunctionName
+-- Test ST_ColumnExists
 ---------------------------------------------------------
 
--- UNION ALL
--- SELECT 'x.y'::text number,
---        'ST_FunctionName'::text function_tested,
---        'Write a descriotion here'::text description,
---        Actual call to the function to test = 'what the test should equal' passed
+UNION ALL
+SELECT '4.1'::text number,
+       'ST_ColumnExists'::text function_tested,
+       'Simple test'::text description,
+       ST_ColumnExists('public', 'test_adduniqueid', 'column1') passed
+---------------------------------------------------------
+UNION ALL
+SELECT '4.2'::text number,
+       'ST_ColumnExists'::text function_tested,
+       'Simple negative test'::text description,
+       NOT ST_ColumnExists('public', 'test_adduniqueid', 'column1crap') passed
+---------------------------------------------------------
+UNION ALL
+SELECT '4.3'::text number,
+       'ST_ColumnExists'::text function_tested,
+       'Default schema variant'::text description,
+       ST_ColumnExists('test_adduniqueid', 'column1') passed
+---------------------------------------------------------
+-- Test ST_ColumnExists
+---------------------------------------------------------
+
+UNION ALL
+SELECT '5.1'::text number,
+       'ST_AddUniqueID'::text function_tested,
+       'Use ST_ColumnExists to check if column2 was correctly added above'::text description,
+       ST_ColumnExists('public', 'test_adduniqueid', 'column2') passed
+---------------------------------------------------------
+UNION ALL
+SELECT '5.2'::text number,
+       'ST_AddUniqueID'::text function_tested,
+       'Test replacement of existing column2'::text description,
+       ST_AddUniqueID('public', 'test_adduniqueid', 'column2', true) passed
+---------------------------------------------------------
+UNION ALL
+SELECT '5.3'::text number,
+       'ST_AddUniqueID'::text function_tested,
+       'Test variant defaulting to public schema'::text description,
+       ST_AddUniqueID('public', 'test_adduniqueid', 'column2', true) passed
+--------------------------------------------------------
+
+
 ---------------------------------------------------------
 -- This last line has to be commented out, with the line at the beginning,
 -- to display only failing tests...
