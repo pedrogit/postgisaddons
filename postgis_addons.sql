@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.7 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.8 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -317,7 +317,7 @@ RETURNS BOOLEAN AS $$
         RETURN FOUND;
     END;
 $$ LANGUAGE plpgsql VOLATILE STRICT;
-
+-----------------------------------------------------------
 -- Variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_ColumnExists(
     tablename name, 
@@ -394,7 +394,7 @@ RETURNS boolean AS $$
          RETURN true;
     END;
 $$ LANGUAGE 'plpgsql' VOLATILE STRICT;
-
+-----------------------------------------------------------
 -- Variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_AddUniqueID(
     tablename name, 
@@ -404,3 +404,328 @@ CREATE OR REPLACE FUNCTION ST_AddUniqueID(
 RETURNS BOOLEAN AS $$
     SELECT ST_AddUniqueID('public', $1, $2, $3)
 $$ LANGUAGE sql VOLATILE STRICT;
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_AreaWeightedSummaryStats
+--
+--   geomval - The geomval couple resulting from ST_Intersection(raster, geometry).
+--             A variant taking a geometry and a value also exist.
+--
+-- Aggregate computing statistics of a series of intersecting value weighted by the 
+-- area of the corresponding geometry.
+--
+-- Statictics computed are:
+--
+--   - count          - Number of values in the aggregate.
+--   - distinctcount  - Number of different values in the aggregate.
+--   - geom           - Geometric union of all the geometries involved in the aggregate.
+--   - totalarea      - Total area of all the geometries involved in the aggregate (might 
+--                      be greater than the area of the unioned geometry if there are 
+--                      overlapping geometries).
+--   - meanarea       - Mean area of the geometries involved in the aggregate.
+--   - totalperimeter - Total perimeter of all the geometries involved in the aggregate.
+--   - meanperimeter  - Mean perimeter of the geometries involved in the aggregate.
+--   - weightedsum    - Sum of all the values involved in the aggregate multiplied by 
+--                      (weighted by) the area of each geometry.
+--   - weightedmean   - Weighted sum divided by the total area.
+--   - maxareavalue   - Value of the geometry having the greatest area.
+--   - minareavalue   - Value of the geometry having the smallest area.
+--   - maxcombinedareavalue - Value of the geometry having the greatest area after 
+--                            geometries with the same value have been unioned.
+--   - mincombinedareavalue - Value of the geometry having the smallest area after 
+--                            geometries with the same value have been unioned.
+--   - sum            - Simple sum of all the values in the aggregate.
+--   - man            - Simple mean of all the values in the aggregate.
+--   - max            - Simple max of all the values in the aggregate.
+--   - min            - Simple min of all the values in the aggregate.
+--
+-- This function aggregates the geometries and associated values when extracting values 
+-- from one table with a table of polygons using ST_Intersection. It was specially 
+-- written to be used with ST_Intersection(raster, geometry) which returns a set of 
+-- (geometry, value) which have to be aggregated considering the relative importance 
+-- of the area intersecting with each pixel of the raster. The function is provided 
+-- only to avoid having to write the correct, often tricky, syntax to aggregate those 
+-- values.
+--
+-- Since ST_AreaWeightedSummaryStats is an aggregate, you always have to
+-- add a GROUP BY clause to tell which column to use to group the polygons parts and 
+-- aggregate the corresponding values.
+--
+-- Note that you will always get better performance by writing yourself the right code 
+-- to aggregate any of the values computed by ST_AreaWeightedSummaryStats. But for 
+-- relatively small datasets, it will often be faster to use this function than to try 
+-- to write the proper code. 
+-- 
+-- Sometimes, for tricky reasons, the function might fail when it tries to recreate 
+-- the original geometry by ST_Unioning the intersected parts. When ST_Union 
+-- fails, the whole ST_AreaWeightedSummaryStats function fails. If this happens, you will
+-- probably have to write your own aggregating code to avoid the unioning.
+--
+-- This function can also be used when intersecting two geometry tables where geometries
+-- are split in multiple parts.
+-----------------------------------------------------------
+-- Self contained example:
+--
+-- SELECT id,
+--        (aws).count, 
+--        (aws).distinctcount,
+--        (aws).geom, 
+--        (aws).totalarea, 
+--        (aws).meanarea, 
+--        (aws).totalperimeter, 
+--        (aws).meanperimeter, 
+--        (aws).weightedsum, 
+--        (aws).weightedmean, 
+--        (aws).maxareavalue, 
+--        (aws).minareavalue, 
+--        (aws).maxcombinedareavalue, 
+--        (aws).mincombinedareavalue, 
+--        (aws).sum, 
+--        (aws).mean, 
+--        (aws).max, 
+--        (aws).min
+-- FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
+--       FROM (SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((0 0,0 10, 10 10, 10 0, 0 0))') as geom, 'a' as id, 100 as val
+--             UNION ALL
+--             SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((12 0,12 1, 13 1, 13 0, 12 0))') as geom, 'a' as id, 1 as val
+--             UNION ALL
+--             SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((10 0, 10 2, 12 2, 12 0, 10 0))') as geom, 'b' as id, 4 as val
+--             UNION ALL
+--             SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((10 2, 10 3, 12 3, 12 2, 10 2))') as geom, 'b' as id, 2 as val
+--             UNION ALL
+--             SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((10 3, 10 4, 12 4, 12 3, 10 3))') as geom, 'b' as id, 2 as val
+--             UNION ALL
+--             SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((10 4, 10 5, 12 5, 12 4, 10 4))') as geom, 'b' as id, 2 as val
+--            ) foo1
+--       GROUP BY id
+--      ) foo2
+--
+-- Typical exemple:
+--
+-- SELECT gt.id,
+--        (aws).geom, 
+--        (aws).totalarea, 
+--        (aws).weightedmean, 
+-- FROM (SELECT ST_AreaWeightedSummaryStats(gv) aws
+--       FROM (SELECT ST_Intersection(rt.rast, gt.geom) gv
+--             FROM rasttable rt, geomtable gt
+--             WHERE ST_Intersects(rt.rast, gt.geom)
+--            ) foo1
+--       GROUP BY gt.id
+--      ) foo2
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 10/02/2013 v. 1.8
+-----------------------------------------------------------
+-- Type returned by the final state function
+CREATE TYPE agg_areaweightedstats AS (
+    count int,
+    distinctcount int,
+    geom geometry,
+    totalarea double precision,
+    meanarea  double precision,
+    totalperimeter double precision,
+    meanperimeter  double precision,
+    weightedsum  double precision,
+    weightedmean double precision,
+    maxareavalue double precision,
+    minareavalue double precision,
+    maxcombinedareavalue double precision, 
+    mincombinedareavalue double precision, 
+    sum  double precision, 
+    mean double precision, 
+    max  double precision, 
+    min  double precision
+);
+-----------------------------------------------------------
+-- Type returned by the state function
+CREATE TYPE agg_areaweightedstatsstate AS (
+    count int,
+    distinctvalues double precision[],
+    unionedgeom geometry,
+    totalarea double precision,
+    totalperimeter double precision,
+    weightedsum  double precision,
+    maxareavalue double precision[],
+    minareavalue double precision[],
+    combinedweightedareas double precision[], 
+    sum double precision, 
+    max double precision, 
+    min double precision
+);
+-----------------------------------------------------------
+-- State function
+CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
+    aws agg_areaweightedstatsstate, 
+    gv geomval
+)
+RETURNS agg_areaweightedstatsstate  AS $$
+    DECLARE
+        i int;
+        ret agg_areaweightedstatsstate;
+        newcombinedweightedareas double precision[] := ($1).combinedweightedareas;
+        newgeom geometry := ($2).geom;
+        geomtype text := GeometryType(($2).geom);
+    BEGIN
+        -- If the geometry is a GEOMETRYCOLLECTION extract the polygon part
+        IF geomtype = 'GEOMETRYCOLLECTION' THEN 
+            newgeom := ST_CollectionExtract(newgeom, 3);
+        END IF;
+        -- Skip anything that is not a polygon
+        IF newgeom IS NULL OR ST_IsEmpty(newgeom) OR geomtype = 'POINT' OR geomtype = 'LINESTRING' OR geomtype = 'MULTIPOINT' OR geomtype = 'MULTILINESTRING' THEN 
+            ret := aws;
+        -- At the first iteration the state parameter is always null
+        ELSEIF $1 IS NULL THEN 
+            ret := (1,                                 -- count
+                    ARRAY[($2).val],                   -- distinctvalues
+                    newgeom,                           -- unionedgeom
+                    ST_Area(newgeom),                  -- totalarea
+                    ST_Perimeter(newgeom),             -- totalperimeter
+                    ($2).val * ST_Area(newgeom),       -- weightedsum
+                    ARRAY[ST_Area(newgeom), ($2).val], -- maxareavalue
+                    ARRAY[ST_Area(newgeom), ($2).val], -- minareavalue
+                    ARRAY[ST_Area(newgeom)],           -- combinedweightedareas
+                    ($2).val,                          -- sum
+                    ($2).val,                          -- max
+                    ($2).val                           -- min
+                   )::agg_areaweightedstatsstate;
+        ELSE
+            -- Search for the new value in the array of distinct values
+            SELECT n 
+            FROM generate_series(1, array_length(($1).distinctvalues, 1)) n 
+            WHERE (($1).distinctvalues)[n] = ($2).val 
+            INTO i;
+
+            -- If the value already exists, increment the corresponding area with the new area
+            IF NOT i IS NULL THEN
+                newcombinedweightedareas[i] := newcombinedweightedareas[i] + ST_Area(newgeom);
+            END IF;
+            ret := (($1).count + 1, -- count
+                    CASE WHEN i IS NULL 
+                         THEN array_append(($1).distinctvalues, ($2).val) -- distinctvalues
+                         ELSE ($1).distinctvalues 
+                    END, 
+                    ST_Union(($1).unionedgeom, newgeom),                -- unionedgeom
+                    ($1).totalarea + ST_Area(newgeom),                  -- totalarea
+                    ($1).totalperimeter + ST_Perimeter(newgeom),        -- totalperimeter
+                    ($1).weightedsum + ($2).val * ST_Area(newgeom),     -- weightedsum
+                    CASE WHEN ST_Area(newgeom) > (($1).maxareavalue)[1] -- maxareavalue
+                         THEN ARRAY[ST_Area(newgeom), ($2).val] 
+                         ELSE ($1).maxareavalue
+                    END,
+                    CASE WHEN ST_Area(newgeom) < (($1).minareavalue)[1] -- minareavalue
+                         THEN ARRAY[ST_Area(newgeom), ($2).val] 
+                         ELSE ($1).minareavalue 
+                    END,
+                    CASE WHEN i IS NULL                                 -- combinedweightedareas
+                         THEN array_append(($1).combinedweightedareas, ST_Area(newgeom)) 
+                         ELSE newcombinedweightedareas 
+                    END,
+                    ($1).sum + ($2).val,                                -- sum
+                    greatest(($1).max, ($2).val),                       -- max
+                    least(($1).min, ($2).val)                           -- min
+                   )::agg_areaweightedstatsstate;
+        END IF;
+        RETURN ret;
+    END;
+$$ LANGUAGE 'plpgsql';
+-----------------------------------------------------------
+-- State function variant taking a geometry and a value, converting them to a geomval
+CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
+    aws agg_areaweightedstatsstate, 
+    geom geometry, 
+    val double precision
+)
+RETURNS agg_areaweightedstatsstate AS $$
+   SELECT _ST_AreaWeightedSummaryStats_StateFN($1, ($2, $3)::geomval);
+$$ LANGUAGE 'sql';
+-----------------------------------------------------------
+-- State function variant defaulting the value to 1 and creating a geomval
+CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
+    aws agg_areaweightedstatsstate, 
+    geom geometry
+)
+RETURNS agg_areaweightedstatsstate AS $$
+    SELECT _ST_AreaWeightedSummaryStats_StateFN($1, ($2, 1)::geomval);
+$$ LANGUAGE 'sql';
+-----------------------------------------------------------
+-- Final function
+CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_FinalFN(
+    aws agg_areaweightedstatsstate
+)
+RETURNS agg_areaweightedstats AS $$
+    DECLARE
+        a RECORD;
+        maxarea double precision = 0.0;
+        minarea double precision = (($1).combinedweightedareas)[1];
+        imax int := 1;
+        imin int := 1;
+        ret agg_areaweightedstats;
+    BEGIN
+        -- Search for the max and the min areas in the array of all distinct values
+        FOR a IN SELECT n, (($1).combinedweightedareas)[n] warea 
+                 FROM generate_series(1, array_length(($1).combinedweightedareas, 1)) n LOOP
+            IF a.warea > maxarea THEN
+                imax := a.n;
+                maxarea = a.warea;
+            END IF;
+            IF a.warea < minarea THEN
+                imin := a.n;
+                minarea = a.warea;
+            END IF;    
+        END LOOP;
+
+        ret := (($1).count,
+                array_length(($1).distinctvalues, 1),
+                ($1).unionedgeom,
+                ($1).totalarea,
+                ($1).totalarea / ($1).count,
+                ($1).totalperimeter,
+                ($1).totalperimeter / ($1).count,
+                ($1).weightedsum,
+                ($1).weightedsum / ($1).totalarea,
+                (($1).maxareavalue)[2],
+                (($1).minareavalue)[2],
+                (($1).distinctvalues)[imax],
+                (($1).distinctvalues)[imin],
+                ($1).sum,
+                ($1).sum / ($1).count, 
+                ($1).max,
+                ($1).min
+               )::agg_areaweightedstats;
+        RETURN ret;
+    END;
+$$ LANGUAGE 'plpgsql';
+-----------------------------------------------------------
+-- Aggregate definition
+CREATE AGGREGATE ST_AreaWeightedSummaryStats(
+    geomval
+) 
+(
+  SFUNC=_ST_AreaWeightedSummaryStats_StateFN,
+  STYPE=agg_areaweightedstatsstate,
+  FINALFUNC=_ST_AreaWeightedSummaryStats_FinalFN
+);
+-----------------------------------------------------------
+-- Aggregate variant taking a geometry and a value
+CREATE AGGREGATE ST_AreaWeightedSummaryStats(
+    geometry, 
+    double precision
+) 
+(
+  SFUNC=_ST_AreaWeightedSummaryStats_StateFN,
+  STYPE=agg_areaweightedstatsstate,
+  FINALFUNC=_ST_AreaWeightedSummaryStats_FinalFN
+);
+-----------------------------------------------------------
+-- Aggregate variant defaulting the value to 1
+CREATE AGGREGATE ST_AreaWeightedSummaryStats(
+    geometry
+)
+(
+  SFUNC=_ST_AreaWeightedSummaryStats_StateFN,
+  STYPE=agg_areaweightedstatsstate,
+  FINALFUNC=_ST_AreaWeightedSummaryStats_FinalFN
+);
+-------------------------------------------------------------------------------

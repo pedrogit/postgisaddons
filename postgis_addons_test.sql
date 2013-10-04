@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.7 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.8 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This test file return a table of two columns: 
@@ -34,7 +34,7 @@ SELECT ST_AddUniqueID('public', 'test_adduniqueid', 'column2');
 --SELECT * FROM (
 
 ---------------------------------------------------------
--- Test ST_DeleteBand
+-- Test 1 - ST_DeleteBand
 ---------------------------------------------------------
 
 SELECT '1.1'::text number,
@@ -103,7 +103,7 @@ FROM (SELECT ST_AddBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1),
      ) foo
 
 ---------------------------------------------------------
--- Test ST_CreateIndexRaster
+-- Test 2 - ST_CreateIndexRaster
 ---------------------------------------------------------
 
 UNION ALL
@@ -238,7 +238,7 @@ SELECT '2.15'::text number,
                 '8BSI', -10, false, false, false, false, 2, 20)) passed
 
 ---------------------------------------------------------
--- Test ST_RandomPoints
+-- Test 3 - ST_RandomPoints
 ---------------------------------------------------------
 
 UNION ALL
@@ -261,7 +261,7 @@ SELECT '3.3'::text number,
         ST_RandomPoints(ST_GeomFromText('GEOMETRYCOLLECTION EMPTY'), 10, 0.5) IS NULL
 
 ---------------------------------------------------------
--- Test ST_ColumnExists
+-- Test 4 - ST_ColumnExists
 ---------------------------------------------------------
 
 UNION ALL
@@ -281,8 +281,9 @@ SELECT '4.3'::text number,
        'ST_ColumnExists'::text function_tested,
        'Default schema variant'::text description,
        ST_ColumnExists('test_adduniqueid', 'column1') passed
+
 ---------------------------------------------------------
--- Test ST_ColumnExists
+-- Test 5 - ST_AddUniqueID
 ---------------------------------------------------------
 
 UNION ALL
@@ -302,8 +303,51 @@ SELECT '5.3'::text number,
        'ST_AddUniqueID'::text function_tested,
        'Test variant defaulting to public schema'::text description,
        ST_AddUniqueID('public', 'test_adduniqueid', 'column2', true) passed
---------------------------------------------------------
 
+---------------------------------------------------------
+-- Test 6 - ST_AreaWeightedSummaryStats
+---------------------------------------------------------
+UNION ALL
+SELECT '6.1'::text number,
+       'ST_AreaWeightedSummaryStats'::text function_tested,
+       'General test'::text description,
+       array_agg(aws)::text = '{"(4,2,0103000000010000000B0000000000000000002440000000000000000000000000000024400000000000000040000000000000244000000000000008400000000000002440000000000000104000000000000024400000000000001440000000000000284000000000000014400000000000002840000000000000104000000000000028400000000000000840000000000000284000000000000000400000000000002840000000000000000000000000000024400000000000000000,10,2.5,26,6.5,28,2.8,4,2,2,4,10,2.5,4,2)","(2,2,01060000000200000001030000000100000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000001030000000100000005000000000000000000284000000000000000000000000000002840000000000000F03F0000000000002A40000000000000F03F0000000000002A40000000000000000000000000000028400000000000000000,101,50.5,44,22,10001,99.019801980198,100,1,100,1,101,50.5,100,1)"}'
+FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
+      FROM (SELECT ST_GeomFromEWKT('POLYGON((0 0,0 10, 10 10, 10 0, 0 0))') as geom, 'a' as id, 100 as val
+            UNION ALL
+            SELECT ST_GeomFromEWKT('POLYGON((12 0,12 1, 13 1, 13 0, 12 0))') as geom, 'a' as id, 1 as val
+            UNION ALL
+            SELECT ST_GeomFromEWKT('POLYGON((10 0, 10 2, 12 2, 12 0, 10 0))') as geom, 'b' as id, 4 as val
+            UNION ALL
+            SELECT ST_GeomFromEWKT('POLYGON((10 2, 10 3, 12 3, 12 2, 10 2))') as geom, 'b' as id, 2 as val
+            UNION ALL
+            SELECT ST_GeomFromEWKT('POLYGON((10 3, 10 4, 12 4, 12 3, 10 3))') as geom, 'b' as id, 2 as val
+            UNION ALL
+            SELECT ST_GeomFromEWKT('POLYGON((10 4, 10 5, 12 5, 12 4, 10 4))') as geom, 'b' as id, 2 as val
+           ) foo1
+      GROUP BY id
+     ) foo2
+---------------------------------------------------------
+UNION ALL
+SELECT '6.2'::text number,
+       'ST_AreaWeightedSummaryStats'::text function_tested,
+       'Test for null and empty geometry'::text description,
+       array_agg(aws)::text = '{"(2,1,0103000000010000000700000000000000000024400000000000000000000000000000244000000000000000400000000000002440000000000000084000000000000028400000000000000840000000000000284000000000000000400000000000002840000000000000000000000000000024400000000000000000,6,3,14,7,24,4,4,4,4,4,8,4,4,4)","(2,2,01060000000200000001030000000100000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000001030000000100000005000000000000000000284000000000000000000000000000002840000000000000F03F0000000000002A40000000000000F03F0000000000002A40000000000000000000000000000028400000000000000000,101,50.5,44,22,10001,99.019801980198,100,1,100,1,101,50.5,100,1)"}'
+FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
+      FROM (SELECT ST_GeomFromEWKT('POLYGON((0 0,0 10, 10 10, 10 0, 0 0))') as geom, 'a' as id, 100 as val
+            UNION ALL
+            SELECT ST_GeomFromEWKT('POLYGON((12 0,12 1, 13 1, 13 0, 12 0))') as geom, 'a' as id, 1 as val
+            UNION ALL
+            SELECT ST_GeomFromEWKT('POLYGON((10 0, 10 2, 12 2, 12 0, 10 0))') as geom, 'b' as id, 4 as val
+            UNION ALL
+            SELECT ST_GeomFromEWKT('POLYGON((10 2, 10 3, 12 3, 12 2, 10 2))') as geom, 'b' as id, 4 as val
+            UNION ALL
+            SELECT ST_GeomFromEWKT('GEOMETRYCOLLECTION EMPTY') as geom, 'b' as id, 2 as val
+            UNION ALL
+            SELECT null as geom, 'b' as id, 2 as val
+           ) foo1
+      GROUP BY id
+     ) foo2
 
 ---------------------------------------------------------
 -- This last line has to be commented out, with the line at the beginning,
