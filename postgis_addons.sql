@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.8 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.9 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -56,10 +56,22 @@
 -- Function list
 --
 --   ST_DeleteBand - Removes a band from a raster. Band number starts at 1.
+--
 --   ST_CreateIndexRaster - Creates a new raster as an index grid.
+--
 --   ST_RandomPoints - Generates points located randomly inside a geometry.
+--
 --   ST_ColumnExists - Return true if a column exist in a table.
---   ST_AddUniqueID - Add a column to a table and fill it with a unique integer starting at 1.
+--
+--   ST_AddUniqueID - Add a column to a table and fill it with a unique integer 
+--                    starting at 1.
+--
+--   ST_AreaWeightedSummaryStats - Aggregate function computing statistics on a 
+--                                 series of intersected values weighted by the 
+--                                 area of the corresponding geometry.
+--
+--   ST_SummaryStatsAgg - Aggregate function computing statistics on a series of 
+--                        rasters generally clipped by a geometry.
 --
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
@@ -85,6 +97,8 @@
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 26/09/2013 v. 1.4
+-----------------------------------------------------------
+
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_DeleteBand(
     rast raster,
@@ -145,6 +159,8 @@ $$ LANGUAGE 'plpgsql' VOLATILE;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 27/09/2013 v. 1.5
+-----------------------------------------------------------
+
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_CreateIndexRaster(
     rast raster, 
@@ -232,6 +248,8 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 10/01/2013 v. 1.6
 -----------------------------------------------------------
+
+-----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_RandomPoints(
     geom geometry, 
     nb integer,
@@ -304,6 +322,8 @@ $$ LANGUAGE 'plpgsql' VOLATILE STRICT;
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 10/02/2013 v. 1.7
 -----------------------------------------------------------
+
+-----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_ColumnExists(
     schemaname name, 
     tablename name, 
@@ -317,6 +337,7 @@ RETURNS BOOLEAN AS $$
         RETURN FOUND;
     END;
 $$ LANGUAGE plpgsql VOLATILE STRICT;
+
 -----------------------------------------------------------
 -- Variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_ColumnExists(
@@ -353,6 +374,8 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 10/02/2013 v. 1.7
+-----------------------------------------------------------
+
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_AddUniqueID(
     schemaname name, 
@@ -394,6 +417,7 @@ RETURNS boolean AS $$
          RETURN true;
     END;
 $$ LANGUAGE 'plpgsql' VOLATILE STRICT;
+
 -----------------------------------------------------------
 -- Variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_AddUniqueID(
@@ -409,15 +433,16 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -------------------------------------------------------------------------------
 -- ST_AreaWeightedSummaryStats
 --
---   geomval - The geomval couple resulting from ST_Intersection(raster, geometry).
+--   geomval - A set of geomval couple (geometry, value) resulting from 
+--             ST_Intersection(raster, geometry).
 --             A variant taking a geometry and a value also exist.
 --
--- Aggregate computing statistics of a series of intersecting value weighted by the 
--- area of the corresponding geometry.
+--   Aggregate function computing statistics on a series of intersected 
+--   values weighted by the area of the corresponding geometry.
 --
 -- Statictics computed are:
 --
---   - count          - Number of values in the aggregate.
+--   - count          - Total number of values in the aggregate.
 --   - distinctcount  - Number of different values in the aggregate.
 --   - geom           - Geometric union of all the geometries involved in the aggregate.
 --   - totalarea      - Total area of all the geometries involved in the aggregate (might 
@@ -486,20 +511,20 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --        (aws).max, 
 --        (aws).min
 -- FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
---       FROM (SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((0 0,0 10, 10 10, 10 0, 0 0))') as geom, 'a' as id, 100 as val
+--       FROM (SELECT ST_GeomFromEWKT('POLYGON((0 0,0 10, 10 10, 10 0, 0 0))') as geom, 'a' as id, 100 as val
 --             UNION ALL
---             SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((12 0,12 1, 13 1, 13 0, 12 0))') as geom, 'a' as id, 1 as val
+--             SELECT ST_GeomFromEWKT('POLYGON((12 0,12 1, 13 1, 13 0, 12 0))') as geom, 'a' as id, 1 as val
 --             UNION ALL
---             SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((10 0, 10 2, 12 2, 12 0, 10 0))') as geom, 'b' as id, 4 as val
+--             SELECT ST_GeomFromEWKT('POLYGON((10 0, 10 2, 12 2, 12 0, 10 0))') as geom, 'b' as id, 4 as val
 --             UNION ALL
---             SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((10 2, 10 3, 12 3, 12 2, 10 2))') as geom, 'b' as id, 2 as val
+--             SELECT ST_GeomFromEWKT('POLYGON((10 2, 10 3, 12 3, 12 2, 10 2))') as geom, 'b' as id, 2 as val
 --             UNION ALL
---             SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((10 3, 10 4, 12 4, 12 3, 10 3))') as geom, 'b' as id, 2 as val
+--             SELECT ST_GeomFromEWKT('POLYGON((10 3, 10 4, 12 4, 12 3, 10 3))') as geom, 'b' as id, 2 as val
 --             UNION ALL
---             SELECT ST_GeomFromEWKT('SRID=4269;POLYGON((10 4, 10 5, 12 5, 12 4, 10 4))') as geom, 'b' as id, 2 as val
+--             SELECT ST_GeomFromEWKT('POLYGON((10 4, 10 5, 12 5, 12 4, 10 4))') as geom, 'b' as id, 2 as val
 --            ) foo1
 --       GROUP BY id
---      ) foo2
+--      ) foo2;
 --
 -- Typical exemple:
 --
@@ -513,12 +538,14 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --             WHERE ST_Intersects(rt.rast, gt.geom)
 --            ) foo1
 --       GROUP BY gt.id
---      ) foo2
+--      ) foo2;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 10/02/2013 v. 1.8
 -----------------------------------------------------------
--- Type returned by the final state function
+
+-----------------------------------------------------------
+-- Type returned by the final _ST_AreaWeightedSummaryStats_FinalFN state function
 CREATE TYPE agg_areaweightedstats AS (
     count int,
     distinctcount int,
@@ -538,8 +565,9 @@ CREATE TYPE agg_areaweightedstats AS (
     max  double precision, 
     min  double precision
 );
+
 -----------------------------------------------------------
--- Type returned by the state function
+-- Type returned by the _ST_AreaWeightedSummaryStats_StateFN state function
 CREATE TYPE agg_areaweightedstatsstate AS (
     count int,
     distinctvalues double precision[],
@@ -554,8 +582,9 @@ CREATE TYPE agg_areaweightedstatsstate AS (
     max double precision, 
     min double precision
 );
+
 -----------------------------------------------------------
--- State function
+-- ST_AreaWeightedSummaryStats aggregate state function
 CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
     aws agg_areaweightedstatsstate, 
     gv geomval
@@ -601,9 +630,9 @@ RETURNS agg_areaweightedstatsstate  AS $$
             IF NOT i IS NULL THEN
                 newcombinedweightedareas[i] := newcombinedweightedareas[i] + ST_Area(newgeom);
             END IF;
-            ret := (($1).count + 1, -- count
-                    CASE WHEN i IS NULL 
-                         THEN array_append(($1).distinctvalues, ($2).val) -- distinctvalues
+            ret := (($1).count + 1,                                     -- count
+                    CASE WHEN i IS NULL                                 -- distinctvalues
+                         THEN array_append(($1).distinctvalues, ($2).val) 
                          ELSE ($1).distinctvalues 
                     END, 
                     ST_Union(($1).unionedgeom, newgeom),                -- unionedgeom
@@ -630,6 +659,7 @@ RETURNS agg_areaweightedstatsstate  AS $$
         RETURN ret;
     END;
 $$ LANGUAGE 'plpgsql';
+
 -----------------------------------------------------------
 -- State function variant taking a geometry and a value, converting them to a geomval
 CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
@@ -640,6 +670,7 @@ CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
 RETURNS agg_areaweightedstatsstate AS $$
    SELECT _ST_AreaWeightedSummaryStats_StateFN($1, ($2, $3)::geomval);
 $$ LANGUAGE 'sql';
+
 -----------------------------------------------------------
 -- State function variant defaulting the value to 1 and creating a geomval
 CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
@@ -649,8 +680,9 @@ CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
 RETURNS agg_areaweightedstatsstate AS $$
     SELECT _ST_AreaWeightedSummaryStats_StateFN($1, ($2, 1)::geomval);
 $$ LANGUAGE 'sql';
+
 -----------------------------------------------------------
--- Final function
+-- ST_AreaWeightedSummaryStats aggregate final function
 CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_FinalFN(
     aws agg_areaweightedstatsstate
 )
@@ -697,35 +729,191 @@ RETURNS agg_areaweightedstats AS $$
         RETURN ret;
     END;
 $$ LANGUAGE 'plpgsql';
+
 -----------------------------------------------------------
--- Aggregate definition
-CREATE AGGREGATE ST_AreaWeightedSummaryStats(
-    geomval
-) 
+-- ST_AreaWeightedSummaryStats aggregate definition
+CREATE AGGREGATE ST_AreaWeightedSummaryStats(geomval) 
 (
   SFUNC=_ST_AreaWeightedSummaryStats_StateFN,
   STYPE=agg_areaweightedstatsstate,
   FINALFUNC=_ST_AreaWeightedSummaryStats_FinalFN
 );
+
 -----------------------------------------------------------
--- Aggregate variant taking a geometry and a value
-CREATE AGGREGATE ST_AreaWeightedSummaryStats(
-    geometry, 
-    double precision
-) 
+-- ST_AreaWeightedSummaryStats aggregate variant taking a 
+-- geometry and a value. Useful when used with two geometry tables.
+CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry, double precision) 
 (
   SFUNC=_ST_AreaWeightedSummaryStats_StateFN,
   STYPE=agg_areaweightedstatsstate,
   FINALFUNC=_ST_AreaWeightedSummaryStats_FinalFN
 );
+
 -----------------------------------------------------------
--- Aggregate variant defaulting the value to 1
-CREATE AGGREGATE ST_AreaWeightedSummaryStats(
-    geometry
-)
+-- ST_AreaWeightedSummaryStats aggregate variant defaulting 
+-- the value to 1.
+-- Useful when querying for stat not involving the value like
+-- count, distinctcount, geom, totalarea, meanarea, totalperimeter
+-- and meanperimeter.
+CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 (
   SFUNC=_ST_AreaWeightedSummaryStats_StateFN,
   STYPE=agg_areaweightedstatsstate,
   FINALFUNC=_ST_AreaWeightedSummaryStats_FinalFN
 );
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_SummaryStatsAgg
+--
+--   rast - Set of raster to be aggregated.
+--
+-- Aggregate function computing statistics on a series of rasters generally 
+-- clipped by a geometry.
+--
+-- Statictics computed are:
+--
+--   - count  - Total number of pixels in the aggregate.
+--   - sum    - Sum of all the pixel values in the aggregate.
+--   - mean   - Mean value of all the pixel values in the aggregate.
+--   - min    - Min value of all the pixel values in the aggregate.
+--   - max    - Max value of all the pixel values in the aggregate.
+--
+-- This function is generally used to aggregate the pixel values of the numerous 
+-- raster tiles clipped by a geometry. For large datasets, it should be faster than 
+-- ST_Unioning the ST_Clipped raster pieces together before calling ST_SummaryStats.
+-- One drawback of ST_SummaryStatsAgg over the ST_Union technique is that 
+-- ST_SummaryStatsAgg can not compute the standard deviation (because computing stddev
+-- require two passes over the pixel values).
+--
+-- Self contained example:
+--
+-- SELECT (ss).*
+-- FROM (SELECT ST_SummaryStatsAgg(rast) ss
+--       FROM (SELECT id, ST_Clip(rt.rast, gt.geom, 0.0) rast
+--             FROM (SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 0, 0, 1, 1, 0, 0), '8BUI') rast
+--                   UNION ALL
+--                   SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 10, 0, 1, 1, 0, 0), '8BUI')
+--                  ) rt, 
+--                  (SELECT 'a'::text id, ST_GeomFromEWKT('POLYGON((5 5, 15 7, 15 3, 5 5))') geom
+--                  ) gt
+--             WHERE ST_Intersects(rt.rast, gt.geom)
+--            ) foo1
+--       GROUP BY id
+--      ) foo2;
+--
+-- Typical exemple:
+--
+-- SELECT (ss).count, 
+--        (ss).sum, 
+--        (ss).mean, 
+--        (ss).min, 
+--        (ss).max
+-- FROM (SELECT ST_SummaryStatsAgg(rast) ss
+--       FROM (SELECT ST_Clip(rt.rast, gt.geom) rast -- ST_Clip assume there is a nodata value in the raster
+--             FROM rasttable rt, geomtable gt
+--             WHERE ST_Intersects(rt.rast, gt.geom)
+--            ) foo
+--       GROUP BY gt.id
+--      ) foo2;
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 10/07/2013 v. 1.9
+-----------------------------------------------------------
+
+-----------------------------------------------------------
+-- Type returned by the _ST_SummaryStatsAgg_StateFN state function
+CREATE TYPE agg_summarystats AS 
+(
+    count bigint,
+    sum double precision,
+    mean double precision,
+    min double precision,
+    max double precision
+);
+
+-- ST_SummaryStatsAgg aggregate state function
+CREATE OR REPLACE FUNCTION _ST_SummaryStatsAgg_StateFN(
+    ss agg_summarystats, 
+    rast raster, 
+    nband int DEFAULT 1, 
+    exclude_nodata_value boolean DEFAULT TRUE, 
+    sample_percent double precision DEFAULT 1)
+RETURNS agg_summarystats AS $$
+    DECLARE
+        newstats record;
+        ret agg_summarystats;
+    BEGIN
+        IF rast IS NULL OR ST_HasNoBand(rast) OR ST_IsEmpty(rast) THEN
+            RETURN ss;
+        END IF;
+        newstats := _ST_SummaryStats(rast, nband, exclude_nodata_value, sample_percent);
+        IF $1 IS NULL THEN
+            ret := (newstats.count,   -- count
+                    newstats.sum,     -- sum
+                    null,             -- future mean
+                    newstats.min,     -- min
+                    newstats.max      -- max
+                   )::agg_summarystats;
+        ELSE
+            ret := (COALESCE(ss.count,0) + COALESCE(newstats.count, 0), -- count
+                    COALESCE(ss.sum,0) + COALESCE(newstats.sum, 0),     -- sum
+                    null,                                               -- future mean
+                    least(ss.min, newstats.min),                        -- min
+                    greatest(ss.max, newstats.max)                      -- max
+                   )::agg_summarystats;      
+        END IF;
+RAISE NOTICE 'min %', newstats.min;
+        RETURN ret;
+    END;
+$$ LANGUAGE 'plpgsql';
+
+---------------------------------------------------------------------
+-- ST_SummaryStatsAgg aggregate variant state function defaulting band 
+-- number to 1, exclude_nodata_value to true and sample_percent to 1.
+CREATE OR REPLACE FUNCTION _ST_SummaryStatsAgg_StateFN(
+    ss agg_summarystats, 
+    rast raster
+)
+RETURNS agg_summarystats AS $$
+        SELECT _ST_SummaryStatsAgg_StateFN($1, $2, 1, true, 1);
+$$ LANGUAGE 'sql';
+
+---------------------------------------------------------------------
+-- ST_SummaryStatsAgg aggregate final function
+CREATE OR REPLACE FUNCTION _ST_SummaryStatsAgg_FinalFN(
+    ss agg_summarystats
+)
+RETURNS agg_summarystats AS $$
+    DECLARE
+        ret agg_summarystats;
+    BEGIN
+        ret := (($1).count,  -- count
+                ($1).sum,    -- sum
+                CASE WHEN ($1).count = 0 THEN null ELSE ($1).sum / ($1).count END,  -- mean
+                ($1).min,    -- min
+                ($1).max     -- max
+               )::agg_summarystats;
+        RETURN ret;
+    END;
+$$ LANGUAGE 'plpgsql';
+
+---------------------------------------------------------------------
+-- ST_SummaryStatsAgg aggregate definition
+CREATE AGGREGATE ST_SummaryStatsAgg(raster, int, boolean, double precision)
+(
+  SFUNC=_ST_SummaryStatsAgg_StateFN,
+  STYPE=agg_summarystats,
+  FINALFUNC=_ST_SummaryStatsAgg_FinalFN
+);
+
+---------------------------------------------------------------------
+-- ST_SummaryStatsAgg aggregate variant defaulting band number to 1, 
+-- exclude_nodata_value to true and sample_percent to 1.
+CREATE AGGREGATE ST_SummaryStatsAgg(raster)
+(
+  SFUNC=_ST_SummaryStatsAgg_StateFN,
+  STYPE=agg_summarystats,
+  FINALFUNC=_ST_SummaryStatsAgg_FinalFN
+);
+---------------------------------------------------------------------
