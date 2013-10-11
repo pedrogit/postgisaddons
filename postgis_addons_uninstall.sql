@@ -1,6 +1,6 @@
--------------------------------------------------------------------------------
+﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Uninstallation file
--- Version 1.9 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.10 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 
 DROP FUNCTION IF EXISTS ST_DeleteBand(raster, int);
@@ -31,3 +31,8 @@ DROP FUNCTION IF EXISTS _ST_SummaryStatsAgg_StateFN(agg_summarystats, raster, in
 DROP FUNCTION IF EXISTS _ST_SummaryStatsAgg_StateFN(agg_summarystats, raster);
 DROP FUNCTION IF EXISTS _ST_SummaryStatsAgg_FinalFN(agg_summarystats);
 DROP TYPE IF EXISTS agg_summarystats;
+
+DROP FUNCTION IF EXISTS ST_CentroidValue4ma(float, int[], text[]);
+DROP FUNCTION IF EXISTS ST_GeomValue4ma(float, int[], text[]);
+DROP FUNCTION IF EXISTS ST_ExtractToRaster(raster, integer, name, name, name, name, text);
+DROP FUNCTION IF EXISTS ST_ExtractToRaster(raster, name, name, name, name, text);

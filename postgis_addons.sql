@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.9 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.10 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -81,6 +81,8 @@
 --   rast raster - Raster in which to remove a band.
 --   band int    - Number of the band to remove.
 --
+--   RETURNS raster
+--
 -- Removes a band from a raster. Band number starts at 1.
 -----------------------------------------------------------
 -- Self contained example:
@@ -144,6 +146,8 @@ $$ LANGUAGE 'plpgsql' VOLATILE;
 --                          columnfirst is true.
 --   rowinc int           - Row increment value. Must be greater than colinc * (ST_Width() - 1) when 
 --                          columnfirst is false.
+--
+--   RETURNS raster
 --
 -- Creates a new raster as an index grid.
 -----------------------------------------------------------
@@ -228,11 +232,13 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -------------------------------------------------------------------------------
 -- ST_RandomPoints
 --
---   geom - Geometry in which to create the random points. Should be a polygon 
---          or a multipolygon.
---   nb   - Number of random points to create.
---   seed - Value between -1.0 and 1.0, inclusive, setting the seek if repeatable 
---          results are desired. Default to null.
+--   geom geometry - Geometry in which to create the random points. Should be a polygon 
+--                   or a multipolygon.
+--   nb int        - Number of random points to create.
+--   seed numeric  - Value between -1.0 and 1.0, inclusive, setting the seek if repeatable 
+--                   results are desired. Default to null.
+--
+--   RETURNS set of points
 --
 -- Generates points located randomly inside a geometry.
 -----------------------------------------------------------
@@ -302,16 +308,18 @@ RETURNS SETOF geometry AS $$
         END LOOP; 
         RETURN; 
     END; 
-$$ LANGUAGE 'plpgsql' VOLATILE STRICT;
+$$ LANGUAGE 'plpgsql' VOLATILE;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
 -- ST_ColumnExists
 --
---   schemaname - Name of the schema containing the table in which to check for 
---                the existance of a column.
---   tablename  - Name of the table in which to check for the existance of a column.
---   columnname - Name of the column to check for the existence of.
+--   schemaname name - Name of the schema containing the table in which to check for 
+--                     the existance of a column.
+--   tablename name  - Name of the table in which to check for the existance of a column.
+--   columnname name - Name of the column to check for the existence of.
+--
+--   RETURNS boolean
 --
 -- Return true if a column exist in a table. Mainly defined to be used by ST_AddUniqueID().
 -----------------------------------------------------------
@@ -339,7 +347,7 @@ RETURNS BOOLEAN AS $$
 $$ LANGUAGE plpgsql VOLATILE STRICT;
 
 -----------------------------------------------------------
--- Variant defaulting to the 'public' schemaname
+-- ST_ColumnExists variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_ColumnExists(
     tablename name, 
     columnname name
@@ -352,13 +360,16 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -------------------------------------------------------------------------------
 -- ST_AddUniqueID
 --
---   schemaname    - Name of the schema containing the table in which to check for 
---                   the existance of a column.
---   tablename     - Name of the table in which to check for the existance of a column.
---   columnname    - Name of the column to check for the existence of.
---   replacecolumn - If set to true, drop and replace the column if it already exists.
+--   schemaname name       - Name of the schema containing the table in which to check for 
+--                           the existance of a column.
+--   tablename name        - Name of the table in which to check for the existance of a column.
+--   columnname name       - Name of the column to check for the existence of.
+--   replacecolumn boolean - If set to true, drop and replace the column if it already exists.
 --
--- Add a column to a table and fill it with a unique integer starting at 1.
+--   RETURNS boolean
+--
+-- Add a column to a table and fill it with a unique integer starting at 1. Returns
+-- true if the operation succeeded, false otherwise.
 -- This is useful when you don't want to create a new table for whatever reason.
 -- If you want to create a new table just:
 --
@@ -419,7 +430,7 @@ RETURNS boolean AS $$
 $$ LANGUAGE 'plpgsql' VOLATILE STRICT;
 
 -----------------------------------------------------------
--- Variant defaulting to the 'public' schemaname
+-- ST_AddUniqueID variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_AddUniqueID(
     tablename name, 
     columnname name, 
@@ -433,7 +444,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -------------------------------------------------------------------------------
 -- ST_AreaWeightedSummaryStats
 --
---   geomval - A set of geomval couple (geometry, value) resulting from 
+--   geomval - A set of geomval couple (geometry, double precision) resulting from 
 --             ST_Intersection(raster, geometry).
 --             A variant taking a geometry and a value also exist.
 --
@@ -661,7 +672,8 @@ RETURNS agg_areaweightedstatsstate  AS $$
 $$ LANGUAGE 'plpgsql';
 
 -----------------------------------------------------------
--- State function variant taking a geometry and a value, converting them to a geomval
+-- _ST_AreaWeightedSummaryStats_StateFN state function variant taking a 
+-- geometry and a value, converting them to a geomval
 CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
     aws agg_areaweightedstatsstate, 
     geom geometry, 
@@ -672,7 +684,8 @@ RETURNS agg_areaweightedstatsstate AS $$
 $$ LANGUAGE 'sql';
 
 -----------------------------------------------------------
--- State function variant defaulting the value to 1 and creating a geomval
+-- _ST_AreaWeightedSummaryStats_StateFN state function variant defaulting 
+-- the value to 1 and creating a geomval
 CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
     aws agg_areaweightedstatsstate, 
     geom geometry
@@ -766,7 +779,7 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 -------------------------------------------------------------------------------
 -- ST_SummaryStatsAgg
 --
---   rast - Set of raster to be aggregated.
+--   rast raster - Set of raster to be aggregated.
 --
 -- Aggregate function computing statistics on a series of rasters generally 
 -- clipped by a geometry.
@@ -916,4 +929,353 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster)
   STYPE=agg_summarystats,
   FINALFUNC=_ST_SummaryStatsAgg_FinalFN
 );
+---------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_ExtractToRaster
+--
+--   rast raster          - Raster in which new values will be computed.
+--   band integer         - Band in which new values will be computed. A variant defaulting band to 1 exist.
+--   schemaname text      - Name of the schema containing the table from which to extract values.
+--   tablename text       - Name of the table from which to extract values from.
+--   geomcolumnname text  - Name of the column containing the geometry to use when extracting values.
+--   valuecolumnname text - Name of the column containing the value to use when extracting values.
+--   method text          - Name of the method of value extraction. Default to 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'.
+--
+--   RETURNS raster
+--
+-- Return a raster which values are extracted from a coverage using one spatial query for each pixel. It is
+-- VERY important that the coverage from which values are extracted be spatially indexed.
+--
+-- Methods for computing the values can be grouped in two categories: 
+-- 
+-- Values extracted at the pixel centroid:
+--
+--   - COUNT_OF_VALUES_AT_PIXEL_CENTROID: Number of features intersecting with the pixel centroid. 
+--                                        Can be greater than 1 if many geometries overlaps.
+--
+--   - MEAN_OF_VALUES_AT_PIXEL_CENTROID: Average of all values intersecting with the pixel centroid. 
+--                                       Can be greater than 1 if many geometries overlaps.
+--
+-- Values extracted for the whole square pixel:
+--
+--   - COUNT_OF_POLYGONS: Number of polygons or multipolygons intersecting with the pixel.
+--
+--   - COUNT_OF_LINESTRINGS: Number of linestrings or multilinestrings intersecting with the pixel.
+--
+--   - COUNT_OF_POINTS: Number of points or multipoints intersecting with the pixel.
+--
+--   - COUNT_OF_GEOMETRIES: Number of geometries (whatever they are) intersecting with the pixel.
+--
+--   - VALUE_OF_BIGGEST: Value associated with the polygon covering the biggest area in the pixel.
+--
+--   - VALUE_OF_MERGED_BIGGEST: Value associated with the polygon covering the biggest area in the  
+--                              pixel. Same value polygons are merged first.
+--
+--   - VALUE_OF_MERGED_SMALLEST: Value associated with the polygon covering the smallest area in the  
+--                               pixel. Same value polygons are merged first.
+--
+--   - MIN_AREA: Area of the geometry occupying the smallest area in the pixel.
+--
+--   - SUM_OF_AREAS: Sum of the areas of all polygons intersecting with the pixel.
+--
+--   - PROPORTION_OF_COVERED_AREA: Proportion, between 0.0 and 1.0, of the pixel area covered by the 
+--                                 conjunction of all the polygons intersecting with the pixel.
+--
+--   - AREA_WEIGHTED_MEAN_OF_VALUES: Mean of all polygon values weighted by their relative areas.
+--
+-- Many more methods can be added over time. An almost exhaustive list of possible method can be find
+-- at objective FV.27 in this page: http://trac.osgeo.org/postgis/wiki/WKTRaster/SpecificationWorking03
+--
+-- Self contained and typical example:
+--
+-- We first create a table of geometries:
+-- 
+-- DROP TABLE IF EXISTS st_extracttoraster_example;
+-- CREATE TABLE st_extracttoraster_example AS
+-- SELECT 'a'::text id, 1 val, ST_GeomFromText('POLYGON((0 1, 10 2, 10 0, 0 1))') geom
+-- UNION ALL
+-- SELECT 'b'::text, 2, ST_GeomFromText('POLYGON((10 1, 0 2, 0 0, 10 1))')
+-- UNION ALL
+-- SELECT 'c'::text, 1, ST_GeomFromText('POLYGON((1 0, 1 2, 4 2, 4 0, 1 0))')
+-- UNION ALL
+-- SELECT 'd'::text, 4, ST_GeomFromText('POLYGON((7 0, 7 2, 8 2, 8 0, 7 0))')
+-- UNION ALL
+-- SELECT 'e'::text, 5, ST_GeomFromText('LINESTRING(0 0, 10 2)')
+-- UNION ALL
+-- SELECT 'f'::text, 6, ST_GeomFromText('LINESTRING(4 0, 6 2)')
+-- UNION ALL
+-- SELECT 'g'::text, 7, ST_GeomFromText('POINT(4 1.5)')
+-- UNION ALL
+-- SELECT 'h'::text, 8, ST_GeomFromText('POINT(8 0.5)')
+-- UNION ALL
+-- SELECT 'i'::text, 9, ST_GeomFromText('MULTIPOINT(6 0.5, 7 0.6)')
+--
+-- We then extract the values to a raster:
+--
+-- SELECT ST_ExtractToRaster(rast, 'public', 'test_extracttoraster', 'geom', 'val', 'AREA_WEIGHTED_MEAN_OF_VALUES') rast
+-- FROM ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF') rast
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 11/10/2013 v. 1.10
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_CentroidValue4ma(
+    pixel float, 
+    pos int[], 
+    VARIADIC args text[]
+)
+RETURNS FLOAT AS $$ 
+    DECLARE
+        pixelgeom text;
+        result float4;
+        query text;
+    BEGIN
+        -- args[1] = raster width
+        -- args[2] = raster height
+        -- args[3] = raster upperleft x
+        -- args[4] = raster upperleft y
+        -- args[5] = raster scale x
+        -- args[6] = raster scale y
+        -- args[7] = raster skew x
+        -- args[8] = raster skew y
+        -- args[9] = raster SRID
+        -- args[10] = geometry table schema name
+        -- args[11] = geometry table name
+        -- args[12] = geometry table geometry column name
+        -- args[13] = geometry table value column name
+        -- args[14] = method
+        
+        -- Reconstruct the pixel centroid
+        pixelgeom = ST_AsText(
+                      ST_Centroid(
+                        ST_PixelAsPolygon(
+                          ST_MakeEmptyRaster(args[1]::integer,  -- raster width
+                                             args[2]::integer,  -- raster height
+                                             args[3]::float,    -- raster upperleft x
+                                             args[4]::float,    -- raster upperleft y
+                                             args[5]::float,    -- raster scale x
+                                             args[6]::float,    -- raster scale y
+                                             args[7]::float,    -- raster skew x
+                                             args[8]::float,    -- raster skew y
+                                             args[9]::integer   -- raster SRID
+                                            ),
+                                          pos[1]::integer, -- x coordinate of the current pixel
+                                          pos[2]::integer  -- y coordinate of the current pixel
+                                         )));
+
+        -- Query the appropriate value
+        IF args[14] = 'COUNT_OF_VALUES_AT_PIXEL_CENTROID' THEN
+            query = 'SELECT count(' || quote_ident(args[13]) || 
+                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ')';
+        ELSEIF args[14] = 'MEAN_OF_VALUES_AT_PIXEL_CENTROID' THEN
+            query = 'SELECT avg(' || quote_ident(args[13]) || 
+                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ')';
+        ELSE
+            query = 'SELECT NULL';
+        END IF;
+--RAISE NOTICE 'query = %', query;
+        EXECUTE query INTO result;
+        RETURN result;
+    END;
+$$ LANGUAGE 'plpgsql' IMMUTABLE;
+
+-- To be defined
+CREATE OR REPLACE FUNCTION ST_GeomValue4ma(
+    pixel float, 
+    pos int[], 
+    VARIADIC args text[]
+)
+RETURNS FLOAT AS $$ 
+    DECLARE
+        pixelgeom text;
+        result float4;
+        query text;
+    BEGIN
+        -- args[1] = raster width
+        -- args[2] = raster height
+        -- args[3] = raster upperleft x
+        -- args[4] = raster upperleft y
+        -- args[5] = raster scale x
+        -- args[6] = raster scale y
+        -- args[7] = raster skew x
+        -- args[8] = raster skew y
+        -- args[9] = raster SRID
+        -- args[10] = geometry table schema name
+        -- args[11] = geometry table name
+        -- args[12] = geometry table geometry column name
+        -- args[13] = geometry table value column name
+        -- args[14] = method
+
+--RAISE NOTICE 'x = %, y = %', pos[1], pos[2];        
+        -- Reconstruct the pixel square
+	pixelgeom = ST_AsText(
+	              ST_PixelAsPolygon(
+	                ST_MakeEmptyRaster(args[1]::integer, -- raster width
+	                                   args[2]::integer, -- raster height
+	                                   args[3]::float,   -- raster upperleft x
+	                                   args[4]::float,   -- raster upperleft y
+	                                   args[5]::float,   -- raster scale x
+	                                   args[6]::float,   -- raster scale y
+	                                   args[7]::float,   -- raster skew x
+	                                   args[8]::float,   -- raster skew y
+	                                   args[9]::integer  -- raster SRID
+	                                  ), 
+	                                pos[1]::integer, -- x coordinate of the current pixel
+	                                pos[2]::integer  -- y coordinate of the current pixel
+	                               ));
+        -- Query the appropriate value
+        IF args[14] = 'COUNT_OF_POLYGONS' THEN -- Number of polygons intersecting the pixel
+            query = 'SELECT count(' || quote_ident(args[13]) || 
+                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_Polygon'' OR 
+                             ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiPolygon'') AND 
+                            ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ') AND 
+                            ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
+                            quote_ident(args[12]) || ')) > 0.0000000001';
+                    
+        ELSEIF args[14] = 'COUNT_OF_LINESTRINGS' THEN -- Number of linestring intersecting the pixel
+            query = 'SELECT count(' || quote_ident(args[13]) || 
+                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_LineString'' OR 
+                             ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiLineString'') AND
+                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ') AND 
+                             ST_Length(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
+                             quote_ident(args[12]) || ')) > 0.0000000001';
+                    
+        ELSEIF args[14] = 'COUNT_OF_POINTS' THEN -- Number of points intersecting the pixel
+            query = 'SELECT count(' || quote_ident(args[13]) || 
+                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_Point'' OR 
+                             ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiPoint'') AND
+                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ')';
+                    
+        ELSEIF args[14] = 'COUNT_OF_GEOMETRIES' THEN -- Number of geometries intersecting the pixel
+            query = 'SELECT count(' || quote_ident(args[13]) || 
+                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ')';
+                    
+        ELSEIF args[14] = 'VALUE_OF_BIGGEST' THEN -- Value of the geometry occupying the biggest area in the pixel
+            query = 'SELECT ' || quote_ident(args[13]) || 
+                    ' val FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ') ORDER BY ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), 
+                                                        ' || quote_ident(args[12]) || 
+                    ')) DESC, val DESC LIMIT 1';
+
+        ELSEIF args[14] = 'VALUE_OF_MERGED_BIGGEST' THEN -- Value of the combined geometry occupying the biggest area in the pixel
+            query = 'SELECT val FROM (SELECT ' || quote_ident(args[13]) || ' val, 
+                                            sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                                                                        || quote_ident(args[12]) ||
+                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ') GROUP BY val) foo ORDER BY sumarea DESC, val DESC LIMIT 1';
+
+        ELSEIF args[14] = 'MIN_AREA' THEN -- Area of the geometry occupying the smallest area in the pixel
+            query = 'SELECT area FROM (SELECT ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), 
+                                                                      ' || quote_ident(args[12]) || 
+                    ')) area FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ')) foo WHERE area > 0.0000000001 ORDER BY area LIMIT 1';
+
+        ELSEIF args[14] = 'VALUE_OF_MERGED_SMALLEST' THEN -- Value of the combined geometry occupying the biggest area in the pixel
+            query = 'SELECT val FROM (SELECT ' || quote_ident(args[13]) || ' val, 
+                                             sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                                                                                           || quote_ident(args[12]) ||
+                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ') AND ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                                                                     || quote_ident(args[12]) || ')) > 0.0000000001 
+                      GROUP BY val) foo ORDER BY sumarea ASC, val DESC LIMIT 1';
+
+        ELSEIF args[14] = 'SUM_OF_AREAS' THEN -- Sum of areas intersecting with the pixel (no matter the value)
+            query = 'SELECT sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                                                                          || quote_ident(args[12]) ||
+                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ')';
+
+        ELSEIF args[14] = 'PROPORTION_OF_COVERED_AREA' THEN -- Proportion of the pixel covered by polygons (no matter the value)
+            query = 'SELECT ST_Area(ST_Union(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                                                                               || quote_ident(args[12]) ||
+                    ')))/ST_Area(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || ')) sumarea 
+                     FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ')';
+
+        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_VALUES' THEN -- Mean of every geometry weighted by their area
+            query = 'SELECT CASE WHEN sum(area) = 0 THEN 0 ELSE sum(area * val) / sum(area) END 
+                     FROM (SELECT ' || quote_ident(args[13]) || ' val, 
+                                 ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                                                         || quote_ident(args[12]) || ')) area 
+                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ')) foo';
+        ELSE
+            query = 'SELECT NULL';
+        END IF;
+--RAISE NOTICE 'query = %', query;
+        EXECUTE query INTO result;
+        RETURN result;
+    END; 
+$$ LANGUAGE 'plpgsql' IMMUTABLE;
+
+-- To be defined
+CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
+    rast raster, 
+    band integer, 
+    schemaname name, 
+    tablename name, 
+    geomcolumnname name, 
+    valuecolumnname name, 
+    method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
+)
+RETURNS raster AS $$ 
+    DECLARE
+        query text;
+        newrast raster;
+        fct2call text;
+    BEGIN
+        -- Reconstruct the pixel shape or centroid
+        IF right(method, 5) = 'TROID' THEN
+            fct2call = 'ST_CentroidValue4ma';
+        ELSE
+            fct2call = 'ST_GeomValue4ma';
+        END IF;
+
+        query = 'SELECT ST_MapAlgebraFct($1, $2, ''' || fct2call || '(float, integer[], text[])''::regprocedure, 
+					 ST_Width($1)::text,
+					 ST_Height($1)::text,
+					 ST_UpperLeftX($1)::text,
+					 ST_UpperLeftY($1)::text,
+					 ST_ScaleX($1)::text,
+					 ST_ScaleY($1)::text,
+					 ST_SkewX($1)::text,
+					 ST_SkewY($1)::text,
+					 ST_SRID($1)::text,' || 
+					 quote_literal(schemaname) || ', ' ||
+					 quote_literal(tablename) || ', ' ||
+					 quote_literal(geomcolumnname) || ', ' ||
+					 quote_literal(valuecolumnname) || ', ' ||
+					 quote_literal(upper(method)) || '
+					) rast';
+        EXECUTE query INTO newrast USING rast, band;
+        RETURN ST_AddBand(ST_DeleteBand(rast, band), newrast, 1, band);
+    END
+$$ LANGUAGE 'plpgsql' IMMUTABLE;
+
+---------------------------------------------------------------------
+-- ST_ExtractToRaster variant defaulting band number to 1
+CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
+    rast raster, 
+    schemaname name, 
+    tablename name, 
+    geomcolumnname name, 
+    valuecolumnname name, 
+    method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
+)
+RETURNS raster AS $$
+    SELECT ST_ExtractToRaster($1, 1, $2, $3, $4, $5, $6)
+$$ LANGUAGE 'sql';
 ---------------------------------------------------------------------

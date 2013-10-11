@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.9 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.10 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This test file return a table of two columns: 
@@ -28,6 +28,29 @@ CREATE TABLE public.test_adduniqueid AS
 SELECT * FROM (VALUES ('one'), ('two'), ('three')) AS t (column1);
 
 SELECT ST_AddUniqueID('public', 'test_adduniqueid', 'column2');
+
+-----------------------------------------------------------
+-- Table necessary to test ST_ExtractToRaster
+DROP TABLE IF EXISTS test_extracttoraster;
+CREATE TABLE test_extracttoraster AS
+SELECT 'a'::text id, 1 val, ST_GeomFromText('POLYGON((0 1, 10 2, 10 0, 0 1))') geom
+UNION ALL
+SELECT 'b'::text, 3, ST_GeomFromText('POLYGON((10 1, 0 2, 0 0, 10 1))')
+UNION ALL
+SELECT 'c'::text, 1, ST_GeomFromText('POLYGON((1 0, 1 2, 4 2, 4 0, 1 0))')
+UNION ALL
+SELECT 'd'::text, 6, ST_GeomFromText('POLYGON((7 0, 7 2, 8 2, 8 0, 7 0))')
+UNION ALL
+SELECT 'e'::text, 5, ST_GeomFromText('LINESTRING(0 0, 10 2)')
+UNION ALL
+SELECT 'f'::text, 6, ST_GeomFromText('LINESTRING(4 0, 6 2)')
+UNION ALL
+SELECT 'g'::text, 7, ST_GeomFromText('POINT(4 1.5)')
+UNION ALL
+SELECT 'h'::text, 8, ST_GeomFromText('POINT(8 0.5)')
+UNION ALL
+SELECT 'i'::text, 9, ST_GeomFromText('MULTIPOINT(6 0.5, 7 0.6)');
+
 -----------------------------------------------------------
 -- Comment out the following line and the last one of the file to display 
 -- only failing tests
@@ -252,13 +275,13 @@ UNION ALL
 SELECT '3.2'::text number,
         'ST_RandomPoints'::text function_tested,
         'Null geometry'::text description,
-        ST_RandomPoints(null, 10, 0.5) IS NULL
+        ST_RandomPoints(null, 10, 0.5) IS NULL passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '3.3'::text number,
         'ST_RandomPoints'::text function_tested,
         'Empty geometry'::text description,
-        ST_RandomPoints(ST_GeomFromText('GEOMETRYCOLLECTION EMPTY'), 10, 0.5) IS NULL
+        ST_RandomPoints(ST_GeomFromText('GEOMETRYCOLLECTION EMPTY'), 10, 0.5) IS NULL passed
 
 ---------------------------------------------------------
 -- Test 4 - ST_ColumnExists
@@ -311,7 +334,7 @@ UNION ALL
 SELECT '6.1'::text number,
        'ST_AreaWeightedSummaryStats'::text function_tested,
        'General test'::text description,
-       array_agg(aws)::text = '{"(4,2,0103000000010000000B0000000000000000002440000000000000000000000000000024400000000000000040000000000000244000000000000008400000000000002440000000000000104000000000000024400000000000001440000000000000284000000000000014400000000000002840000000000000104000000000000028400000000000000840000000000000284000000000000000400000000000002840000000000000000000000000000024400000000000000000,10,2.5,26,6.5,28,2.8,4,2,2,4,10,2.5,4,2)","(2,2,01060000000200000001030000000100000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000001030000000100000005000000000000000000284000000000000000000000000000002840000000000000F03F0000000000002A40000000000000F03F0000000000002A40000000000000000000000000000028400000000000000000,101,50.5,44,22,10001,99.019801980198,100,1,100,1,101,50.5,100,1)"}'
+       array_agg(aws)::text = '{"(4,2,0103000000010000000B0000000000000000002440000000000000000000000000000024400000000000000040000000000000244000000000000008400000000000002440000000000000104000000000000024400000000000001440000000000000284000000000000014400000000000002840000000000000104000000000000028400000000000000840000000000000284000000000000000400000000000002840000000000000000000000000000024400000000000000000,10,2.5,26,6.5,28,2.8,4,2,2,4,10,2.5,4,2)","(2,2,01060000000200000001030000000100000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000001030000000100000005000000000000000000284000000000000000000000000000002840000000000000F03F0000000000002A40000000000000F03F0000000000002A40000000000000000000000000000028400000000000000000,101,50.5,44,22,10001,99.019801980198,100,1,100,1,101,50.5,100,1)"}' passed
 FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
       FROM (SELECT ST_GeomFromEWKT('POLYGON((0 0,0 10, 10 10, 10 0, 0 0))') as geom, 'a' as id, 100 as val
             UNION ALL
@@ -332,7 +355,7 @@ UNION ALL
 SELECT '6.2'::text number,
        'ST_AreaWeightedSummaryStats'::text function_tested,
        'Test for null and empty geometry'::text description,
-       array_agg(aws)::text = '{"(2,1,0103000000010000000700000000000000000024400000000000000000000000000000244000000000000000400000000000002440000000000000084000000000000028400000000000000840000000000000284000000000000000400000000000002840000000000000000000000000000024400000000000000000,6,3,14,7,24,4,4,4,4,4,8,4,4,4)","(2,2,01060000000200000001030000000100000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000001030000000100000005000000000000000000284000000000000000000000000000002840000000000000F03F0000000000002A40000000000000F03F0000000000002A40000000000000000000000000000028400000000000000000,101,50.5,44,22,10001,99.019801980198,100,1,100,1,101,50.5,100,1)"}'
+       array_agg(aws)::text = '{"(2,1,0103000000010000000700000000000000000024400000000000000000000000000000244000000000000000400000000000002440000000000000084000000000000028400000000000000840000000000000284000000000000000400000000000002840000000000000000000000000000024400000000000000000,6,3,14,7,24,4,4,4,4,4,8,4,4,4)","(2,2,01060000000200000001030000000100000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000001030000000100000005000000000000000000284000000000000000000000000000002840000000000000F03F0000000000002A40000000000000F03F0000000000002A40000000000000000000000000000028400000000000000000,101,50.5,44,22,10001,99.019801980198,100,1,100,1,101,50.5,100,1)"}' passed
 FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
       FROM (SELECT ST_GeomFromEWKT('POLYGON((0 0,0 10, 10 10, 10 0, 0 0))') as geom, 'a' as id, 100 as val
             UNION ALL
@@ -356,7 +379,7 @@ UNION ALL
 SELECT '7.1'::text number,
        'ST_SummaryStatsAgg'::text function_tested,
        'General test'::text description,
-       ST_SummaryStatsAgg(rast)::text = '(200,9900,49.5,0,99)'
+       ST_SummaryStatsAgg(rast)::text = '(200,9900,49.5,0,99)' passed
 FROM (SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 0, 0, 1, 1, 0, 0), '8BUI') rast
       UNION ALL
       SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 10, 0, 1, 1, 0, 0), '8BUI')
@@ -366,14 +389,201 @@ UNION ALL
 SELECT '7.2'::text number,
        'ST_SummaryStatsAgg'::text function_tested,
        'Test with clipping'::text description,
-       ST_SummaryStatsAgg(rast)::text = '(18,761,42.2777777777778,4,95)'
+       ST_SummaryStatsAgg(rast)::text = '(18,761,42.2777777777778,4,95)' passed
 FROM (SELECT ST_Clip(rt.rast, ST_GeomFromEWKT('POLYGON((5 5, 15 7, 15 3, 5 5))'), 0.0) rast
       FROM (SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 0, 0, 1, 1, 0, 0), '8BUI') rast
             UNION ALL
             SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 10, 0, 1, 1, 0, 0), '8BUI')
            ) rt
      ) foo1
-
+     
+---------------------------------------------------------
+-- Test 8 - ST_ExtractToRaster
+---------------------------------------------------------
+UNION ALL
+SELECT '8.1'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test for null raster'::text description,
+       ST_ExtractToRaster(null, 
+                          'public', 
+                          'test_extracttoraster', 
+                          'geom', 
+                          'val') IS NULL passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.2'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test for empty raster'::text description,
+       ST_IsEmpty(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(0, 0, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                          'public', 
+                          'test_extracttoraster', 
+                          'geom', 
+                          'val')) passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.3'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test for no band raster'::text description,
+       ST_HasNoBand(ST_ExtractToRaster(ST_MakeEmptyRaster(10, 10, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), 
+                          'public', 
+                          'test_extracttoraster', 
+                          'geom', 
+                          'val')) passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.4'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test COUNT_OF_VALUES_AT_PIXEL_CENTROID'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'COUNT_OF_VALUES_AT_PIXEL_CENTROID'))
+       ).valarray = '{{2,3},{3,2}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.5'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test MEAN_OF_VALUES_AT_PIXEL_CENTROID'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'MEAN_OF_VALUES_AT_PIXEL_CENTROID'))
+       ).valarray = '{{2,4},{3,3.5}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.6'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test COUNT_OF_POLYGONS'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'COUNT_OF_POLYGONS'))
+       ).valarray = '{{3,3},{3,3}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.7'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test COUNT_OF_LINESTRINGS'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'COUNT_OF_LINESTRINGS'))
+       ).valarray = '{{0,2},{2,0}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.8'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test COUNT_OF_POINTS'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'COUNT_OF_POINTS'))
+       ).valarray = '{{1,0},{0,2}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.9'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test COUNT_OF_GEOMETRIES'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'COUNT_OF_GEOMETRIES'))
+       ).valarray = '{{6,5},{5,7}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.10'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test VALUE_OF_BIGGEST'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'VALUE_OF_BIGGEST'))
+       ).valarray = '{{3,1},{3,1}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.11'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test VALUE_OF_MERGED_BIGGEST'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'VALUE_OF_MERGED_BIGGEST'))
+       ).valarray = '{{1,1},{1,1}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.12'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test MIN_AREA'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'MIN_AREA'))
+       ).valarray = '{{1.25,1},{1.25,1}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.13'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test VALUE_OF_MERGED_SMALLEST'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'VALUE_OF_MERGED_SMALLEST'))
+       ).valarray = '{{3,6},{3,6}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.14'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test SUM_OF_AREAS'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'SUM_OF_AREAS'))
+       ).valarray = '{{8,6},{8,6}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.15'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test PROPORTION_OF_COVERED_AREA'::text description,
+       ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                          'public', 
+                          'test_extracttoraster', 
+                          'geom', 
+                          'val', 
+                          'PROPORTION_OF_COVERED_AREA') =                          '01000001000000000000001440000000000000F0BF000000000000000000000000000000400000000000000000000000000000000000000000020002004AFFFF7FFF6666663FCDCC4C3F6666663FCDCC4C3F'::raster passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.16'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test AREA_WEIGHTED_MEAN_OF_VALUES'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                          'public', 
+                          'test_extracttoraster', 
+                          'geom', 
+                          'val', 
+                          'AREA_WEIGHTED_MEAN_OF_VALUES'))
+       ).valarray = '{{1.9375,2.25},{1.9375,2.25}}' passed
 ---------------------------------------------------------
 -- This last line has to be commented out, with the line at the beginning,
 -- to display only failing tests...
