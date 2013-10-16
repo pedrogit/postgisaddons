@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.11 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.12 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -1444,6 +1444,9 @@ $$ LANGUAGE 'sql';
 --   schemaname text       - Name of the schema containing the table from which to union rasters.
 --   tablename text        - Name of the table from which to union rasters.
 --   rastercolumnname text - Name of the column containing the raster to union.
+--   pixeltype             - Pixel type of the new raster. Can be: 1BB, 2BUI, 4BUI, 8BSI, 8BUI, 
+--                           16BSI, 16BUI, 32BSI, 32BUI, 32BF, 64BF
+--   nodataval             - Nodata value of the new raster.
 --
 -- RETURNS raster
 --
@@ -1474,12 +1477,12 @@ $$ LANGUAGE 'sql';
 --    require internal memory copy of progressively bigger and bigger raster 
 --    pieces.
 --
--- For now, pixeltype is assumed to be identical for all rasters. If not, the maximum
--- of all pixel type stings is used. In some cases, this might not make sense at all... 
--- e.g. Most rasters are 32BUI, one is 8BUI and 8BUI is used.
+-- When pixeltype is null, it is assumed to be identical for all rasters. If not, 
+-- the maximum of all pixel type stings is used. In some cases, this might not 
+-- make sense at all... e.g. Most rasters are 32BUI, one is 8BUI and 8BUI is used.
 --
--- For now, nodata value is assumed to be identical for all rasters. If not, the minimum
--- of all raster nodata value is used.
+-- When nodataval is null, nodata value is assumed to be identical for all rasters. 
+-- If not, the minimum of all raster nodata value is used.
 --
 -- For now, those methods area implemented:
 --
@@ -1550,18 +1553,32 @@ CREATE OR REPLACE FUNCTION ST_GlobalRasterUnion(
     schemaname name, 
     tablename name, 
     rastercolumnname name,
-    method text DEFAULT 'FIRST_RASTER_VALUE_AT_PIXEL_CENTROID'
+    method text DEFAULT 'FIRST_RASTER_VALUE_AT_PIXEL_CENTROID',
+    pixeltype text DEFAULT null,
+    nodataval double precision DEFAULT null
 )
 RETURNS raster AS $$ 
     DECLARE
         query text;
         newrast raster;
         fct2call text;
+        pixeltypetxt text;
+        nodatavaltxt text;
     BEGIN
         IF right(method, 5) = 'TROID' THEN
             fct2call = 'ST_ExtractPixelCentroidValue4ma';
         ELSE
             fct2call = 'ST_ExtractPixelValue4ma';
+        END IF;
+        IF pixeltype IS NULL THEN
+            pixeltypetxt = 'ST_BandPixelType(' || quote_ident(rastercolumnname) || ')';
+        ELSE
+            pixeltypetxt = '''' || pixeltype || '''::text';
+        END IF;
+        IF nodataval IS NULL THEN
+            nodatavaltxt = 'ST_BandNodataValue(' || quote_ident(rastercolumnname) || ')';
+        ELSE
+            nodatavaltxt = nodataval;
         END IF;
         query = 'SELECT ST_MapAlgebra(rast, 
                                       1,
@@ -1600,8 +1617,8 @@ RETURNS raster AS $$
                                     ST_ScaleY(' || quote_ident(rastercolumnname) || ') scaley, 
                                     ST_UpperLeftX(' || quote_ident(rastercolumnname) || ') gridx, 
                                     ST_UpperLeftY(' || quote_ident(rastercolumnname) || ') gridy, 
-                                    ST_BandPixelType(' || quote_ident(rastercolumnname) || ') pixeltype, 
-                                    ST_BandNodataValue(' || quote_ident(rastercolumnname) || ') nodataval
+                                    ' || pixeltypetxt || ' pixeltype, 
+                                    ' || nodatavaltxt || ' nodataval
                              FROM ' || quote_ident(schemaname) || '.' || quote_ident(tablename) || ' 
                             ) foo1
                       ) foo2';

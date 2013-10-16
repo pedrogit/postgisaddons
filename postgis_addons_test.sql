@@ -1,6 +1,6 @@
-﻿-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.11 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.12 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This test file return a table of two columns: 

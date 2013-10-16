@@ -1,6 +1,6 @@
-﻿-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Uninstallation file
--- Version 1.11 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.12 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 
 DROP FUNCTION IF EXISTS ST_DeleteBand(raster, int);
@@ -37,4 +37,4 @@ DROP FUNCTION IF EXISTS ST_ExtractPixelValue4ma(double precision[][][], int[][],
 DROP FUNCTION IF EXISTS ST_ExtractToRaster(raster, integer, name, name, name, name, text);
 DROP FUNCTION IF EXISTS ST_ExtractToRaster(raster, name, name, name, name, text);
 
-DROP FUNCTION IF EXISTS ST_GlobalRasterUnion(name, name, name, text);
+DROP FUNCTION IF EXISTS ST_GlobalRasterUnion(name, name, name, text, text, double precision);
