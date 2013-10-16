@@ -1,6 +1,6 @@
-﻿-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.10 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.11 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -72,6 +72,17 @@
 --
 --   ST_SummaryStatsAgg - Aggregate function computing statistics on a series of 
 --                        rasters generally clipped by a geometry.
+--
+--   ST_ExtractToRaster - Compute a raster band by extracting values for the centroid 
+--                        or the footprint of each pixel from a global geometry
+--                        coverage using different methods 
+--                        like count, min, max, mean, value of biggest geometry or
+--                        area weighted mean of values.
+--
+--   ST_GlobalRasterUnion - Build a new raster by extracting all the pixel values
+--                          from a global raster coverage using different methods
+--                          like count, min, max, mean, stddev and range. Similar
+--                          and slower but more flexible than ST_Union.
 --
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
@@ -876,7 +887,7 @@ RETURNS agg_summarystats AS $$
                     greatest(ss.max, newstats.max)                      -- max
                    )::agg_summarystats;      
         END IF;
-RAISE NOTICE 'min %', newstats.min;
+--RAISE NOTICE 'min %', newstats.min;
         RETURN ret;
     END;
 $$ LANGUAGE 'plpgsql';
@@ -934,28 +945,29 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster)
 -------------------------------------------------------------------------------
 -- ST_ExtractToRaster
 --
---   rast raster          - Raster in which new values will be computed.
---   band integer         - Band in which new values will be computed. A variant defaulting band to 1 exist.
---   schemaname text      - Name of the schema containing the table from which to extract values.
---   tablename text       - Name of the table from which to extract values from.
---   geomcolumnname text  - Name of the column containing the geometry to use when extracting values.
---   valuecolumnname text - Name of the column containing the value to use when extracting values.
---   method text          - Name of the method of value extraction. Default to 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'.
+--   rast raster             - Raster in which new values will be computed.
+--   band integer            - Band in which new values will be computed. A variant defaulting band to 1 exist.
+--   schemaname text         - Name of the schema containing the table from which to extract values.
+--   tablename text          - Name of the table from which to extract values from.
+--   geomrastcolumnname text - Name of the column containing the geometry or the raster to use when extracting values.
+--   valuecolumnname text    - Name of the column containing the value to use when extracting values. Should be null
+--                             when extracting from a raster coverage.
+--   method text             - Name of the method of value extraction. Default to 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'.
 --
 --   RETURNS raster
 --
 -- Return a raster which values are extracted from a coverage using one spatial query for each pixel. It is
--- VERY important that the coverage from which values are extracted be spatially indexed.
+-- VERY important that the coverage from which values are extracted is spatially indexed.
 --
 -- Methods for computing the values can be grouped in two categories: 
 -- 
 -- Values extracted at the pixel centroid:
 --
 --   - COUNT_OF_VALUES_AT_PIXEL_CENTROID: Number of features intersecting with the pixel centroid. 
---                                        Can be greater than 1 if many geometries overlaps.
+--                                        Greater than 1 when many geometries overlaps.
 --
 --   - MEAN_OF_VALUES_AT_PIXEL_CENTROID: Average of all values intersecting with the pixel centroid. 
---                                       Can be greater than 1 if many geometries overlaps.
+--                                       Many values are taken into account when many geometries overlaps.
 --
 -- Values extracted for the whole square pixel:
 --
@@ -982,7 +994,22 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster)
 --   - PROPORTION_OF_COVERED_AREA: Proportion, between 0.0 and 1.0, of the pixel area covered by the 
 --                                 conjunction of all the polygons intersecting with the pixel.
 --
---   - AREA_WEIGHTED_MEAN_OF_VALUES: Mean of all polygon values weighted by their relative areas.
+--   - AREA_WEIGHTED_MEAN_OF_VALUES: Mean of all polygon values weighted by the area they occupy 
+--                                   relative to the polygon being processed.
+--                                   The weighted sum is divided by the maximum between the 
+--                                   area of the geometry and the sum of all the weighted geometry 
+--                                   areas. i.e. If the geometry being processed is not entirely 
+--                                   covered by other geometries, the value is multiplied by the 
+--                                   proportion of the covering area.
+--
+--   - AREA_WEIGHTED_MEAN_OF_VALUES_2: Mean of all polygon values weighted by the area they occupy 
+--                                     relative to the polygon being processed.
+--                                     The weighted sum is divided by the sum of all the weighted 
+--                                     geometry areas. i.e. Even if a geoemtry is not entirely covered 
+--                                     by other geometries, it gets the full weighted value.
+--
+--   - All the methods described for the ST_GlobalRasterUnion() function. When those methods are used
+--     geomrastcolumnname should be a column of type raster and valuecolumnname should be null.
 --
 -- Many more methods can be added over time. An almost exhaustive list of possible method can be find
 -- at objective FV.27 in this page: http://trac.osgeo.org/postgis/wiki/WKTRaster/SpecificationWorking03
@@ -1019,9 +1046,10 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster)
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 11/10/2013 v. 1.10
 -----------------------------------------------------------
-CREATE OR REPLACE FUNCTION ST_CentroidValue4ma(
-    pixel float, 
-    pos int[], 
+-- Callback function computing a value for the pixel centroid
+CREATE OR REPLACE FUNCTION ST_ExtractPixelCentroidValue4ma(
+    pixel double precision[][][], 
+    pos int[][], 
     VARIADIC args text[]
 )
 RETURNS FLOAT AS $$ 
@@ -1039,9 +1067,9 @@ RETURNS FLOAT AS $$
         -- args[7] = raster skew x
         -- args[8] = raster skew y
         -- args[9] = raster SRID
-        -- args[10] = geometry table schema name
-        -- args[11] = geometry table name
-        -- args[12] = geometry table geometry column name
+        -- args[10] = geometry or raster table schema name
+        -- args[11] = geometry or raster table name
+        -- args[12] = geometry or raster table geometry or raster column name
         -- args[13] = geometry table value column name
         -- args[14] = method
         
@@ -1059,19 +1087,80 @@ RETURNS FLOAT AS $$
                                              args[8]::float,    -- raster skew y
                                              args[9]::integer   -- raster SRID
                                             ),
-                                          pos[1]::integer, -- x coordinate of the current pixel
-                                          pos[2]::integer  -- y coordinate of the current pixel
+                                          pos[0][1]::integer, -- x coordinate of the current pixel
+                                          pos[0][2]::integer  -- y coordinate of the current pixel
                                          )));
 
         -- Query the appropriate value
         IF args[14] = 'COUNT_OF_VALUES_AT_PIXEL_CENTROID' THEN
             query = 'SELECT count(' || quote_ident(args[13]) || 
                     ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ')';
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
+                    quote_ident(args[12]) || ')';
+                    
         ELSEIF args[14] = 'MEAN_OF_VALUES_AT_PIXEL_CENTROID' THEN
             query = 'SELECT avg(' || quote_ident(args[13]) || 
                     ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ')';
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
+                    quote_ident(args[12]) || ')';
+
+        ELSEIF args[14] = 'COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
+            query = 'SELECT count(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
+                    ', ' || args[9] || '))) 
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
+                    quote_ident(args[12]) || ')';
+                    
+        ELSEIF args[14] = 'FIRST_RASTER_VALUE_AT_PIXEL_CENTROID' THEN
+            query = 'SELECT ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
+                    ', ' || args[9] || ')) 
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
+                    quote_ident(args[12]) || ') LIMIT 1';
+                    
+        ELSEIF args[14] = 'MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
+            query = 'SELECT min(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
+                    ', ' || args[9] || '))) 
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
+                    quote_ident(args[12]) || ')';
+
+        ELSEIF args[14] = 'MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
+            query = 'SELECT max(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
+                    ', ' || args[9] || '))) 
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
+                    quote_ident(args[12]) || ')';
+
+        ELSEIF args[14] = 'SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
+            query = 'SELECT sum(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
+                    ', ' || args[9] || '))) 
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
+                    quote_ident(args[12]) || ')';
+
+        ELSEIF args[14] = 'MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
+            query = 'SELECT avg(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
+                    ', ' || args[9] || '))) 
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
+                    quote_ident(args[12]) || ')';
+
+        ELSEIF args[14] = 'STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
+            query = 'SELECT stddev_pop(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
+                    ', ' || args[9] || '))) 
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
+                    quote_ident(args[12]) || ')';
+
+        ELSEIF args[14] = 'RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
+            query = 'SELECT max(val) - min(val)
+                     FROM (SELECT ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
+                    ', ' || args[9] || ')) val
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
+                    quote_ident(args[12]) || ')) foo';
+
         ELSE
             query = 'SELECT NULL';
         END IF;
@@ -1081,10 +1170,11 @@ RETURNS FLOAT AS $$
     END;
 $$ LANGUAGE 'plpgsql' IMMUTABLE;
 
--- To be defined
-CREATE OR REPLACE FUNCTION ST_GeomValue4ma(
-    pixel float, 
-    pos int[], 
+-----------------------------------------------------------
+-- Callback function computing a value for the whole pixel shape
+CREATE OR REPLACE FUNCTION ST_ExtractPixelValue4ma(
+    pixel double precision[][][], 
+    pos int[][], 
     VARIADIC args text[]
 )
 RETURNS FLOAT AS $$ 
@@ -1122,8 +1212,8 @@ RETURNS FLOAT AS $$
 	                                   args[8]::float,   -- raster skew y
 	                                   args[9]::integer  -- raster SRID
 	                                  ), 
-	                                pos[1]::integer, -- x coordinate of the current pixel
-	                                pos[2]::integer  -- y coordinate of the current pixel
+	                                pos[0][1]::integer, -- x coordinate of the current pixel
+	                                pos[0][2]::integer  -- y coordinate of the current pixel
 	                               ));
         -- Query the appropriate value
         IF args[14] = 'COUNT_OF_POLYGONS' THEN -- Number of polygons intersecting the pixel
@@ -1131,7 +1221,8 @@ RETURNS FLOAT AS $$
                     ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
                     ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_Polygon'' OR 
                              ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiPolygon'') AND 
-                            ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ') AND 
+                            ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                            || quote_ident(args[12]) || ') AND 
                             ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
                             quote_ident(args[12]) || ')) > 0.0000000001';
                     
@@ -1140,7 +1231,8 @@ RETURNS FLOAT AS $$
                     ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
                     ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_LineString'' OR 
                              ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiLineString'') AND
-                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ') AND 
+                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                             || quote_ident(args[12]) || ') AND 
                              ST_Length(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
                              quote_ident(args[12]) || ')) > 0.0000000001';
                     
@@ -1149,42 +1241,48 @@ RETURNS FLOAT AS $$
                     ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
                     ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_Point'' OR 
                              ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiPoint'') AND
-                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ')';
+                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                             || quote_ident(args[12]) || ')';
                     
         ELSEIF args[14] = 'COUNT_OF_GEOMETRIES' THEN -- Number of geometries intersecting the pixel
             query = 'SELECT count(' || quote_ident(args[13]) || 
                     ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || ')';
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                    || quote_ident(args[12]) || ')';
                     
         ELSEIF args[14] = 'VALUE_OF_BIGGEST' THEN -- Value of the geometry occupying the biggest area in the pixel
             query = 'SELECT ' || quote_ident(args[13]) || 
                     ' val FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                    || quote_ident(args[12]) || 
                     ') ORDER BY ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), 
                                                         ' || quote_ident(args[12]) || 
                     ')) DESC, val DESC LIMIT 1';
 
         ELSEIF args[14] = 'VALUE_OF_MERGED_BIGGEST' THEN -- Value of the combined geometry occupying the biggest area in the pixel
             query = 'SELECT val FROM (SELECT ' || quote_ident(args[13]) || ' val, 
-                                            sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                                                                        || quote_ident(args[12]) ||
+                                            sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) 
+                                            || ', '|| args[9] || '), ' || quote_ident(args[12]) ||
                     '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                    || quote_ident(args[12]) || 
                     ') GROUP BY val) foo ORDER BY sumarea DESC, val DESC LIMIT 1';
 
         ELSEIF args[14] = 'MIN_AREA' THEN -- Area of the geometry occupying the smallest area in the pixel
-            query = 'SELECT area FROM (SELECT ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), 
-                                                                      ' || quote_ident(args[12]) || 
+            query = 'SELECT area FROM (SELECT ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' 
+                                                      || args[9] || '), ' || quote_ident(args[12]) || 
                     ')) area FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                    || quote_ident(args[12]) || 
                     ')) foo WHERE area > 0.0000000001 ORDER BY area LIMIT 1';
 
         ELSEIF args[14] = 'VALUE_OF_MERGED_SMALLEST' THEN -- Value of the combined geometry occupying the biggest area in the pixel
             query = 'SELECT val FROM (SELECT ' || quote_ident(args[13]) || ' val, 
-                                             sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                                                                                           || quote_ident(args[12]) ||
+                                             sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '
+                                             || args[9] || '), ' || quote_ident(args[12]) ||
                     '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                    || quote_ident(args[12]) || 
                     ') AND ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
                                                                      || quote_ident(args[12]) || ')) > 0.0000000001 
                       GROUP BY val) foo ORDER BY sumarea ASC, val DESC LIMIT 1';
@@ -1193,7 +1291,8 @@ RETURNS FLOAT AS $$
             query = 'SELECT sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
                                                                           || quote_ident(args[12]) ||
                     '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                    || quote_ident(args[12]) || 
                     ')';
 
         ELSEIF args[14] = 'PROPORTION_OF_COVERED_AREA' THEN -- Proportion of the pixel covered by polygons (no matter the value)
@@ -1201,17 +1300,68 @@ RETURNS FLOAT AS $$
                                                                                || quote_ident(args[12]) ||
                     ')))/ST_Area(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || ')) sumarea 
                      FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                    || quote_ident(args[12]) || 
                     ')';
 
-        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_VALUES' THEN -- Mean of every geometry weighted by their area
-            query = 'SELECT CASE WHEN sum(area) = 0 THEN 0 ELSE sum(area * val) / sum(area) END 
+        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_VALUES' THEN -- Mean of every geometry weighted by the area they occupy
+            query = 'SELECT CASE 
+                              WHEN sum(area) = 0 THEN 0 
+                              ELSE sum(area * val) / 
+                                   greatest(sum(area), 
+                                            ST_Area(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '))
+                                           )
+                            END 
                      FROM (SELECT ' || quote_ident(args[13]) || ' val, 
                                  ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
                                                          || quote_ident(args[12]) || ')) area 
                            FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || quote_ident(args[12]) || 
+                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                         || quote_ident(args[12]) || 
                     ')) foo';
+      
+        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_VALUES_2' THEN -- Mean of every geometry weighted by the area they occupy
+            query = 'SELECT CASE 
+                              WHEN sum(area) = 0 THEN 0 
+                              ELSE sum(area * val) / sum(area)
+                            END 
+                     FROM (SELECT ' || quote_ident(args[13]) || ' val, 
+                                 ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                                                         || quote_ident(args[12]) || ')) area 
+                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                         || quote_ident(args[12]) || 
+                    ')) foo';
+
+        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES' THEN -- Mean of every pixel value weighted by the area they occupy
+            query = 'SELECT CASE 
+                              WHEN sum(area) = 0 THEN 0 
+                              ELSE sum(area * val) / 
+                                   greatest(sum(area), 
+                                            ST_Area(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '))
+                                           ) 
+                            END 
+                     FROM (SELECT ST_Area((gv).geom) area, (gv).val val
+                           FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' || 
+                                                                        args[9] || '), ' || quote_ident(args[12]) || ') gv 
+                                 FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                               ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                         || quote_ident(args[12]) || 
+                    ')) foo1) foo2';
+
+        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2' THEN -- Mean of every pixel value weighted by the area they occupy
+            query = 'SELECT CASE 
+                              WHEN sum(area) = 0 THEN 0 
+                              ELSE sum(area * val) / sum(area)
+                            END 
+                     FROM (SELECT ST_Area((gv).geom) area, (gv).val val
+                           FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' || 
+                                                                        args[9] || '), ' || quote_ident(args[12]) || ') gv 
+                                 FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                               ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                         || quote_ident(args[12]) || 
+                    ')) foo1) foo2';
+
         ELSE
             query = 'SELECT NULL';
         END IF;
@@ -1221,13 +1371,14 @@ RETURNS FLOAT AS $$
     END; 
 $$ LANGUAGE 'plpgsql' IMMUTABLE;
 
--- To be defined
+-----------------------------------------------------------
+-- Main ST_ExtractToRaster function
 CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
     rast raster, 
     band integer, 
     schemaname name, 
     tablename name, 
-    geomcolumnname name, 
+    geomrastcolumnname name, 
     valuecolumnname name, 
     method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
 )
@@ -1237,29 +1388,36 @@ RETURNS raster AS $$
         newrast raster;
         fct2call text;
     BEGIN
-        -- Reconstruct the pixel shape or centroid
+        -- Determine the name of the right callback function
         IF right(method, 5) = 'TROID' THEN
-            fct2call = 'ST_CentroidValue4ma';
+            fct2call = 'ST_ExtractPixelCentroidValue4ma';
         ELSE
-            fct2call = 'ST_GeomValue4ma';
+            fct2call = 'ST_ExtractPixelValue4ma';
         END IF;
 
-        query = 'SELECT ST_MapAlgebraFct($1, $2, ''' || fct2call || '(float, integer[], text[])''::regprocedure, 
-					 ST_Width($1)::text,
-					 ST_Height($1)::text,
-					 ST_UpperLeftX($1)::text,
-					 ST_UpperLeftY($1)::text,
-					 ST_ScaleX($1)::text,
-					 ST_ScaleY($1)::text,
-					 ST_SkewX($1)::text,
-					 ST_SkewY($1)::text,
-					 ST_SRID($1)::text,' || 
-					 quote_literal(schemaname) || ', ' ||
-					 quote_literal(tablename) || ', ' ||
-					 quote_literal(geomcolumnname) || ', ' ||
-					 quote_literal(valuecolumnname) || ', ' ||
-					 quote_literal(upper(method)) || '
-					) rast';
+        query = 'SELECT ST_MapAlgebra($1, 
+                                      $2, 
+                                      ''' || fct2call || '(double precision[], integer[], text[])''::regprocedure, 
+                                      ST_BandPixelType($1, $2),
+                                      null,
+                                      null,
+                                      null,
+                                      null,
+                                      ST_Width($1)::text,
+                                      ST_Height($1)::text,
+                                      ST_UpperLeftX($1)::text,
+                                      ST_UpperLeftY($1)::text,
+                                      ST_ScaleX($1)::text,
+                                      ST_ScaleY($1)::text,
+                                      ST_SkewX($1)::text,
+                                      ST_SkewY($1)::text,
+                                      ST_SRID($1)::text,' || 
+                                      quote_literal(schemaname) || ', ' ||
+                                      quote_literal(tablename) || ', ' ||
+                                      quote_literal(geomrastcolumnname) || ', ' ||
+                                      quote_literal(valuecolumnname) || ', ' ||
+                                      quote_literal(upper(method)) || '
+                                     ) rast';
         EXECUTE query INTO newrast USING rast, band;
         RETURN ST_AddBand(ST_DeleteBand(rast, band), newrast, 1, band);
     END
@@ -1279,3 +1437,175 @@ RETURNS raster AS $$
     SELECT ST_ExtractToRaster($1, 1, $2, $3, $4, $5, $6)
 $$ LANGUAGE 'sql';
 ---------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_GlobalRasterUnion
+--
+--   schemaname text       - Name of the schema containing the table from which to union rasters.
+--   tablename text        - Name of the table from which to union rasters.
+--   rastercolumnname text - Name of the column containing the raster to union.
+--
+-- RETURNS raster
+--
+-- Returns a raster being the union of all raster of a raster table.
+--
+-- The source raster table should be tiled and indexed for optimal performance. 
+-- Smaller tile sizes generally give better performance.
+--
+-- Differs from ST_Union in many ways:
+-- 
+--  - Takes the names of a schema, a table and a raster column instead of rasters 
+--    themselves. That means the function works on a whole table and can not be used 
+--    on a selection or a group of rasters (unless you build a view on the table and 
+--    you pass the name of the view in place of the name of the table).
+--
+--  - Works with unaligned rasters. The extent of the resulting raster is computed
+--    from the global extent of the table and the pixel size is the minimum of all 
+--    pixel sizes of the rasters in the table.
+--
+--  - Offers more methods for computing the value of each pixel and more can be 
+--    easily implemented in the ST_ExtractPixelCentroidValue4ma and 
+--    ST_ExtractPixelValue4ma functions.
+--
+--  - Because methods are implemented in PL/pgSQL and involve a SQL query for 
+--    each pixel, ST_GlobalUnionToRaster will generally be way slower than 
+--    ST_Union. It is however more flexible, allows more value determination 
+--    methods and even might be faster on big coverages because it does not 
+--    require internal memory copy of progressively bigger and bigger raster 
+--    pieces.
+--
+-- For now, pixeltype is assumed to be identical for all rasters. If not, the maximum
+-- of all pixel type stings is used. In some cases, this might not make sense at all... 
+-- e.g. Most rasters are 32BUI, one is 8BUI and 8BUI is used.
+--
+-- For now, nodata value is assumed to be identical for all rasters. If not, the minimum
+-- of all raster nodata value is used.
+--
+-- For now, those methods area implemented:
+--
+--   - COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Number of non null raster value intersecting with the 
+--                                               pixel centroid.
+--
+--   - FIRST_RASTER_VALUE_AT_PIXEL_CENTROID: First raster value intersecting with the 
+--                                           pixel centroid. This is the default.
+--
+--   - MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Minimum of all raster values intersecting with the 
+--                                             pixel centroid.
+--
+--   - MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Maximum of all raster values intersecting with the 
+--                                             pixel centroid.
+--
+--   - SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Sum of all raster values intersecting with the 
+--                                             pixel centroid.
+--
+--   - MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Average of all raster values intersecting 
+--                                              with the pixel centroid.
+--
+--   - STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Population standard deviation of all raster 
+--                                                 values intersecting with the pixel centroid.
+--
+--   - RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Range (maximun - minimum) of raster values 
+--                                               intersecting with the pixel centroid.
+--
+--   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES: Mean of all pixel values weighted by the area they 
+--                                          occupy relative to the area of the pixel being computed. 
+--                                          The weighted sum is divided by the maximum between the 
+--                                          area of the pixel and the sum of all the weighted pixel 
+--                                          areas. i.e. If the pixel being computed is not entirely 
+--                                          covered by other pixels, the value is multiplied by the 
+--                                          proportion of the covering area.
+--                                          
+--   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2: Mean of all pixel values weighted by the area they 
+--                                            occupy relative to the area of the pixel being computed. 
+--                                            The weighted sum is divided by the sum of all the weighted 
+--                                            pixel areas. i.e. Even if a pixel is not entirely covered 
+--                                            by other pixels, it gets the full weighted value.
+--
+--                                              
+-- Self contained and typical example:
+--
+-- We first create a table of geometries:
+-- 
+-- DROP TABLE IF EXISTS test_globalrasterunion;
+-- CREATE TABLE test_globalrasterunion AS
+-- SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(5, 5, 0, 0, 1, 1, 0, 0), '8BUI') rast
+-- UNION ALL
+-- SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(6, 5, 2.8, 2.8, 0.85, 0.85, 0, 0), '8BUI');
+--
+-- We then extract the values to a raster:
+--
+-- SELECT ST_GlobalRasterUnion('public', 'test_globalrasterunion', 'rast', 'FIRST_RASTER_VALUE_AT_PIXEL_CENTROID') rast;
+--
+-- The equivalent statement using ST_Union would be:
+--
+-- SELECT ST_Union(rast, 'FIRST') rast
+-- FROM public.test_globalrasterunion
+--
+-- But it would fail because the two rasters are not properly aligned.
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 10/07/2013 v. 1.11
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_GlobalRasterUnion(
+    schemaname name, 
+    tablename name, 
+    rastercolumnname name,
+    method text DEFAULT 'FIRST_RASTER_VALUE_AT_PIXEL_CENTROID'
+)
+RETURNS raster AS $$ 
+    DECLARE
+        query text;
+        newrast raster;
+        fct2call text;
+    BEGIN
+        IF right(method, 5) = 'TROID' THEN
+            fct2call = 'ST_ExtractPixelCentroidValue4ma';
+        ELSE
+            fct2call = 'ST_ExtractPixelValue4ma';
+        END IF;
+        query = 'SELECT ST_MapAlgebra(rast, 
+                                      1,
+                                      ''' || fct2call || '(double precision[], integer[], text[])''::regprocedure, 
+                                      ST_BandPixelType(rast, 1),
+                                      null,
+                                      null,
+                                      null,
+                                      null,
+                                      ST_Width(rast)::text,
+                                      ST_Height(rast)::text,
+                                      ST_UpperLeftX(rast)::text,
+                                      ST_UpperLeftY(rast)::text,
+                                      ST_ScaleX(rast)::text,
+                                      ST_ScaleY(rast)::text,
+                                      ST_SkewX(rast)::text,
+                                      ST_SkewY(rast)::text,
+                                      ST_SRID(rast)::text,' || 
+                                      quote_literal(schemaname) || ', ' ||
+                                      quote_literal(tablename) || ', ' ||
+                                      quote_literal(rastercolumnname) || ', 
+                                      null' || ', ' ||
+                                      quote_literal(upper(method)) || '
+                                     ) rast
+                 FROM (SELECT ST_AsRaster(ST_Union(rast::geometry), 
+                                          min(scalex),
+                                          min(scaley),
+                                          min(gridx),
+                                          min(gridy),
+                                          max(pixeltype),
+                                          0,
+                                          min(nodataval)
+                                         ) rast
+                       FROM (SELECT ' || quote_ident(rastercolumnname) || ' rast,
+                                    ST_ScaleX(' || quote_ident(rastercolumnname) || ') scalex, 
+                                    ST_ScaleY(' || quote_ident(rastercolumnname) || ') scaley, 
+                                    ST_UpperLeftX(' || quote_ident(rastercolumnname) || ') gridx, 
+                                    ST_UpperLeftY(' || quote_ident(rastercolumnname) || ') gridy, 
+                                    ST_BandPixelType(' || quote_ident(rastercolumnname) || ') pixeltype, 
+                                    ST_BandNodataValue(' || quote_ident(rastercolumnname) || ') nodataval
+                             FROM ' || quote_ident(schemaname) || '.' || quote_ident(tablename) || ' 
+                            ) foo1
+                      ) foo2';
+        EXECUTE query INTO newrast;
+        RETURN newrast;
+    END; 
+$$ LANGUAGE 'plpgsql' IMMUTABLE;

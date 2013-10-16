@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.10 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.11 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This test file return a table of two columns: 
@@ -50,6 +50,14 @@ UNION ALL
 SELECT 'h'::text, 8, ST_GeomFromText('POINT(8 0.5)')
 UNION ALL
 SELECT 'i'::text, 9, ST_GeomFromText('MULTIPOINT(6 0.5, 7 0.6)');
+
+-----------------------------------------------------------
+-- Table necessary to test ST_GlobalRasterUnion
+DROP TABLE IF EXISTS test_globalrasterunion;
+CREATE TABLE test_globalrasterunion AS
+SELECT 1 rid, ST_CreateIndexRaster(ST_MakeEmptyRaster(5, 5, 0, 0, 1, 1, 0, 0), '8BSI') rast
+UNION ALL
+SELECT 2, ST_CreateIndexRaster(ST_MakeEmptyRaster(6, 5, 2.8, 2.8, 0.85, 0.85, 0, 0), '8BSI');
 
 -----------------------------------------------------------
 -- Comment out the following line and the last one of the file to display 
@@ -584,6 +592,169 @@ SELECT '8.16'::text number,
                           'val', 
                           'AREA_WEIGHTED_MEAN_OF_VALUES'))
        ).valarray = '{{1.9375,2.25},{1.9375,2.25}}' passed
+---------------------------------------------------------
+-- Test 9 - ST_GlobalRasterUnion
+---------------------------------------------------------
+UNION ALL
+SELECT '9.1'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast',
+                                           'COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID'))
+       ).valarray = '{{1,1,1,1,1,1,0,0,0},
+                      {1,1,1,1,1,1,0,0,0},
+                      {1,1,1,1,1,1,0,0,0},
+                      {1,1,1,2,2,2,1,1,1},
+                      {1,1,1,2,2,2,1,1,1},
+                      {1,1,1,2,2,2,1,1,1},
+                      {0,0,0,1,1,1,1,1,1},
+                      {0,0,0,1,1,1,1,1,1},
+                      {0,0,0,0,0,0,0,0,0}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.2'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test defaulting to FIRST_RASTER_VALUE_AT_PIXEL_CENTROID'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 'test_globalrasterunion', 'rast'))
+       ).valarray = '{{0,5,10,10,15,20,NULL,NULL,NULL},
+                      {1,6,11,11,16,21,NULL,NULL,NULL}, 
+                      {2,7,12,12,17,22,NULL,NULL,NULL}, 
+                      {2,7,12,12,17,22,15,20,25}, 
+                      {3,8,13,13,18,23,16,21,26}, 
+                      {4,9,14,14,19,24,17,22,27}, 
+                      {NULL,NULL,NULL,3,8,13,18,23,28}, 
+                      {NULL,NULL,NULL,4,9,14,19,24,29}, 
+                      {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.3'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast',
+                                           'MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID'))
+       ).valarray = '{{0,5,10,10,15,20,NULL,NULL,NULL},
+                      {1,6,11,11,16,21,NULL,NULL,NULL},
+                      {2,7,12,12,17,22,NULL,NULL,NULL},
+                      {2,7,12,0,5,10,15,20,25},
+                      {3,8,13,1,6,11,16,21,26},
+                      {4,9,14,2,7,12,17,22,27},
+                      {NULL,NULL,NULL,3,8,13,18,23,28},
+                      {NULL,NULL,NULL,4,9,14,19,24,29},
+                      {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.4'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast',
+                                           'MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID'))
+       ).valarray = '{{0,5,10,10,15,20,NULL,NULL,NULL},
+                      {1,6,11,11,16,21,NULL,NULL,NULL},
+                      {2,7,12,12,17,22,NULL,NULL,NULL},
+                      {2,7,12,12,17,22,15,20,25},
+                      {3,8,13,13,18,23,16,21,26},
+                      {4,9,14,14,19,24,17,22,27},
+                      {NULL,NULL,NULL,3,8,13,18,23,28},
+                      {NULL,NULL,NULL,4,9,14,19,24,29},
+                      {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.5'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast',
+                                           'SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID'))
+       ).valarray = '{{0,5,10,10,15,20,NULL,NULL,NULL},
+                      {1,6,11,11,16,21,NULL,NULL,NULL},
+                      {2,7,12,12,17,22,NULL,NULL,NULL},
+                      {2,7,12,12,22,32,15,20,25},
+                      {3,8,13,14,24,34,16,21,26},
+                      {4,9,14,16,26,36,17,22,27},
+                      {NULL,NULL,NULL,3,8,13,18,23,28},
+                      {NULL,NULL,NULL,4,9,14,19,24,29},
+                      {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.6'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast', 
+                                           'MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID'))
+       ).valarray = '{{0,5,10,10,15,20,NULL,NULL,NULL},
+                      {1,6,11,11,16,21,NULL,NULL,NULL},
+                      {2,7,12,12,17,22,NULL,NULL,NULL},
+                      {2,7,12,6,11,16,15,20,25},
+                      {3,8,13,7,12,17,16,21,26},
+                      {4,9,14,8,13,18,17,22,27},
+                      {NULL,NULL,NULL,3,8,13,18,23,28},
+                      {NULL,NULL,NULL,4,9,14,19,24,29},
+                      {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.7'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast', 
+                                           'STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID'))
+       ).valarray = '{{0,0,0,0,0,0,NULL,NULL,NULL},
+                      {0,0,0,0,0,0,NULL,NULL,NULL},
+                      {0,0,0,0,0,0,NULL,NULL,NULL},
+                      {0,0,0,6,6,6,0,0,0},
+                      {0,0,0,6,6,6,0,0,0},
+                      {0,0,0,6,6,6,0,0,0},
+                      {NULL,NULL,NULL,0,0,0,0,0,0},
+                      {NULL,NULL,NULL,0,0,0,0,0,0},
+                      {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.8'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast', 
+                                           'RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID'))
+       ).valarray = '{{0,0,0,0,0,0,NULL,NULL,NULL},
+                      {0,0,0,0,0,0,NULL,NULL,NULL},
+                      {0,0,0,0,0,0,NULL,NULL,NULL},
+                      {0,0,0,12,12,12,0,0,0},
+                      {0,0,0,12,12,12,0,0,0},
+                      {0,0,0,12,12,12,0,0,0},
+                      {NULL,NULL,NULL,0,0,0,0,0,0},
+                      {NULL,NULL,NULL,0,0,0,0,0,0},
+                      {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.9'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test AREA_WEIGHTED_MEAN_OF_RASTER_VALUES'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast', 
+                                           'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES'))
+       ).valarray = '{{0,4,8,12,16,17,NULL,NULL,NULL},
+                       {0,4,9,13,17,18,NULL,NULL,NULL},
+                       {1,5,9,14,18,19,NULL,NULL,NULL},
+                       {2,6,10,9,12,16,9,13,16},
+                       {3,7,11,9,12,15,14,19,24},
+                       {3,7,10,9,12,16,15,20,25},
+                       {NULL,NULL,NULL,1,6,11,16,21,26},
+                       {NULL,NULL,NULL,2,7,12,17,22,27},
+                       {NULL,NULL,NULL,0,2,3,5,6,8}}' passed
+---------------------------------------------------------
+
 ---------------------------------------------------------
 -- This last line has to be commented out, with the line at the beginning,
 -- to display only failing tests...
