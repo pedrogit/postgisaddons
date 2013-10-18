@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.12 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.13 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -61,9 +61,9 @@
 --
 --   ST_RandomPoints - Generates points located randomly inside a geometry.
 --
---   ST_ColumnExists - Return true if a column exist in a table.
+--   ST_ColumnExists - Returns true if a column exist in a table.
 --
---   ST_AddUniqueID - Add a column to a table and fill it with a unique integer 
+--   ST_AddUniqueID - Adds a column to a table and fill it with a unique integer 
 --                    starting at 1.
 --
 --   ST_AreaWeightedSummaryStats - Aggregate function computing statistics on a 
@@ -83,6 +83,18 @@
 --                          from a global raster coverage using different methods
 --                          like count, min, max, mean, stddev and range. Similar
 --                          and slower but more flexible than ST_Union.
+--
+--   ST_BufferedUnion - Alternative to ST_Union making a buffer around each geometry 
+--                      before unioning and removing it afterward. Used when ST_Union 
+--                      leaves internal undesirable vertexes after a complex union 
+--                      or when holes want to be removed from the resulting union.
+--
+--   ST_NBiggestExteriorRings - Returns the n biggest exterior rings of the provided 
+--                              geometry based on their area or thir number of vertex.
+--
+--   ST_BufferedSmooth - Returns a smoothed version fo the geometry. The smoothing is 
+--                       done by making a buffer around the geometry and removing it 
+--                       afterward.
 --
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
@@ -332,7 +344,7 @@ $$ LANGUAGE 'plpgsql' VOLATILE;
 --
 --   RETURNS boolean
 --
--- Return true if a column exist in a table. Mainly defined to be used by ST_AddUniqueID().
+-- Returns true if a column exist in a table. Mainly defined to be used by ST_AddUniqueID().
 -----------------------------------------------------------
 -- Self contained example:
 --
@@ -379,7 +391,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --
 --   RETURNS boolean
 --
--- Add a column to a table and fill it with a unique integer starting at 1. Returns
+-- Adds a column to a table and fill it with a unique integer starting at 1. Returns
 -- true if the operation succeeded, false otherwise.
 -- This is useful when you don't want to create a new table for whatever reason.
 -- If you want to create a new table just:
@@ -892,7 +904,7 @@ RETURNS agg_summarystats AS $$
     END;
 $$ LANGUAGE 'plpgsql';
 
----------------------------------------------------------------------
+-----------------------------------------------------------
 -- ST_SummaryStatsAgg aggregate variant state function defaulting band 
 -- number to 1, exclude_nodata_value to true and sample_percent to 1.
 CREATE OR REPLACE FUNCTION _ST_SummaryStatsAgg_StateFN(
@@ -903,7 +915,7 @@ RETURNS agg_summarystats AS $$
         SELECT _ST_SummaryStatsAgg_StateFN($1, $2, 1, true, 1);
 $$ LANGUAGE 'sql';
 
----------------------------------------------------------------------
+-----------------------------------------------------------
 -- ST_SummaryStatsAgg aggregate final function
 CREATE OR REPLACE FUNCTION _ST_SummaryStatsAgg_FinalFN(
     ss agg_summarystats
@@ -922,7 +934,7 @@ RETURNS agg_summarystats AS $$
     END;
 $$ LANGUAGE 'plpgsql';
 
----------------------------------------------------------------------
+-----------------------------------------------------------
 -- ST_SummaryStatsAgg aggregate definition
 CREATE AGGREGATE ST_SummaryStatsAgg(raster, int, boolean, double precision)
 (
@@ -931,7 +943,7 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster, int, boolean, double precision)
   FINALFUNC=_ST_SummaryStatsAgg_FinalFN
 );
 
----------------------------------------------------------------------
+-----------------------------------------------------------
 -- ST_SummaryStatsAgg aggregate variant defaulting band number to 1, 
 -- exclude_nodata_value to true and sample_percent to 1.
 CREATE AGGREGATE ST_SummaryStatsAgg(raster)
@@ -940,7 +952,7 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster)
   STYPE=agg_summarystats,
   FINALFUNC=_ST_SummaryStatsAgg_FinalFN
 );
----------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
 -- ST_ExtractToRaster
@@ -1436,7 +1448,7 @@ CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
 RETURNS raster AS $$
     SELECT ST_ExtractToRaster($1, 1, $2, $3, $4, $5, $6)
 $$ LANGUAGE 'sql';
----------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
 -- ST_GlobalRasterUnion
@@ -1626,3 +1638,177 @@ RETURNS raster AS $$
         RETURN newrast;
     END; 
 $$ LANGUAGE 'plpgsql' IMMUTABLE;
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_BufferedUnion
+--
+--   geom geometry            - Set of geometry to union.
+--   bufsize double precision - Radius of the buffer to add to every geometry 
+--                              before union (and to remove after).
+--
+-- RETURNS geometry
+--
+-- Aggregate function alternative to ST_Union making a buffer around 
+-- each geometry before unioning and removing it afterward. Used 
+-- when ST_Union leaves internal undesirable vertexes after a complex 
+-- union (which is sometimes the case when unioning all the extents of 
+-- a raster coverage loaded with raster2pgsql), when ST_Union fails or 
+-- when remaining holes have to be removed from the resulting union.
+--
+-- ST_BufferedUnion is slower than ST_Union but the result is often cleaner
+-- (no garbage vertexes or linestrings)
+--
+-- Self contained example (to be compared with the result of ST_Union):
+--
+-- SELECT ST_BufferedUnion(geom, 0.0005) 
+-- FROM (SELECT 1 id, 'POLYGON((0 0,10 0,10 -9.9999,0 -10,0 0))'::geometry geom
+--       UNION ALL
+--       SELECT 2 id, 'POLYGON((10 0,20 0,20 -9.9999,10 -10,10 0))'::geometry
+--       UNION ALL
+--       SELECT 3 id, 'POLYGON((0 -10,10 -10.0001,10 -20,0 -20,0 -10))'::geometry
+--       UNION ALL
+--       SELECT 4 id, 'POLYGON((10 -10,20 -10,20 -20,10 -20,10 -10))'::geometry
+--      ) foo
+--
+-- Typical example:
+-- 
+-- SELECT ST_BufferedUnion(rast::geometry) geom
+-- FROM rastertable
+--
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 10/18/2013 v. 1.13
+-----------------------------------------------------------
+-- ST_BufferedUnion aggregate state function
+CREATE OR REPLACE FUNCTION _ST_BufferedUnion_StateFN(
+    gv geomval, 
+    geom geometry, 
+    bufsize double precision DEFAULT 0.0
+)
+RETURNS geomval AS $$
+    SELECT CASE WHEN $1 IS NULL AND $2 IS NULL THEN
+                    null
+                WHEN $1 IS NULL THEN 
+                    (ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre'), 
+                     CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END
+                    )::geomval
+                WHEN $2 IS NULL THEN
+                    gv
+                ELSE (ST_Union(($1).geom, 
+	                       ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre')
+	                      ), 
+	              ($1).val
+	             )::geomval
+	   END;
+$$ LANGUAGE 'sql' IMMUTABLE;
+
+-----------------------------------------------------------
+-- ST_BufferedUnion aggregate final function
+CREATE OR REPLACE FUNCTION _ST_BufferedUnion_FinalFN(
+    gv geomval
+)
+RETURNS geometry AS $$
+    SELECT ST_Buffer(($1).geom, -($1).val, 'endcap=square join=mitre')
+$$ LANGUAGE 'sql' IMMUTABLE STRICT;
+
+-----------------------------------------------------------
+-- ST_BufferedUnion aggregate definition
+CREATE AGGREGATE ST_BufferedUnion(geometry, double precision)
+(
+    SFUNC = _ST_BufferedUnion_StateFN,
+    STYPE = geomval,
+    FINALFUNC = _ST_BufferedUnion_FinalFN
+);
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_NBiggestExteriorRings
+--
+--   geom geometry - Geometry from which to extract exterior rings.
+--   nbrings int   - Number of rings to extract.
+--   comptype text - Determine how 'biggest' is interpreted. Can be 'AREA' or 'NBPOINTS'.
+--
+-- RETURNS set of geometry
+--
+-- Returns the 'nbrings' biggest exterior rings of the provided geometry. Biggest
+-- can be defined in terms of the area of the ring (AREA) or in terms of the 
+-- total number of vertexes in the ring (NBPOINT).
+--
+-- Self contained example:
+--
+-- SELECT ST_NBiggestExteriorRings(
+--          ST_GeomFromText('MULTIPOLYGON( ((0 0, 0 5, 0 10, 8 10, 8 0, 0 0)), 
+--                                         ((20 0, 20 5, 20 10, 30 10, 30 0, 20 0)), 
+--                                         ((40 0, 40 10, 52 10, 52 0, 40 0)) )'), 
+--          2, 'NBPOINTS') geom
+--
+-- Typical example:
+--
+-- SELECT ST_NBiggestExteriorRings(ST_Union(geom), 4) geom
+-- FROM geomtable
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 10/18/2013 v. 1.13
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_NBiggestExteriorRings(
+    ingeom geometry, 
+    nbrings integer, 
+    comptype text DEFAULT 'AREA'
+)
+RETURNS SETOF geometry AS $$
+    DECLARE
+    BEGIN
+	IF upper(comptype) = 'AREA' THEN
+	    RETURN QUERY SELECT ring 
+	                 FROM (SELECT ST_MakePolygon(ST_ExteriorRing((ST_Dump(ingeom)).geom)) ring
+	                      ) foo
+	                 ORDER BY ST_Area(ring) DESC LIMIT nbrings;
+	ELSIF upper(comptype) = 'NBPOINTS' THEN
+	    RETURN QUERY SELECT ring 
+	                 FROM (SELECT ST_MakePolygon(ST_ExteriorRing((ST_Dump(ingeom)).geom)) ring
+	                      ) foo
+	                 ORDER BY ST_NPoints(ring) DESC LIMIT nbrings;
+	ELSE
+	    RAISE NOTICE 'ST_NBiggestExteriorRings: Unsupported comparison type: ''%''. Try ''AREA'' or ''NBPOINTS''.', comptype;
+	    RETURN;
+	END IF;
+    END;
+$$ LANGUAGE 'plpgsql';
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_BufferedSmooth
+--
+--   geom geometry            - Geometry to smooth.
+--   bufsize double precision - Radius of the buffer to add and remove to every 
+--                              geometry.
+--
+-- RETURNS geometry
+--
+-- Returns a smoothed version fo the geometry. The smoothing is done by 
+-- making a buffer around the geometry and removing it afterward.
+--
+-- Note that topology will not be preserved if this function is applied on a 
+-- topological set of geometries.
+--
+-- Self contained example:
+--
+-- SELECT ST_BufferedSmooth(ST_GeomFromText('POLYGON((-2 1, -5 5, -1 2, 0 5, 1 2, 
+-- 5 5, 2 1, 5 0, 2 -1, 5 -5, 1 -2, 0 -5, -1 -2, -5 -5, -2 -1, -5 0, -2 1))'), 1)
+--
+-- Typical example:
+--
+-- SELECT ST_BufferedSmooth(geom, 4) geom
+-- FROM geomtable
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 10/18/2013 v. 1.13
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_BufferedSmooth(
+    geom geometry, 
+    bufsize double precision DEFAULT 0
+)
+RETURNS geometry AS $$
+    SELECT ST_Buffer(ST_Buffer($1, $2), -$2)
+$$ LANGUAGE 'sql' IMMUTABLE;

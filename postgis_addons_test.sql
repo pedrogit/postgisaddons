@@ -1,6 +1,6 @@
--------------------------------------------------------------------------------
+﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.12 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.13 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This test file return a table of two columns: 
@@ -753,6 +753,86 @@ SELECT '9.9'::text number,
                        {NULL,NULL,NULL,1,6,11,16,21,26},
                        {NULL,NULL,NULL,2,7,12,17,22,27},
                        {NULL,NULL,NULL,0,2,3,5,6,8}}' passed
+---------------------------------------------------------
+-- Test 10 - ST_BufferedUnion
+---------------------------------------------------------
+UNION ALL
+SELECT '10.1'::text number,
+       'ST_BufferedUnion'::text function_tested,
+       'Basic test'::text description,
+       ST_AsText(ST_BufferedUnion(geom, 0.05)) = 'POLYGON((0 0,20 0,20 -20,0 -20,0 0))' passed
+FROM (SELECT 1 id, 'POLYGON((0 0,10 0,10 -9.9999,0 -10,0 0))'::geometry geom
+      UNION ALL
+      SELECT 2 id, 'POLYGON((10 0,20 0,20 -9.9999,10 -10,10 0))'::geometry
+      UNION ALL
+      SELECT 3 id, 'POLYGON((0 -10,10 -10.0001,10 -20,0 -20,0 -10))'::geometry
+      UNION ALL
+      SELECT 4 id, 'POLYGON((10 -10,20 -10,20 -20,10 -20,10 -10))'::geometry
+     ) foo
+---------------------------------------------------------
+UNION ALL
+SELECT '10.2'::text number,
+       'ST_BufferedUnion'::text function_tested,
+       'Test null geometry'::text description,
+       ST_AsText(ST_BufferedUnion(geom, 0.05)) = 'POLYGON((10 0,20 0,20 -20,0 -20,0 -10,10 -10.0001,10 0))' passed
+FROM (SELECT 1 id, null geom
+      UNION ALL
+      SELECT 2 id, 'POLYGON((10 0,20 0,20 -9.9999,10 -10,10 0))'::geometry
+      UNION ALL
+      SELECT 3 id, 'POLYGON((0 -10,10 -10.0001,10 -20,0 -20,0 -10))'::geometry
+      UNION ALL
+      SELECT 4 id, 'POLYGON((10 -10,20 -10,20 -20,10 -20,10 -10))'::geometry
+     ) foo
+---------------------------------------------------------
+UNION ALL
+SELECT '10.3'::text number,
+       'ST_BufferedUnion'::text function_tested,
+       'Test null buffer size'::text description,
+       ST_AsText(ST_BufferedUnion(geom, null)) = 'POLYGON((0 0,10 0,20 0,20 -9.9999,10 -10,10 -9.9999,0 -10,0 0))' passed
+FROM (SELECT 1 id, 'POLYGON((0 0,10 0,10 -9.9999,0 -10,0 0))'::geometry geom
+      UNION ALL
+      SELECT 2 id, 'POLYGON((10 0,20 0,20 -9.9999,10 -10,10 0))'::geometry
+     ) foo
+---------------------------------------------------------
+-- Test 11 - ST_NBiggestExteriorRings
+---------------------------------------------------------
+UNION ALL
+SELECT '11.1'::text number,
+       'ST_NBiggestExteriorRings'::text function_tested,
+       'Basic test defaulting to AREA'::text description,
+       array_agg(geom) = '{"POLYGON((40 0,40 10,52 10,52 0,40 0))",
+                           "POLYGON((20 0,20 5,20 10,30 10,30 0,20 0))"}' passed
+FROM (SELECT ST_AsText(
+               ST_NBiggestExteriorRings(
+                 ST_GeomFromText('MULTIPOLYGON( ((0 0, 0 5, 0 10, 8 10, 8 0, 0 0)), 
+                                                ((20 0, 20 5, 20 10, 30 10, 30 0, 20 0)), 
+                                                ((40 0, 40 10, 52 10, 52 0, 40 0)) )'), 
+                 2)) geom) foo
+---------------------------------------------------------
+UNION ALL
+SELECT '11.2'::text number,
+       'ST_NBiggestExteriorRings'::text function_tested,
+       'Basic test with NBPOINTS'::text description,
+       array_agg(geom) = '{"POLYGON((0 0,0 5,0 10,8 10,8 0,0 0))",
+                           "POLYGON((20 0,20 5,20 10,30 10,30 0,20 0))"}' passed
+FROM (SELECT ST_AsText(
+               ST_NBiggestExteriorRings(
+                 ST_GeomFromText('MULTIPOLYGON( ((0 0, 0 5, 0 10, 8 10, 8 0, 0 0)), 
+                                                ((20 0, 20 5, 20 10, 30 10, 30 0, 20 0)), 
+                                                ((40 0, 40 10, 52 10, 52 0, 40 0)) )'), 
+                 2, 'NBPOINTS')) geom) foo
+---------------------------------------------------------
+-- Test 12 - ST_BufferedSmooth
+---------------------------------------------------------
+UNION ALL
+SELECT '12.1'::text number,
+       'ST_BufferedSmooth'::text function_tested,
+       'Basic test'::text description,
+       ST_NPoints(ST_BufferedSmooth(
+          ST_GeomFromText('POLYGON((-2  1, -5  5, -1  2, 0  5, 1  2,  5  5,  2  1, 
+                                     5  0,  2 -1,  5 -5, 1 -2, 0 -5, -1 -2, -5 -5, 
+                                    -2 -1, -5  0, -2  1))'), 
+          1)) = 113
 ---------------------------------------------------------
 
 ---------------------------------------------------------
