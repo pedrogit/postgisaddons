@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.13 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.14 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This test file return a table of two columns: 
@@ -833,6 +833,56 @@ SELECT '12.1'::text number,
                                      5  0,  2 -1,  5 -5, 1 -2, 0 -5, -1 -2, -5 -5, 
                                     -2 -1, -5  0, -2  1))'), 
           1)) = 113
+---------------------------------------------------------
+-- Test 13 - ST_DifferenceAgg
+---------------------------------------------------------
+UNION ALL
+(WITH overlappingtable AS (
+  SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))') geom
+  UNION ALL
+  SELECT 2 id, ST_GeomFromText('POLYGON((1 1, 4 2, 4 0, 1 1))')
+  UNION ALL
+  SELECT 3 id, ST_GeomFromText('POLYGON((2 1, 5 2, 5 0, 2 1))')
+  UNION ALL
+  SELECT 4 id, ST_GeomFromText('POLYGON((3 1, 6 2, 6 0, 3 1))')
+)
+SELECT '13.1'::text number,
+       'ST_DifferenceAgg'::text function_tested,
+       'Basic test'::text description,
+       ST_Union(geom)::text = '010300000001000000130000000000000000000000000000000000F03F000000000000084000000000000000400000000000000840ABAAAAAAAAAAFA3F000000000000F03F000000000000F03F000000000000104000000000000000400000000000001040ABAAAAAAAAAAFA3F0000000000000040000000000000F03F000000000000144000000000000000400000000000001440ABAAAAAAAAAAFA3F0000000000000840000000000000F03F00000000000018400000000000000040000000000000184000000000000000000000000000001440565555555555D53F000000000000144000000000000000000000000000001040565555555555D53F000000000000104000000000000000000000000000000840565555555555D53F000000000000084000000000000000000000000000000000000000000000F03F' passed
+FROM (SELECT ST_DifferenceAgg(a.geom, b.geom, a.id, b.id) geom
+      FROM overlappingtable a, 
+           overlappingtable b
+      WHERE a.id = b.id OR 
+            ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND 
+             (a.id < b.id))
+      GROUP BY a.id
+     ) foo
+)
+---------------------------------------------------------
+UNION ALL
+(WITH overlapping AS (
+  SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))') geom
+  UNION ALL
+  SELECT 2 id, null
+  UNION ALL
+  SELECT 3 id, ST_GeomFromText('POLYGON((2 1, 5 2, 5 0, 2 1))')
+  UNION ALL
+  SELECT 4 id, ST_GeomFromText('POLYGON((3 1, 6 2, 6 0, 3 1))')
+)
+SELECT '13.2'::text number,
+       'ST_DifferenceAgg'::text function_tested,
+       'Test with a null geometry'::text description,
+       ST_Union(geom)::text = '0103000000010000000D0000000000000000000000000000000000F03F000000000000084000000000000000400000000000000840555555555555F53F000000000000144000000000000000400000000000001440ABAAAAAAAAAAFA3F0000000000000840000000000000F03F00000000000018400000000000000040000000000000184000000000000000000000000000001440565555555555D53F000000000000144000000000000000000000000000000840555555555555E53F000000000000084000000000000000000000000000000000000000000000F03F'  passed
+FROM (SELECT ST_DifferenceAgg(a.geom, b.geom, a.id, b.id) geom
+      FROM overlapping a, 
+           overlapping b
+      WHERE a.id = b.id OR 
+            ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND 
+             (a.id < b.id))
+      GROUP BY a.id
+     ) foo
+)
 ---------------------------------------------------------
 
 ---------------------------------------------------------

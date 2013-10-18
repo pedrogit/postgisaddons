@@ -1,6 +1,6 @@
--------------------------------------------------------------------------------
+﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.13 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.14 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -95,6 +95,10 @@
 --   ST_BufferedSmooth - Returns a smoothed version fo the geometry. The smoothing is 
 --                       done by making a buffer around the geometry and removing it 
 --                       afterward.
+--
+--   ST_DifferenceAgg - Returns the first geometry after having removed all the 
+--                      subsequent geometries in the aggregate. Used to remove 
+--                      overlaps in a geometry table.
 --
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
@@ -1694,7 +1698,7 @@ RETURNS geomval AS $$
                      CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END
                     )::geomval
                 WHEN $2 IS NULL THEN
-                    gv
+                    $1
                 ELSE (ST_Union(($1).geom, 
 	                       ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre')
 	                      ), 
@@ -1812,3 +1816,115 @@ CREATE OR REPLACE FUNCTION ST_BufferedSmooth(
 RETURNS geometry AS $$
     SELECT ST_Buffer(ST_Buffer($1, $2), -$2)
 $$ LANGUAGE 'sql' IMMUTABLE;
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_DifferenceAgg
+--
+--   geom1 geometry - Geometry from which to remove subsequent geometries
+--                    in the aggregate.
+--   geom2 geometry - Geometry to remove from geom1.
+--   id1 text       - geom1 ID.
+--   id2 text       - geom2 ID.
+--
+-- RETURNS geometry
+--
+-- Returns the first geometry after having removed all the subsequent geometries in
+-- the aggregate. This function is used to remove overlaps in a geometry table.
+--
+-- One variant accepts integer IDs. 
+--
+-- Refer to the self contained example below. Each geometry MUST have a unique ID 
+-- and, if the table contain a huge number of geometries, it should be indexed.
+--
+-- Self contained and typical example removing from a geometry, all
+-- the overlapping geometries with a higher id:
+--
+-- WITH overlappingtable AS (
+--   SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))') geom
+--   UNION ALL
+--   SELECT 2 id, ST_GeomFromText('POLYGON((1 1, 4 2, 4 0, 1 1))')
+--   UNION ALL
+--   SELECT 3 id, ST_GeomFromText('POLYGON((2 1, 5 2, 5 0, 2 1))')
+--   UNION ALL
+--   SELECT 4 id, ST_GeomFromText('POLYGON((3 1, 6 2, 6 0, 3 1))')
+-- )
+-- SELECT a.id, ST_DifferenceAgg(a.geom, b.geom, a.id, b.id) geom
+-- FROM overlappingtable a, 
+--      overlappingtable b
+-- WHERE a.id = b.id OR 
+--       ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND 
+--         (a.id < b.id))
+-- GROUP BY a.id;
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 10/18/2013 v. 1.14
+-----------------------------------------------------------
+-- ST_DifferenceAgg aggregate state function
+CREATE OR REPLACE FUNCTION _ST_DifferenceAgg_StateFN(
+    geom1 geometry, 
+    geom2 geometry, 
+    geom3 geometry, 
+    id1 text, 
+    id2 text
+)
+RETURNS geometry AS $$
+    DECLARE
+       newgeom geometry;
+    BEGIN
+        -- First pass: geom1 is null
+        IF geom1 IS NULL AND NOT ST_IsEmpty(geom2) THEN
+            newgeom = CASE 
+                        WHEN NOT (id1 IS NULL AND id2 IS NULL) AND id1 = id2 THEN geom2 
+                        ELSE ST_Difference(geom2, geom3)
+                      END;
+        ELSIF NOT ST_IsEmpty(geom1) THEN
+            newgeom = CASE 
+                        WHEN NOT (id1 IS NULL AND id2 IS NULL) AND id1 = id2 THEN geom1 
+                        ELSE ST_Difference(geom1, geom3)
+                      END;
+        ELSE
+            newgeom = geom1;
+        END IF;
+
+        newgeom = ST_CollectionExtract(newgeom, 3);
+
+        IF NOT ST_IsEmpty(newgeom) THEN
+            --newgeom = ST_CollectionExtract(ST_MakeValid(ST_SnapToGrid(newgeom, 0.000001)), 3);
+            newgeom = ST_CollectionExtract(newgeom, 3);
+        END IF;
+
+        IF newgeom IS NULL THEN
+            newgeom = ST_GeomFromText('GEOMETRYCOLLECTION EMPTY');
+        END IF;
+
+        RETURN newgeom;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-----------------------------------------------------------
+-- ST_DifferenceAgg aggregate state function variant taking integer ids
+CREATE OR REPLACE FUNCTION _ST_DifferenceAgg_StateFN(
+    geom1 geometry, 
+    geom2 geometry, 
+    geom3 geometry, 
+    id1 integer, 
+    id2 integer
+)
+RETURNS geometry AS $$
+        SELECT _ST_DifferenceAgg_StateFN($1, $2, $3, $4::text, $5::text);
+$$ LANGUAGE 'sql' IMMUTABLE;
+
+-----------------------------------------------------------
+-- ST_DifferenceAgg aggregate main definition
+CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry, text, text) (
+    SFUNC=_ST_DifferenceAgg_StateFN,
+    STYPE=geometry
+);
+
+-----------------------------------------------------------
+-- ST_DifferenceAgg aggregate integer id variant
+CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry, integer, integer) (
+  SFUNC=_ST_DifferenceAgg_StateFN,
+  STYPE=geometry
+);
