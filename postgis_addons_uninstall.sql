@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Uninstallation file
--- Version 1.16 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.17 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 
 DROP FUNCTION IF EXISTS ST_DeleteBand(raster, int);
