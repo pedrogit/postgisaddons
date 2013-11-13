@@ -100,6 +100,11 @@
 --                      subsequent geometries in the aggregate. Used to remove 
 --                      overlaps in a geometry table.
 --
+--   ST_TrimMulti - Returns a multigeometry from which simple geometries having an area  
+--                  smaller than the tolerance parameter have been removed.
+--
+--   ST_SplitAgg - Returns the first geometry as a set of geometries after being split 
+--                 by all the second geometries being part of the aggregate.
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
 -------------------------------------------------------------------------------
@@ -1983,7 +1988,7 @@ $$ LANGUAGE 'sql' IMMUTABLE;
 -- RETURNS geometry[]
 --
 -- Returns the first geometry as a set of geometries after being split by all 
--- the second geometry being part of the aggregate.
+-- the second geometries being part of the aggregate.
 --
 -- This function is used to remove overlaps in a table of polygons or to generate 
 -- the equivalent of a ArcGIS union (see http://trac.osgeo.org/postgis/wiki/UsersWikiExamplesOverlayTables).
