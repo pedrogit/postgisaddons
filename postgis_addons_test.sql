@@ -1,6 +1,6 @@
-﻿-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.14 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.16 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This test file return a table of two columns: 
@@ -873,7 +873,7 @@ UNION ALL
 SELECT '13.2'::text number,
        'ST_DifferenceAgg'::text function_tested,
        'Test with a null geometry'::text description,
-       ST_Union(geom)::text = '0103000000010000000D0000000000000000000000000000000000F03F000000000000084000000000000000400000000000000840555555555555F53F000000000000144000000000000000400000000000001440ABAAAAAAAAAAFA3F0000000000000840000000000000F03F00000000000018400000000000000040000000000000184000000000000000000000000000001440565555555555D53F000000000000144000000000000000000000000000000840555555555555E53F000000000000084000000000000000000000000000000000000000000000F03F'  passed
+       ST_Union(geom)::text = '0103000000010000000D0000000000000000000000000000000000F03F000000000000084000000000000000400000000000000840555555555555F53F000000000000144000000000000000400000000000001440ABAAAAAAAAAAFA3F0000000000000840000000000000F03F00000000000018400000000000000040000000000000184000000000000000000000000000001440565555555555D53F000000000000144000000000000000000000000000000840555555555555E53F000000000000084000000000000000000000000000000000000000000000F03F' passed
 FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
       FROM overlapping a, 
            overlapping b
@@ -884,7 +884,140 @@ FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
      ) foo
 )
 ---------------------------------------------------------
-
+-- Test 14 - ST_TrimMulti
+---------------------------------------------------------
+UNION ALL
+SELECT '14.1'::text number,
+       'ST_TrimMulti'::text function_tested,
+       'Basic test defaulting to minarea = 0.0'::text description,
+       ST_TrimMulti(
+         ST_GeomFromText('MULTIPOLYGON(((2 2, 2 3, 2 4, 2 2)),
+                                       ((0 0, 0 1, 1 1, 1 0, 0 0)))')) =
+         'POLYGON((0 0,0 1,1 1,1 0,0 0))'::geometry passed
+---------------------------------------------------------
+UNION ALL
+SELECT '14.2'::text number,
+       'ST_TrimMulti'::text function_tested,
+       'Test null geometry'::text description,
+       ST_TrimMulti(null, 0.00001) IS NULL passed
+---------------------------------------------------------
+UNION ALL
+SELECT '14.3'::text number,
+       'ST_TrimMulti'::text function_tested,
+       'Test empty geometry'::text description,
+       ST_TrimMulti('GEOMETRYCOLLECTION EMPTY'::geometry, 0.00001) IS NULL passed
+---------------------------------------------------------
+UNION ALL
+SELECT '14.4'::text number,
+       'ST_TrimMulti'::text function_tested,
+       'Test geometry collection'::text description,
+       ST_TrimMulti(
+         ST_Collect(ARRAY['MULTIPOLYGON(((2 2, 2 3, 2 4, 2 2)),
+                                        ((0 0, 0 1, 1 1, 1 0, 0 0)))'::geometry, 
+                          'POINT(1 1)'::geometry, 
+                          'LINESTRING(0 0, 1 1, 2 1)'::geometry])) = 
+       'POLYGON((0 0,0 1,1 1,1 0,0 0))'::geometry passed
+---------------------------------------------------------
+-- Test 15 - ST_SplitAgg
+---------------------------------------------------------
+UNION ALL
+(WITH geomtable AS (
+SELECT 1 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
+UNION ALL
+SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
+UNION ALL
+SELECT 3 id, ST_GeomFromText('POLYGON((1.5 0.8, 1.5 1.2, 2.5 1.2, 2.5 0.8, 1.5 0.8))') geom
+UNION ALL
+SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
+)
+SELECT '15.1'::text number,
+       'ST_SplitAgg'::text function_tested,
+       'Basic test'::text description,
+       array_agg(geomtxt) = 
+       '{"POLYGON((0 0,0 2,2 2,2 1.2,1.5 1.2,1.5 1,1 1,1 0.2,2 0.2,2 0,0 0),(0.2 1.5,0.2 0.5,0.8 0.5,0.8 1.5,0.2 1.5))",
+         "POLYGON((2 0.8,2 0.2,1 0.2,1 1,1.5 1,1.5 0.8,2 0.8))",
+         "POLYGON((2 1.2,2 1,1.5 1,1.5 1.2,2 1.2))",
+         "POLYGON((2 1,2 0.8,1.5 0.8,1.5 1,2 1))"}' passed
+FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
+      FROM geomtable a, geomtable b
+      WHERE a.id = 1) foo)
+---------------------------------------------------------
+UNION ALL
+(WITH geomtable AS (
+SELECT 1 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
+UNION ALL
+SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
+UNION ALL
+SELECT 3 id, null geom
+UNION ALL
+SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
+)
+SELECT '15.2'::text number,
+       'ST_SplitAgg'::text function_tested,
+       'Test null geometry on the "splitting" side'::text description,
+       array_agg(geomtxt) = 
+       '{"POLYGON((0 0,0 2,2 2,2 1,1 1,1 0.2,2 0.2,2 0,0 0),(0.2 1.5,0.2 0.5,0.8 0.5,0.8 1.5,0.2 1.5))",
+         "POLYGON((2 1,2 0.2,1 0.2,1 1,2 1))"}' passed
+FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
+      FROM geomtable a, geomtable b
+      WHERE a.id = 1) foo)
+---------------------------------------------------------
+UNION ALL
+(WITH geomtable AS (
+SELECT 3 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
+UNION ALL
+SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
+UNION ALL
+SELECT 1 id, null geom
+UNION ALL
+SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
+)
+SELECT '15.3'::text number,
+       'ST_SplitAgg'::text function_tested,
+       'Test null geometry on the "to split" side. Should be null.'::text description,
+       array_agg(geomtxt) IS NULL passed
+FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
+      FROM geomtable a, geomtable b
+      WHERE a.id = 1) foo)
+---------------------------------------------------------
+UNION ALL
+(WITH geomtable AS (
+SELECT 3 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
+UNION ALL
+SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
+UNION ALL
+SELECT 1 id, 'GEOMETRYCOLLECTION EMPTY'::geometry geom
+UNION ALL
+SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
+)
+SELECT '15.4'::text number,
+       'ST_SplitAgg'::text function_tested,
+       'Test empty geometry on the "to split" side. Should be null.'::text description,
+       array_agg(geomtxt) IS NULL passed
+FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
+      FROM geomtable a, geomtable b
+      WHERE a.id = 1) foo)
+---------------------------------------------------------
+UNION ALL
+(WITH geomtable AS (
+SELECT 1 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
+UNION ALL
+SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
+UNION ALL
+SELECT 3 id, 'GEOMETRYCOLLECTION EMPTY'::geometry geom
+UNION ALL
+SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
+)
+SELECT '15.5'::text number,
+       'ST_SplitAgg'::text function_tested,
+       'Test empty geometry on the "splitting" side'::text description,
+       array_agg(geomtxt) = 
+       '{"POLYGON((0 0,0 2,2 2,2 1,1 1,1 0.2,2 0.2,2 0,0 0),(0.2 1.5,0.2 0.5,0.8 0.5,0.8 1.5,0.2 1.5))",
+         "POLYGON((2 1,2 0.2,1 0.2,1 1,2 1))"}' passed
+FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
+      FROM geomtable a, geomtable b
+      WHERE a.id = 1) foo)
+---------------------------------------------------------
 ---------------------------------------------------------
 -- This last line has to be commented out, with the line at the beginning,
 -- to display only failing tests...

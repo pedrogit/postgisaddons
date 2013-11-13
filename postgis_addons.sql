@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.14 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.16 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -1929,8 +1929,182 @@ RETURNS geometry AS $$
 $$ LANGUAGE plpgsql IMMUTABLE;
 
 -----------------------------------------------------------
--- ST_DifferenceAgg aggregate integer id variant
+-- ST_DifferenceAgg aggregate
 CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry) (
   SFUNC=_ST_DifferenceAgg_StateFN,
   STYPE=geometry
+);
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_TrimMulti
+--
+--   geom geometry - Multipolygon or geometry collection to trim.
+--   minarea double precision - Minimal area of an inner polygon to be kept in 
+--                              the geometry.
+--
+-- RETURNS geometry
+--
+-- Returns a multigeometry from which simple geometries having an area smaller 
+-- than the tolerance parameter have been removed. This includes points and linestrings 
+-- when a geometry collection is provided. When no tolerance is provided, minarea is 
+-- defaulted to 0.0 and this function is equivalent to ST_CollectionExtract(geom, 3).
+--
+-- This function is used by the ST_SplitAgg state function.
+--
+-- Self contained and typical example:
+--
+-- SELECT ST_TrimMulti(
+--         ST_GeomFromText('MULTIPOLYGON(((2 2, 2 3, 2 4, 2 2)),
+--                                       ((0 0, 0 1, 1 1, 1 0, 0 0)))'), 0.00001) geom
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 13/11/2013 v. 1.16
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_TrimMulti(
+    geom geometry, 
+    minarea double precision DEFAULT 0.0
+)
+RETURNS geometry AS $$
+    SELECT ST_Union(newgeom) 
+    FROM (SELECT ST_CollectionExtract((ST_Dump(geom)).geom, 3) newgeom
+         ) foo 
+    WHERE ST_Area(newgeom) > minarea;
+$$ LANGUAGE 'sql' IMMUTABLE;
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_SplitAgg
+--
+--   geom1 geometry - Geometry to split.
+--   geom2 geometry - Geometry used to split the first geometry.
+--   tolerance - Minimal area necessary for split slivers to be kept in the result.
+--
+-- RETURNS geometry[]
+--
+-- Returns the first geometry as a set of geometries after being split by all 
+-- the second geometry being part of the aggregate.
+--
+-- This function is used to remove overlaps in a table of polygons or to generate 
+-- the equivalent of a ArcGIS union (see http://trac.osgeo.org/postgis/wiki/UsersWikiExamplesOverlayTables).
+-- As it does not involve the usion of all the polygons (or the extracted linestring) 
+-- of the table, it works much better on very large tables than the solutions 
+-- provided in the wiki.
+--
+--
+-- Self contained and typical example:
+--
+-- WITH geomtable AS (
+-- SELECT 1 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
+-- UNION ALL
+-- SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
+-- UNION ALL
+-- SELECT 3 id, ST_GeomFromText('POLYGON((1.5 0.8, 1.5 1.2, 2.5 1.2, 2.5 0.8, 1.5 0.8))') geom
+-- UNION ALL
+-- SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
+-- )
+-- SELECT DISTINCT ON (geom) unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom 
+-- FROM geomtable a, 
+--      geomtable b
+-- WHERE ST_Equals(a.geom, b.geom) OR 
+--       ST_Contains(a.geom, b.geom) OR 
+--       ST_Contains(b.geom, a.geom) OR 
+--       ST_Overlaps(a.geom, b.geom)
+-- GROUP BY a.geom;
+--
+-- The second example shows how to assign to each polygon the id of the biggest polygon:
+--
+-- WITH geomtable AS (
+-- SELECT 1 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
+-- UNION ALL
+-- SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
+-- UNION ALL
+-- SELECT 3 id, ST_GeomFromText('POLYGON((1.5 0.8, 1.5 1.2, 2.5 1.2, 2.5 0.8, 1.5 0.8))') geom
+-- UNION ALL
+-- SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
+-- )
+-- SELECT DISTINCT ON (geom) a.id, unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom
+-- FROM geomtable a, 
+--      geomtable b
+-- WHERE ST_Equals(a.geom, b.geom) OR 
+--       ST_Contains(a.geom, b.geom) OR 
+--       ST_Contains(b.geom, a.geom) OR 
+--       ST_Overlaps(a.geom, b.geom)
+-- GROUP BY a.id
+-- ORDER BY geom, max(ST_Area(a.geom)) DESC;
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 13/11/2013 v. 1.16
+-----------------------------------------------------------
+-- ST_SplitAgg aggregate state function
+CREATE OR REPLACE FUNCTION _ST_SplitAgg_StateFN(
+    geomarray geometry[], 
+    geom1 geometry,
+    geom2 geometry,
+    tolerance double precision
+)
+RETURNS geometry[] AS $$
+    DECLARE
+        newgeomarray geometry[];
+        geom3 geometry;
+        newgeom geometry;
+        geomunion geometry;
+    BEGIN
+        -- First pass: geomarray is null
+       IF geomarray IS NULL THEN
+            geomarray = array_append(newgeomarray, geom1);
+        END IF;
+
+        IF NOT geom2 IS NULL THEN
+            -- 2) Each geometry in the array - geom2
+            FOREACH geom3 IN ARRAY geomarray LOOP
+                newgeom = ST_Difference(geom3, geom2);
+                IF tolerance > 0 THEN
+                    newgeom = ST_TrimMulti(newgeom, tolerance);
+                END IF;
+                IF NOT newgeom IS NULL AND NOT ST_IsEmpty(newgeom) THEN
+                    newgeomarray = array_append(newgeomarray, newgeom);
+                END IF;
+            END LOOP;
+            
+        -- 3) gv1 intersecting each geometry in the array
+            FOREACH geom3 IN ARRAY geomarray LOOP
+                newgeom = ST_Intersection(geom3, geom2);
+                IF tolerance > 0 THEN
+                    newgeom = ST_TrimMulti(newgeom, tolerance);
+                END IF;
+                IF NOT newgeom IS NULL AND NOT ST_IsEmpty(newgeom) THEN
+                    newgeomarray = array_append(newgeomarray, newgeom);
+                END IF;
+            END LOOP;
+        ELSE
+            newgeomarray = geomarray;
+        END IF;
+        RETURN newgeomarray;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+---------------------------------------
+-- ST_SplitAgg aggregate variant state function defaulting tolerance to 0.0
+CREATE OR REPLACE FUNCTION _ST_SplitAgg_StateFN(
+    geomarray geometry[], 
+    geom1 geometry,
+    geom2 geometry
+)
+RETURNS geometry[] AS $$
+    SELECT _ST_SplitAgg_StateFN($1, $2, $3, 0.0);
+$$ LANGUAGE sql VOLATILE;
+
+---------------------------------------
+-- ST_SplitAgg aggregate
+CREATE AGGREGATE ST_SplitAgg(geometry, geometry, double precision) (
+    SFUNC=_ST_SplitAgg_StateFN,
+    STYPE=geometry[]
+);
+
+---------------------------------------
+-- ST_SplitAgg aggregate defaulting tolerance to 0.0
+CREATE AGGREGATE ST_SplitAgg(geometry, geometry) (
+    SFUNC=_ST_SplitAgg_StateFN,
+    STYPE=geometry[]
 );
