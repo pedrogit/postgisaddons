@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.17 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.18 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -972,7 +972,8 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster)
 --   tablename text          - Name of the table from which to extract values from.
 --   geomrastcolumnname text - Name of the column containing the geometry or the raster to use when extracting values.
 --   valuecolumnname text    - Name of the column containing the value to use when extracting values. Should be null
---                             when extracting from a raster coverage.
+--                             when extracting from a raster coverage and can be null for certain methods not implying
+--                             geometries values.
 --   method text             - Name of the method of value extraction. Default to 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'.
 --
 --   RETURNS raster
@@ -1035,7 +1036,7 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster)
 -- Many more methods can be added over time. An almost exhaustive list of possible method can be find
 -- at objective FV.27 in this page: http://trac.osgeo.org/postgis/wiki/WKTRaster/SpecificationWorking03
 --
--- Self contained and typical example:
+-- Self contained example:
 --
 -- We first create a table of geometries:
 -- 
@@ -1063,6 +1064,19 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster)
 --
 -- SELECT ST_ExtractToRaster(rast, 'public', 'test_extracttoraster', 'geom', 'val', 'AREA_WEIGHTED_MEAN_OF_VALUES') rast
 -- FROM ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF') rast
+--
+--
+-- Typical example
+--
+-- In the typical case the geometry table already exists and you already have 
+-- a raster table that serve as a reference grid. You have to pass to 
+-- ST_ExtractToRaster() an empty raster created from the reference grid to which 
+-- you add a band having with the proper pixel type for storing the desired value.
+--
+-- SELECT ST_ExtractToRaster(
+--          ST_AddBand(
+--            ST_MakeEmptyRaster(rast), '32BF'), 'public', 'geomtable', 'geom', 'val', 'AREA_WEIGHTED_MEAN_OF_VALUES') rast
+-- FROM refrastertable;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 11/10/2013 v. 1.10
