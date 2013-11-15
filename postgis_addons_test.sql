@@ -1,6 +1,6 @@
--------------------------------------------------------------------------------
+﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.18 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.19 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This test file return a table of two columns: 
@@ -63,11 +63,43 @@ SELECT 2, ST_CreateIndexRaster(ST_MakeEmptyRaster(6, 5, 2.8, 2.8, 0.85, 0.85, 0,
 -- Comment out the following line and the last one of the file to display 
 -- only failing tests
 --SELECT * FROM (
+-----------------------------------------------------------
+-- The first table in the next WITH statement list all the function tested
+-- with the number of test for each. It must be adjusted for every new test.
+-- It is required to list text which would not appear because they failed
+-- by returning nothing.
+WITH test_nb AS (
+SELECT 'ST_DeleteBand'::text function_tested, 1 maj_num,  9 nb_test UNION ALL
+SELECT 'ST_CreateIndexRaster'::text,          2,         15         UNION ALL
+SELECT 'ST_RandomPoints'::text,               3,          3         UNION ALL
+SELECT 'ST_ColumnExists'::text,               4,          3         UNION ALL
+SELECT 'ST_AddUniqueID'::text,                5,          3         UNION ALL
+SELECT 'ST_AreaWeightedSummaryStats'::text,   6,          2         UNION ALL
+SELECT 'ST_SummaryStatsAgg'::text,            7,          2         UNION ALL
+SELECT 'ST_ExtractToRaster'::text,            8,         16         UNION ALL
+SELECT 'ST_GlobalRasterUnion'::text,          9,          9         UNION ALL
+SELECT 'ST_BufferedUnion'::text,             10,          3         UNION ALL
+SELECT 'ST_NBiggestExteriorRings'::text,     11,          2         UNION ALL
+SELECT 'ST_BufferedSmooth'::text,            12,          1         UNION ALL
+SELECT 'ST_DifferenceAgg'::text,             13,          2         UNION ALL
+SELECT 'ST_TrimMulti'::text,                 14,          4         UNION ALL
+SELECT 'ST_SplitAgg'::text,                  15,          5         
+),
+test_series AS (
+-- Build a table of function names with a sequence of number for each function to be tested
+SELECT function_tested, maj_num, generate_series(1, nb_test)::text min_num 
+FROM test_nb
+)
+SELECT coalesce(maj_num || '.' || min_num, b.number) number,
+       coalesce(a.function_tested, 'ERROR: Insufficient number of test for ' || 
+                b.function_tested || ' in the initial table...') function_tested,
+       description, 
+       NOT passed IS NULL AND (regexp_split_to_array(number, '\.'))[2] = min_num AND passed passed
+FROM test_series a FULL OUTER JOIN (
 
 ---------------------------------------------------------
 -- Test 1 - ST_DeleteBand
 ---------------------------------------------------------
-
 SELECT '1.1'::text number,
        'ST_DeleteBand'::text function_tested,
        'True deletion of one band'::text description,
@@ -78,6 +110,13 @@ SELECT '1.1'::text number,
 UNION ALL
 SELECT '1.2'::text number,
        'ST_DeleteBand'::text function_tested,
+       'Deletion of the only existing band'::text description,
+        ST_NumBands(ST_DeleteBand(ST_AddBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1),
+                                             ARRAY[ROW(NULL, '8BUI', 255, 0)]::addbandarg[]), 1)) = 0 passed
+---------------------------------------------------------
+UNION ALL
+SELECT '1.3'::text number,
+       'ST_DeleteBand'::text function_tested,
        'Index too high (3)'::text description,
         ST_NumBands(ST_DeleteBand(rast, 3)) = 2 passed
 FROM (SELECT ST_AddBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1),
@@ -86,7 +125,7 @@ FROM (SELECT ST_AddBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1),
      ) foo
 ---------------------------------------------------------
 UNION ALL
-SELECT '1.3'::text number,
+SELECT '1.4'::text number,
        'ST_DeleteBand'::text function_tested,
        'Index zero'::text description,
         ST_NumBands(ST_DeleteBand(rast, 0)) = 2 passed
@@ -96,7 +135,7 @@ FROM (SELECT ST_AddBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1),
      ) foo
 ---------------------------------------------------------
 UNION ALL
-SELECT '1.4'::text number,
+SELECT '1.5'::text number,
        'ST_DeleteBand'::text function_tested,
        'Index minus one'::text description,
         ST_NumBands(ST_DeleteBand(rast, -1)) = 2 passed
@@ -106,25 +145,25 @@ FROM (SELECT ST_AddBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1),
      ) foo
 ---------------------------------------------------------
 UNION ALL
-SELECT '1.5'::text number,
+SELECT '1.6'::text number,
        'ST_DeleteBand'::text function_tested,
        'Null raster'::text description,
         ST_DeleteBand(null, 2) IS NULL passed
 ---------------------------------------------------------
 UNION ALL
-SELECT '1.6'::text number,
-       'ST_DeleteBand'::text function_tested,
-       'No band raster'::text description,
-        ST_HasNoBand(ST_DeleteBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1), -1)) passed
----------------------------------------------------------
-UNION ALL
 SELECT '1.7'::text number,
        'ST_DeleteBand'::text function_tested,
-       'Empty raster'::text description,
-        ST_IsEmpty(ST_DeleteBand(ST_MakeEmptyRaster(0, 0, 0, 0, 1), -1)) passed
+       'No band raster'::text description,
+        ST_HasNoBand(ST_DeleteBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1), 1)) passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '1.8'::text number,
+       'ST_DeleteBand'::text function_tested,
+       'Empty raster'::text description,
+        ST_IsEmpty(ST_DeleteBand(ST_MakeEmptyRaster(0, 0, 0, 0, 1), 1)) passed
+---------------------------------------------------------
+UNION ALL
+SELECT '1.9'::text number,
        'ST_DeleteBand'::text function_tested,
        'Test null band parameter'::text description,
         ST_NumBands(ST_DeleteBand(rast, null)) = 2 passed
@@ -1019,6 +1058,9 @@ FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
       WHERE a.id = 1) foo)
 ---------------------------------------------------------
 ---------------------------------------------------------
+) b  
+ON (a.function_tested = b.function_tested AND (regexp_split_to_array(number, '\.'))[2] = min_num) 
+ORDER BY maj_num::int, min_num::int
 -- This last line has to be commented out, with the line at the beginning,
 -- to display only failing tests...
 --) foo WHERE NOT passed;

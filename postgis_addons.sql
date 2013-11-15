@@ -1,6 +1,6 @@
--------------------------------------------------------------------------------
+﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.18 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.19 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
@@ -15,7 +15,7 @@
 -- PostGIS PL/pgSQL Add-ons tries to make life as easy as possible for users
 -- wishing to contribute their functions. This is why it limits itself to 
 -- only three files: the main function executable file, a test file and an 
--- unsinstall file. All function are documented inside the main function file 
+-- unsinstall file. All functions are documented inside the main function file 
 -- (this file). 
 --
 -- To be included, a function:
@@ -92,7 +92,7 @@
 --   ST_NBiggestExteriorRings - Returns the n biggest exterior rings of the provided 
 --                              geometry based on their area or thir number of vertex.
 --
---   ST_BufferedSmooth - Returns a smoothed version fo the geometry. The smoothing is 
+--   ST_BufferedSmooth - Returns a smoothed version of the geometry. The smoothing is 
 --                       done by making a buffer around the geometry and removing it 
 --                       afterward.
 --
@@ -141,21 +141,24 @@ CREATE OR REPLACE FUNCTION ST_DeleteBand(
 RETURNS raster AS $$
     DECLARE
         numband int := ST_NumBands(rast);
-        newrast raster := ST_MakeEmptyRaster(rast);
+        bandarray int[];
     BEGIN
         IF rast IS NULL THEN
             RETURN null;
         END IF;
-        IF band IS NULL THEN
+        IF band IS NULL OR band < 1 OR band > numband THEN
             RETURN rast;
         END IF;
-        -- Reconstruct the raster skippind the band to delete
-        FOR b IN 1..numband LOOP
-            IF b != band THEN
-                newrast := ST_AddBand(newrast, rast, b, NULL);
-            END IF;
-        END LOOP;
-        RETURN newrast;
+        IF band = 1 AND numband = 1 THEN
+            RETURN ST_MakeEmptyRaster(rast);
+        END IF;
+
+        -- Construct the array of band to extract skipping the band to delete
+        SELECT array_agg(i) INTO bandarray
+        FROM generate_series(1, numband) i
+        WHERE i != band;
+
+        RETURN ST_Band(rast, bandarray);
     END;
 $$ LANGUAGE 'plpgsql' VOLATILE;
 -------------------------------------------------------------------------------
