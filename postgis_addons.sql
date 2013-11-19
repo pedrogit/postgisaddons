@@ -1,7 +1,14 @@
-﻿-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
 -- Version 1.19 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
+--
+-- This is free software; you can redistribute and/or modify it under
+-- the terms of the GNU General Public Licence. See the COPYING file.
+--
+-- Copyright (C) 2013 Pierre Racine <pierreracine70@gmail.com>.
+-- 
+-------------------------------------------------------------------------------
 -- 
 -- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
 -- generic user contributed PL/pgSQL functions and to provide a fast and Agile 
@@ -19,14 +26,19 @@
 -- (this file). 
 --
 -- To be included, a function:
+--
+--   - must be written in pure PL/pgSQL or SQL code (no C or any compilable code),
+--   - must be generic enough to be useful to other PostGIS users,
+--   - must follow functions and variables naming and indentation conventions already in use in the files,
+--   - must be documented according to the rules defined below in this file,
+--   - must be accompagned by a series of test in the postgis_addons_test.sql file,
+--   - must be accompagned by the appropriate DROP statements in the postgis_addons_uninstall.sql file.
+--
+-- You must also accept to release your work under the same licence already in use for this product.
 -- 
---   - Must be of generic enough to be useful to many PostGIS users.
---   - Must be documented according to the rules defined in this file.
---   - Must be accompagned by a series of test in the postgis_addons_test.sql file.
---   - Must have a drop statement in the postgis_addons_uninstall.sql file.
---   - Must be indented similarly to the already existing functions (4 spaces, no tabs).
--- 
--- Companion files
+-------------------------------------------------------------------------------
+--
+-- File description
 -- 
 --   - postgis_addons.sql             Main redistributable file containing all the 
 --                                    functions.
@@ -36,10 +48,11 @@
 --                                    file.
 -- 
 -------------------------------------------------------------------------------
+--
 -- Documentation
 -- 
 -- Each function must be documented directly in the postgis_addons.sql file just 
--- before the definition of the function.
+-- before the definition of the function. 
 -- 
 -- Mandatory documentation elements for each function:
 -- 
@@ -51,6 +64,9 @@
 --   - Links to more examples on the web (blog post, etc...),
 --   - Authors names with emails,
 --   - Date and version of availability (date of inclusion in PostGIS Add-ons).
+--
+-- A short description of each new function should also be provided at the beginning
+-- of the file (in the section below).
 --
 -------------------------------------------------------------------------------
 -- Function list
@@ -287,6 +303,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- SELECT ST_RandomPoints(ST_Union(geom), 1000) geom FROM geomtable;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- Mathieu Basille <basille.web@ase-research.org>
 -- 10/01/2013 v. 1.6
 -----------------------------------------------------------
 

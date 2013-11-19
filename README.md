@@ -5,4 +5,5 @@ The PostGIS Add-ons attempt to gather, in a single .sql file, useful and
 generic user contributed PL/pgSQL functions and to provide a fast and Agile 
 release cycle.
 
-More documentation to be found in the main postgis_addons.sql file.
+A quick description of every new function can be found at the beginning of the
+postgis_addons.sql file. A detailed description precede each function definition. 
