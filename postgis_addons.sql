@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.20 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.21 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -29,10 +29,12 @@
 --
 --   - must be written in pure PL/pgSQL or SQL code (no C or any compilable code),
 --   - must be generic enough to be useful to other PostGIS users,
---   - must follow functions and variables naming and indentation conventions already in use in the files,
+--   - must follow functions and variables naming and indentation conventions 
+--     already in use in the files,
 --   - must be documented according to the rules defined below in this file,
 --   - must be accompagned by a series of test in the postgis_addons_test.sql file,
---   - must be accompagned by the appropriate DROP statements in the postgis_addons_uninstall.sql file.
+--   - must be accompagned by the appropriate DROP statements in the 
+--     expostgis_addons_uninstall.sql file.
 --
 -- You must also accept to release your work under the same licence already in use for this product.
 -- 
@@ -1033,6 +1035,8 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster)
 --
 --   - SUM_OF_AREAS: Sum of the areas of all polygons intersecting with the pixel.
 --
+--   - SUM_OF_LENGTHS: Sum of the lengths of all linestrings intersecting with the pixel.
+--
 --   - PROPORTION_OF_COVERED_AREA: Proportion, between 0.0 and 1.0, of the pixel area covered by the 
 --                                 conjunction of all the polygons intersecting with the pixel.
 --
@@ -1344,6 +1348,14 @@ RETURNS FLOAT AS $$
 
         ELSEIF args[14] = 'SUM_OF_AREAS' THEN -- Sum of areas intersecting with the pixel (no matter the value)
             query = 'SELECT sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                                                                          || quote_ident(args[12]) ||
+                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                    || quote_ident(args[12]) || 
+                    ')';
+
+        ELSEIF args[14] = 'SUM_OF_LENGTHS' THEN -- Sum of lengths intersecting with the pixel (no matter the value)
+            query = 'SELECT sum(ST_Length(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
                                                                           || quote_ident(args[12]) ||
                     '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 

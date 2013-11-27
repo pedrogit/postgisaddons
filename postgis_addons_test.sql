@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.20 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.21 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -46,9 +46,9 @@ SELECT 'c'::text, 1, ST_GeomFromText('POLYGON((1 0, 1 2, 4 2, 4 0, 1 0))')
 UNION ALL
 SELECT 'd'::text, 6, ST_GeomFromText('POLYGON((7 0, 7 2, 8 2, 8 0, 7 0))')
 UNION ALL
-SELECT 'e'::text, 5, ST_GeomFromText('LINESTRING(0 0, 10 2)')
+SELECT 'e'::text, 5, ST_GeomFromText('LINESTRING(1 1.5, 9 1.5)')
 UNION ALL
-SELECT 'f'::text, 6, ST_GeomFromText('LINESTRING(4 0, 6 2)')
+SELECT 'f'::text, 6, ST_GeomFromText('LINESTRING(4 0.5, 6 0.5)')
 UNION ALL
 SELECT 'g'::text, 7, ST_GeomFromText('POINT(4 1.5)')
 UNION ALL
@@ -81,7 +81,7 @@ SELECT 'ST_ColumnExists'::text,               4,          3         UNION ALL
 SELECT 'ST_AddUniqueID'::text,                5,          3         UNION ALL
 SELECT 'ST_AreaWeightedSummaryStats'::text,   6,          2         UNION ALL
 SELECT 'ST_SummaryStatsAgg'::text,            7,          2         UNION ALL
-SELECT 'ST_ExtractToRaster'::text,            8,         16         UNION ALL
+SELECT 'ST_ExtractToRaster'::text,            8,         17         UNION ALL
 SELECT 'ST_GlobalRasterUnion'::text,          9,          9         UNION ALL
 SELECT 'ST_BufferedUnion'::text,             10,          3         UNION ALL
 SELECT 'ST_NBiggestExteriorRings'::text,     11,          2         UNION ALL
@@ -492,7 +492,7 @@ SELECT '8.4'::text number,
                                          'geom', 
                                          'val', 
                                          'COUNT_OF_VALUES_AT_PIXEL_CENTROID'))
-       ).valarray = '{{2,3},{3,2}}' passed
+       ).valarray = '{{3,3},{2,2}}' passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '8.5'::text number,
@@ -504,7 +504,7 @@ SELECT '8.5'::text number,
                                          'geom', 
                                          'val', 
                                          'MEAN_OF_VALUES_AT_PIXEL_CENTROID'))
-       ).valarray = '{{2,4},{3,3.5}}' passed
+       ).valarray = '{{3,4},{2,3.5}}' passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '8.6'::text number,
@@ -528,7 +528,7 @@ SELECT '8.7'::text number,
                                          'geom', 
                                          'val', 
                                          'COUNT_OF_LINESTRINGS'))
-       ).valarray = '{{0,2},{2,0}}' passed
+       ).valarray = '{{1,1},{1,1}}' passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '8.8'::text number,
@@ -552,7 +552,7 @@ SELECT '8.9'::text number,
                                          'geom', 
                                          'val', 
                                          'COUNT_OF_GEOMETRIES'))
-       ).valarray = '{{6,5},{5,7}}' passed
+       ).valarray = '{{5,4},{4,6}}' passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '8.10'::text number,
@@ -636,6 +636,18 @@ SELECT '8.16'::text number,
                           'val', 
                           'AREA_WEIGHTED_MEAN_OF_VALUES'))
        ).valarray = '{{1.9375,2.25},{1.9375,2.25}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '8.17'::text number,
+       'ST_ExtractToRaster'::text function_tested,
+       'Test SUM_OF_LENGTHS'::text description,
+       (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
+                                         'public', 
+                                         'test_extracttoraster', 
+                                         'geom', 
+                                         'val', 
+                                         'SUM_OF_LENGTHS'))
+       ).valarray = '{{4,4},{1,1}}' passed
 ---------------------------------------------------------
 -- Test 9 - ST_GlobalRasterUnion
 ---------------------------------------------------------
