@@ -1,4 +1,4 @@
--------------------------------------------------------------------------------
+﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Uninstallation file
 -- Version 1.21 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
@@ -42,6 +42,8 @@ DROP FUNCTION IF EXISTS ST_ExtractPixelCentroidValue4ma(double precision[][][], 
 DROP FUNCTION IF EXISTS ST_ExtractPixelValue4ma(double precision[][][], int[][], text[]);
 DROP FUNCTION IF EXISTS ST_ExtractToRaster(raster, integer, name, name, name, name, text);
 DROP FUNCTION IF EXISTS ST_ExtractToRaster(raster, name, name, name, name, text);
+DROP FUNCTION IF EXISTS ST_ExtractToRaster(raster, integer, name, name, name, text);
+DROP FUNCTION IF EXISTS ST_ExtractToRaster(raster, name, name, name, text);
 
 DROP FUNCTION IF EXISTS ST_GlobalRasterUnion(name, name, name, text, text, double precision);
 

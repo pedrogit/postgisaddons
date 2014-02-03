@@ -1095,7 +1095,7 @@ CREATE AGGREGATE ST_SummaryStatsAgg(raster)
 -- In the typical case the geometry table already exists and you already have 
 -- a raster table that serve as a reference grid. You have to pass to 
 -- ST_ExtractToRaster() an empty raster created from the reference grid to which 
--- you add a band having with the proper pixel type for storing the desired value.
+-- you add a band having the proper pixel type for storing the desired value.
 --
 -- SELECT ST_ExtractToRaster(
 --          ST_AddBand(
@@ -1257,7 +1257,8 @@ RETURNS FLOAT AS $$
         -- args[13] = geometry table value column name
         -- args[14] = method
 
---RAISE NOTICE 'x = %, y = %', pos[1], pos[2];        
+--RAISE NOTICE 'val = %', pixel[1][1][1];        
+--RAISE NOTICE 'y = %, x = %', pos[0][1], pos[0][2];        
         -- Reconstruct the pixel square
 	pixelgeom = ST_AsText(
 	              ST_PixelAsPolygon(
@@ -1276,8 +1277,7 @@ RETURNS FLOAT AS $$
 	                               ));
         -- Query the appropriate value
         IF args[14] = 'COUNT_OF_POLYGONS' THEN -- Number of polygons intersecting the pixel
-            query = 'SELECT count(' || quote_ident(args[13]) || 
-                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
                     ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_Polygon'' OR 
                              ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiPolygon'') AND 
                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
@@ -1286,8 +1286,7 @@ RETURNS FLOAT AS $$
                             quote_ident(args[12]) || ')) > 0.0000000001';
                     
         ELSEIF args[14] = 'COUNT_OF_LINESTRINGS' THEN -- Number of linestring intersecting the pixel
-            query = 'SELECT count(' || quote_ident(args[13]) || 
-                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
                     ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_LineString'' OR 
                              ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiLineString'') AND
                              ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
@@ -1296,16 +1295,14 @@ RETURNS FLOAT AS $$
                              quote_ident(args[12]) || ')) > 0.0000000001';
                     
         ELSEIF args[14] = 'COUNT_OF_POINTS' THEN -- Number of points intersecting the pixel
-            query = 'SELECT count(' || quote_ident(args[13]) || 
-                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
                     ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_Point'' OR 
                              ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiPoint'') AND
                              ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
                              || quote_ident(args[12]) || ')';
                     
         ELSEIF args[14] = 'COUNT_OF_GEOMETRIES' THEN -- Number of geometries intersecting the pixel
-            query = 'SELECT count(' || quote_ident(args[13]) || 
-                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
                     || quote_ident(args[12]) || ')';
                     
@@ -1454,6 +1451,7 @@ RETURNS raster AS $$
         query text;
         newrast raster;
         fct2call text;
+        newvaluecolumnname text;
     BEGIN
         -- Determine the name of the right callback function
         IF right(method, 5) = 'TROID' THEN
@@ -1461,6 +1459,12 @@ RETURNS raster AS $$
         ELSE
             fct2call = 'ST_ExtractPixelValue4ma';
         END IF;
+
+        IF valuecolumnname IS NULL THEN
+	    newvaluecolumnname = 'null';
+        ELSE
+	    newvaluecolumnname = quote_literal(valuecolumnname);
+	END IF;
 
         query = 'SELECT ST_MapAlgebra($1, 
                                       $2, 
@@ -1482,9 +1486,10 @@ RETURNS raster AS $$
                                       quote_literal(schemaname) || ', ' ||
                                       quote_literal(tablename) || ', ' ||
                                       quote_literal(geomrastcolumnname) || ', ' ||
-                                      quote_literal(valuecolumnname) || ', ' ||
+                                      newvaluecolumnname || ', ' ||
                                       quote_literal(upper(method)) || '
                                      ) rast';
+--RAISE NOTICE 'query = %', query;
         EXECUTE query INTO newrast USING rast, band;
         RETURN ST_AddBand(ST_DeleteBand(rast, band), newrast, 1, band);
     END
@@ -1502,6 +1507,32 @@ CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
 )
 RETURNS raster AS $$
     SELECT ST_ExtractToRaster($1, 1, $2, $3, $4, $5, $6)
+$$ LANGUAGE 'sql';
+
+---------------------------------------------------------------------
+-- ST_ExtractToRaster variant defaulting valuecolumnname to null
+CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
+    rast raster,
+    band integer,
+    schemaname name, 
+    tablename name, 
+    geomcolumnname name, 
+    method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
+)
+RETURNS raster AS $$
+    SELECT ST_ExtractToRaster($1, $2, $3, $4, $5, null, $6)
+$$ LANGUAGE 'sql';
+---------------------------------------------------------------------
+-- ST_ExtractToRaster variant defaulting band number to 1 and valuecolumnname to null
+CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
+    rast raster,
+    schemaname name, 
+    tablename name, 
+    geomcolumnname name, 
+    method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
+)
+RETURNS raster AS $$
+    SELECT ST_ExtractToRaster($1, 1, $2, $3, $4, null, $5)
 $$ LANGUAGE 'sql';
 -------------------------------------------------------------------------------
 
