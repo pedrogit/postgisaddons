@@ -1452,6 +1452,7 @@ RETURNS raster AS $$
         newrast raster;
         fct2call text;
         newvaluecolumnname text;
+        intcount int;
     BEGIN
         -- Determine the name of the right callback function
         IF right(method, 5) = 'TROID' THEN
@@ -1461,10 +1462,25 @@ RETURNS raster AS $$
         END IF;
 
         IF valuecolumnname IS NULL THEN
-	    newvaluecolumnname = 'null';
+            newvaluecolumnname = 'null';
         ELSE
-	    newvaluecolumnname = quote_literal(valuecolumnname);
-	END IF;
+            newvaluecolumnname = quote_literal(valuecolumnname);
+        END IF;
+        
+        query = 'SELECT count(*) FROM "' || schemaname || '"."' || tablename || '" WHERE ST_Intersects($1, ' || geomrastcolumnname || ')';
+
+        EXECUTE query INTO intcount USING rast;
+        IF intcount = 0 THEN
+            -- if the method should return 0 when there is no geometry involved, return a raster containing only zeros
+            IF left(method, 6) = 'COUNT_' OR
+               method = 'SUM_OF_AREAS' OR
+               method = 'SUM_OF_LENGTHS' OR
+               method = 'PROPORTION_OF_COVERED_AREA' THEN
+                RETURN ST_AddBand(ST_DeleteBand(rast, band), ST_AddBand(ST_MakeEmptyRaster(rast), ST_BandPixelType(rast, band), 0, ST_BandNodataValue(rast, band)), 1, band);
+            ELSE
+                RETURN ST_AddBand(ST_DeleteBand(rast, band), ST_AddBand(ST_MakeEmptyRaster(rast), ST_BandPixelType(rast, band), ST_BandNodataValue(rast, band), ST_BandNodataValue(rast, band)), 1, band);
+            END IF;
+        END IF;
 
         query = 'SELECT ST_MapAlgebra($1, 
                                       $2, 
