@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.23 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.24 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -71,7 +71,7 @@ SELECT 2, ST_CreateIndexRaster(ST_MakeEmptyRaster(6, 5, 2.8, 2.8, 0.85, 0.85, 0,
 -----------------------------------------------------------
 -- The first table in the next WITH statement list all the function tested
 -- with the number of test for each. It must be adjusted for every new test.
--- It is required to list text which would not appear because they failed
+-- It is required to list tests which would not appear because they failed
 -- by returning nothing.
 WITH test_nb AS (
 SELECT 'ST_DeleteBand'::text function_tested, 1 maj_num,  9 nb_test UNION ALL
@@ -80,7 +80,6 @@ SELECT 'ST_RandomPoints'::text,               3,          3         UNION ALL
 SELECT 'ST_ColumnExists'::text,               4,          3         UNION ALL
 SELECT 'ST_AddUniqueID'::text,                5,          3         UNION ALL
 SELECT 'ST_AreaWeightedSummaryStats'::text,   6,          2         UNION ALL
-SELECT 'ST_SummaryStatsAgg'::text,            7,          2         UNION ALL
 SELECT 'ST_ExtractToRaster'::text,            8,         17         UNION ALL
 SELECT 'ST_GlobalRasterUnion'::text,          9,          9         UNION ALL
 SELECT 'ST_BufferedUnion'::text,             10,          3         UNION ALL
@@ -423,31 +422,6 @@ FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
            ) foo1
       GROUP BY id
      ) foo2
-     
----------------------------------------------------------
--- Test 7 - ST_SummaryStatsAgg
----------------------------------------------------------
-UNION ALL
-SELECT '7.1'::text number,
-       'ST_SummaryStatsAgg'::text function_tested,
-       'General test'::text description,
-       ST_SummaryStatsAgg(rast)::text = '(200,9900,49.5,0,99)' passed
-FROM (SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 0, 0, 1, 1, 0, 0), '8BUI') rast
-      UNION ALL
-      SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 10, 0, 1, 1, 0, 0), '8BUI')
-     ) rt
----------------------------------------------------------
-UNION ALL
-SELECT '7.2'::text number,
-       'ST_SummaryStatsAgg'::text function_tested,
-       'Test with clipping'::text description,
-       ST_SummaryStatsAgg(rast)::text = '(18,761,42.2777777777778,4,95)' passed
-FROM (SELECT ST_Clip(rt.rast, ST_GeomFromEWKT('POLYGON((5 5, 15 7, 15 3, 5 5))'), 0.0) rast
-      FROM (SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 0, 0, 1, 1, 0, 0), '8BUI') rast
-            UNION ALL
-            SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 10, 0, 1, 1, 0, 0), '8BUI')
-           ) rt
-     ) foo1
      
 ---------------------------------------------------------
 -- Test 8 - ST_ExtractToRaster

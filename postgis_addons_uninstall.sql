@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Uninstallation file
--- Version 1.23 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.24 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -30,13 +30,6 @@ DROP FUNCTION IF EXISTS _ST_AreaWeightedSummaryStats_StateFN(agg_areaweightedsta
 DROP FUNCTION IF EXISTS _ST_AreaWeightedSummaryStats_StateFN(agg_areaweightedstatsstate, geomval);
 DROP TYPE IF EXISTS agg_areaweightedstats;
 DROP TYPE IF EXISTS agg_areaweightedstatsstate;
-
-DROP AGGREGATE IF EXISTS ST_SummaryStatsAgg(raster, int, boolean, double precision);
-DROP AGGREGATE IF EXISTS ST_SummaryStatsAgg(raster);
-DROP FUNCTION IF EXISTS _ST_SummaryStatsAgg_StateFN(agg_summarystats, raster, int, boolean, double precision);
-DROP FUNCTION IF EXISTS _ST_SummaryStatsAgg_StateFN(agg_summarystats, raster);
-DROP FUNCTION IF EXISTS _ST_SummaryStatsAgg_FinalFN(agg_summarystats);
-DROP TYPE IF EXISTS agg_summarystats;
 
 DROP FUNCTION IF EXISTS ST_ExtractPixelCentroidValue4ma(double precision[][][], int[][], text[]);
 DROP FUNCTION IF EXISTS ST_ExtractPixelValue4ma(double precision[][][], int[][], text[]);
