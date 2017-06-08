@@ -1,6 +1,6 @@
--------------------------------------------------------------------------------
+﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.24 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.25 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -80,6 +80,8 @@
 --   ST_RandomPoints - Generates points located randomly inside a geometry.
 --
 --   ST_ColumnExists - Returns true if a column exist in a table.
+--
+--   ST_HasBasicIndex - Returns true if a table column has at least one index defined.
 --
 --   ST_AddUniqueID - Adds a column to a table and fill it with a unique integer 
 --                    starting at 1.
@@ -409,20 +411,96 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
+-- ST_HasBasicIndex
+--
+--   schemaname name - Name of the schema containing the table for which to check for 
+--                     the existance of an index.
+--   tablename name  - Name of the table for which to check for the existance of an index.
+--   columnname name - Name of the column to check for the existence of an index.
+--
+--   RETURNS boolean
+--
+-- Returns true if a table column has at least one index defined
+-----------------------------------------------------------
+-- Self contained example:
+--
+-- SELECT ST_HasBasicIndex('public', 'spatial_ref_sys', 'srid') ;
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 08/06/2017 v. 1.25
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
+    schemaname name, 
+    tablename name,
+    columnname name
+)
+RETURNS boolean AS $$
+    DECLARE
+        query text;
+        coltype text;
+        hasindex boolean := FALSE;
+    BEGIN
+        -- Determine the type of the column
+        query := 'SELECT typname 
+                 FROM pg_namespace
+		 LEFT JOIN pg_class ON (pg_namespace.oid = pg_class.relnamespace)
+		 LEFT JOIN pg_attribute ON (pg_attribute.attrelid = pg_class.oid)
+		 LEFT JOIN pg_type ON (pg_type.oid = pg_attribute.atttypid)
+		 WHERE nspname = ''' || schemaname || ''' AND relname = ''' || tablename || ''' AND attname = ''' || columnname || ''';';
+        EXECUTE QUERY query INTO coltype;
+        IF coltype IS NULL THEN
+            --RAISE EXCEPTION 'column not found';
+            RETURN NULL;
+        ELSIF coltype = 'raster' THEN
+            -- When column type is RASTER we ignore the column name and 
+            -- only check if the type of the index is gist since it is a functional 
+            -- index and we can not check on which column it is applied
+            query := 'SELECT TRUE
+                      FROM pg_index
+                      LEFT OUTER JOIN pg_class relclass ON (relclass.oid = pg_index.indrelid)
+                      LEFT OUTER JOIN pg_namespace ON (pg_namespace.oid = relclass.relnamespace)
+                      LEFT OUTER JOIN pg_class idxclass ON (idxclass.oid = pg_index.indexrelid)
+                      LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam)
+                      WHERE relclass.relkind = ''r'' AND amname = ''gist'' 
+                      AND nspname = ''' || schemaname || ''' AND relclass.relname = ''' || tablename || ''';';
+            EXECUTE QUERY query INTO hasindex;
+        ELSE
+           -- Otherwise we check for an index on the right column
+           query := 'SELECT TRUE 
+                     FROM pg_index
+                     LEFT OUTER JOIN pg_class relclass ON (relclass.oid = pg_index.indrelid) 
+                     LEFT OUTER JOIN pg_namespace ON (pg_namespace.oid = relclass.relnamespace) 
+                     LEFT OUTER JOIN pg_class idxclass ON (idxclass.oid = pg_index.indexrelid) 
+                     --LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam) 
+                     LEFT OUTER JOIN pg_attribute ON (pg_attribute.attrelid = relclass.oid AND indkey[0] = attnum) 
+                     WHERE relclass.relkind = ''r'' AND indkey[0] != 0 
+                     AND nspname = ''' || schemaname || ''' AND relclass.relname = ''' || tablename || ''' AND attname = ''' || columnname || ''';';
+           EXECUTE QUERY query INTO hasindex;
+        END IF;
+        IF hasindex IS NULL THEN
+	    hasindex = FALSE;
+        END IF;
+        RETURN hasindex; 
+    END; 
+$$ LANGUAGE 'plpgsql' VOLATILE STRICT;
+-----------------------------------------------------------
+
+-------------------------------------------------------------------------------
 -- ST_AddUniqueID
 --
 --   schemaname name       - Name of the schema containing the table in which to check for 
 --                           the existance of a column.
 --   tablename name        - Name of the table in which to check for the existance of a column.
---   columnname name       - Name of the column to check for the existence of.
---   replacecolumn boolean - If set to true, drop and replace the column if it already exists.
+--   columnname name       - Name of the new id column to check for the existence of.
+--   replacecolumn boolean - If set to true, drop and replace the new id column if it already exists. Default to false.
+--   indexit boolean       - If set to true, create an index on the new id column. Default to true.
 --
 --   RETURNS boolean
 --
 -- Adds a column to a table and fill it with a unique integer starting at 1. Returns
 -- true if the operation succeeded, false otherwise.
 -- This is useful when you don't want to create a new table for whatever reason.
--- If you want to create a new table just:
+-- If you want to create a new table instead of using this function just:
 --
 -- CREATE SEQUENCE foo_id_seq;
 -- CREATE TABLE newtable AS
@@ -431,7 +509,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -----------------------------------------------------------
 -- Self contained example:
 --
--- SELECT ST_AddUniqueID('spatial_ref_sys', 'id', true);
+-- SELECT ST_AddUniqueID('spatial_ref_sys', 'id', true, true);
 -- ALTER TABLE spatial_ref_sys DROP COLUMN id;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
@@ -443,7 +521,8 @@ CREATE OR REPLACE FUNCTION ST_AddUniqueID(
     schemaname name, 
     tablename name, 
     columnname name, 
-    replacecolumn boolean DEFAULT false
+    replacecolumn boolean DEFAULT false,
+    indexit boolean DEFAULT true
 )
 RETURNS boolean AS $$
     DECLARE
@@ -465,18 +544,22 @@ RETURNS boolean AS $$
                 RAISE NOTICE 'Column already exist. Add ''true'' as the last argument if you want to replace the column.';
                 RETURN false;
             END IF;
-         END IF;
+        END IF;
 
-         -- Create a new sequence
-         seqname = schemaname || '_' || tablename || '_seq';
-         EXECUTE 'DROP SEQUENCE IF EXISTS ' || quote_ident(seqname);
-         EXECUTE 'CREATE SEQUENCE ' || quote_ident(seqname);
+        -- Create a new sequence
+        seqname = schemaname || '_' || tablename || '_seq';
+        EXECUTE 'DROP SEQUENCE IF EXISTS ' || quote_ident(seqname);
+        EXECUTE 'CREATE SEQUENCE ' || quote_ident(seqname);
 
-         -- Add the new column and update it with nextval('sequence')
-         EXECUTE 'ALTER TABLE ' || fqtn || ' ADD COLUMN ' || quote_ident(columnname) || ' INTEGER';
-         EXECUTE 'UPDATE ' || fqtn || ' SET ' || quote_ident(columnname) || ' = nextval(''' || quote_ident(seqname) || ''')';
+        -- Add the new column and update it with nextval('sequence')
+        EXECUTE 'ALTER TABLE ' || fqtn || ' ADD COLUMN ' || quote_ident(columnname) || ' INTEGER';
+        EXECUTE 'UPDATE ' || fqtn || ' SET ' || quote_ident(columnname) || ' = nextval(''' || quote_ident(seqname) || ''')';
 
-         RETURN true;
+        IF indexit THEN
+            EXECUTE 'CREATE INDEX ' || tablename || '_' || columnname || '_idx ON ' || fqtn || ' USING btree(' || columnname || ');';
+        END IF;
+
+        RETURN true;
     END;
 $$ LANGUAGE 'plpgsql' VOLATILE STRICT;
 

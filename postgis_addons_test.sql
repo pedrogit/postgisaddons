@@ -1,6 +1,6 @@
--------------------------------------------------------------------------------
+﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.24 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.25 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -78,7 +78,7 @@ SELECT 'ST_DeleteBand'::text function_tested, 1 maj_num,  9 nb_test UNION ALL
 SELECT 'ST_CreateIndexRaster'::text,          2,         15         UNION ALL
 SELECT 'ST_RandomPoints'::text,               3,          3         UNION ALL
 SELECT 'ST_ColumnExists'::text,               4,          3         UNION ALL
-SELECT 'ST_AddUniqueID'::text,                5,          3         UNION ALL
+SELECT 'ST_AddUniqueID'::text,                5,          4         UNION ALL
 SELECT 'ST_AreaWeightedSummaryStats'::text,   6,          2         UNION ALL
 SELECT 'ST_ExtractToRaster'::text,            8,         17         UNION ALL
 SELECT 'ST_GlobalRasterUnion'::text,          9,          9         UNION ALL
@@ -87,7 +87,8 @@ SELECT 'ST_NBiggestExteriorRings'::text,     11,          2         UNION ALL
 SELECT 'ST_BufferedSmooth'::text,            12,          1         UNION ALL
 SELECT 'ST_DifferenceAgg'::text,             13,          2         UNION ALL
 SELECT 'ST_TrimMulti'::text,                 14,          4         UNION ALL
-SELECT 'ST_SplitAgg'::text,                  15,          5         
+SELECT 'ST_SplitAgg'::text,                  15,          5         UNION ALL
+SELECT 'ST_HasBasicIndex'::text,             16,          2
 ),
 test_series AS (
 -- Build a table of function names with a sequence of number for each function to be tested
@@ -104,6 +105,7 @@ FROM test_series a FULL OUTER JOIN (
 ---------------------------------------------------------
 -- Test 1 - ST_DeleteBand
 ---------------------------------------------------------
+
 SELECT '1.1'::text number,
        'ST_DeleteBand'::text function_tested,
        'True deletion of one band'::text description,
@@ -377,10 +379,17 @@ SELECT '5.3'::text number,
        'ST_AddUniqueID'::text function_tested,
        'Test variant defaulting to public schema'::text description,
        ST_AddUniqueID('public', 'test_adduniqueid', 'column2', true) passed
+---------------------------------------------------------
+UNION ALL
+SELECT '5.4'::text number,
+       'ST_AddUniqueID'::text function_tested,
+       'Test if index was created'::text description,
+       ST_HasBasicIndex('public', 'test_adduniqueid', 'column2') passed
 
 ---------------------------------------------------------
 -- Test 6 - ST_AreaWeightedSummaryStats
 ---------------------------------------------------------
+
 UNION ALL
 SELECT '6.1'::text number,
        'ST_AreaWeightedSummaryStats'::text function_tested,
@@ -422,10 +431,11 @@ FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
            ) foo1
       GROUP BY id
      ) foo2
-     
+
 ---------------------------------------------------------
 -- Test 8 - ST_ExtractToRaster
 ---------------------------------------------------------
+
 UNION ALL
 SELECT '8.1'::text number,
        'ST_ExtractToRaster'::text function_tested,
@@ -622,9 +632,11 @@ SELECT '8.17'::text number,
                                          'val', 
                                          'SUM_OF_LENGTHS'))
        ).valarray = '{{4,4},{1,1}}' passed
+
 ---------------------------------------------------------
 -- Test 9 - ST_GlobalRasterUnion
 ---------------------------------------------------------
+
 UNION ALL
 SELECT '9.1'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
@@ -783,9 +795,11 @@ SELECT '9.9'::text number,
                        {NULL,NULL,NULL,1,6,11,16,21,26},
                        {NULL,NULL,NULL,2,7,12,17,22,27},
                        {NULL,NULL,NULL,0,2,3,5,6,8}}' passed
+
 ---------------------------------------------------------
 -- Test 10 - ST_BufferedUnion
 ---------------------------------------------------------
+
 UNION ALL
 SELECT '10.1'::text number,
        'ST_BufferedUnion'::text function_tested,
@@ -823,9 +837,11 @@ FROM (SELECT 1 id, 'POLYGON((0 0,10 0,10 -9.9999,0 -10,0 0))'::geometry geom
       UNION ALL
       SELECT 2 id, 'POLYGON((10 0,20 0,20 -9.9999,10 -10,10 0))'::geometry
      ) foo
+
 ---------------------------------------------------------
 -- Test 11 - ST_NBiggestExteriorRings
 ---------------------------------------------------------
+
 UNION ALL
 SELECT '11.1'::text number,
        'ST_NBiggestExteriorRings'::text function_tested,
@@ -851,9 +867,11 @@ FROM (SELECT ST_AsText(
                                                 ((20 0, 20 5, 20 10, 30 10, 30 0, 20 0)), 
                                                 ((40 0, 40 10, 52 10, 52 0, 40 0)) )'), 
                  2, 'NBPOINTS')) geom) foo
+
 ---------------------------------------------------------
 -- Test 12 - ST_BufferedSmooth
 ---------------------------------------------------------
+
 UNION ALL
 SELECT '12.1'::text number,
        'ST_BufferedSmooth'::text function_tested,
@@ -863,9 +881,11 @@ SELECT '12.1'::text number,
                                      5  0,  2 -1,  5 -5, 1 -2, 0 -5, -1 -2, -5 -5, 
                                     -2 -1, -5  0, -2  1))'), 
           1)) = 113
+
 ---------------------------------------------------------
 -- Test 13 - ST_DifferenceAgg
 ---------------------------------------------------------
+
 UNION ALL
 (WITH overlappingtable AS (
   SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))') geom
@@ -913,9 +933,11 @@ FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
       GROUP BY a.id
      ) foo
 )
+
 ---------------------------------------------------------
 -- Test 14 - ST_TrimMulti
 ---------------------------------------------------------
+
 UNION ALL
 SELECT '14.1'::text number,
        'ST_TrimMulti'::text function_tested,
@@ -947,9 +969,11 @@ SELECT '14.4'::text number,
                           'POINT(1 1)'::geometry, 
                           'LINESTRING(0 0, 1 1, 2 1)'::geometry])) = 
        'POLYGON((0 0,0 1,1 1,1 0,0 0))'::geometry passed
+
 ---------------------------------------------------------
 -- Test 15 - ST_SplitAgg
 ---------------------------------------------------------
+
 UNION ALL
 (WITH geomtable AS (
 SELECT 1 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
@@ -1047,9 +1071,25 @@ SELECT '15.5'::text number,
 FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
       FROM geomtable a, geomtable b
       WHERE a.id = 1) foo)
+
+---------------------------------------------------------
+-- Test 15 - ST_HasBasicIndex
+---------------------------------------------------------
+
+UNION ALL
+SELECT '16.1'::text number,
+       'ST_HasBasicIndex'::text function_tested,
+       'Check for the existence of an index on the column1 column of public.test_adduniqueid'::text description,
+       NOT ST_HasBasicIndex('public', 'test_adduniqueid', 'column1') passed
+---------------------------------------------------------
+UNION ALL
+SELECT '16.2'::text number,
+       'ST_HasBasicIndex'::text function_tested,
+       'Check for the existence of an index on the column2 column of public.test_adduniqueid'::text description,
+       ST_HasBasicIndex('public', 'test_adduniqueid', 'column2') passed
 ---------------------------------------------------------
 ---------------------------------------------------------
-) b  
+) b 
 ON (a.function_tested = b.function_tested AND (regexp_split_to_array(number, '\.'))[2] = min_num) 
 ORDER BY maj_num::int, min_num::int
 -- This last line has to be commented out, with the line at the beginning,
