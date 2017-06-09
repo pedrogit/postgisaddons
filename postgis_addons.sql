@@ -1,12 +1,12 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.25 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.26 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
 -- the terms of the GNU General Public Licence. See the COPYING file.
 --
--- Copyright (C) 2013 Pierre Racine <pierreracine70@gmail.com>.
+-- Copyright (C) 2013-2017 Pierre Racine <pierre.racine@sbf.ulaval.ca>.
 -- 
 -------------------------------------------------------------------------------
 -- 
@@ -938,6 +938,17 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --   - MEAN_OF_VALUES_AT_PIXEL_CENTROID: Average of all values intersecting with the pixel centroid. 
 --                                       Many values are taken into account when many geometries overlaps.
 --
+--   - COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID, 
+--     FIRST_RASTER_VALUE_AT_PIXEL_CENTROID, 
+--     MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID, 
+--     MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID,
+--     SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID, 
+--     MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID,
+--     STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID and 
+--     RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID 
+--     are for the ST_GlobalRasterUnion() function. When those methods are used,
+--     geomrastcolumnname should be a column of type raster and valuecolumnname should be null.
+--
 -- Values extracted for the whole square pixel:
 --
 --   - COUNT_OF_POLYGONS: Number of polygons or multipolygons intersecting with the pixel.
@@ -956,7 +967,7 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --   - VALUE_OF_MERGED_SMALLEST: Value associated with the polygon covering the smallest area in the  
 --                               pixel. Same value polygons are merged first.
 --
---   - MIN_AREA: Area of the geometry occupying the smallest area in the pixel.
+--   - MIN_AREA: Area of the geometry covering the smallest area in the pixel.
 --
 --   - SUM_OF_AREAS: Sum of the areas of all polygons intersecting with the pixel.
 --
@@ -965,21 +976,25 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --   - PROPORTION_OF_COVERED_AREA: Proportion, between 0.0 and 1.0, of the pixel area covered by the 
 --                                 conjunction of all the polygons intersecting with the pixel.
 --
---   - AREA_WEIGHTED_MEAN_OF_VALUES: Mean of all polygon values weighted by the area they occupy 
---                                   relative to the polygon being processed.
+--   - AREA_WEIGHTED_MEAN_OF_VALUES: Mean of all polygon values weighted by the proportion of the area
+--                                   of the target polygon they cover.
 --                                   The weighted sum is divided by the maximum between the 
 --                                   area of the geometry and the sum of all the weighted geometry 
 --                                   areas. i.e. If the geometry being processed is not entirely 
 --                                   covered by other geometries, the value is multiplied by the 
 --                                   proportion of the covering area.
 --
---   - AREA_WEIGHTED_MEAN_OF_VALUES_2: Mean of all polygon values weighted by the area they occupy 
---                                     relative to the polygon being processed.
+--   - AREA_WEIGHTED_MEAN_OF_VALUES_2: Mean of all polygon values weighted by the proportion of the area
+--                                     of the target polygon they cover.
 --                                     The weighted sum is divided by the sum of all the weighted 
---                                     geometry areas. i.e. Even if a geoemtry is not entirely covered 
+--                                     geometry areas. i.e. Even if a geometry is not entirely covered 
 --                                     by other geometries, it gets the full weighted value.
 --
---   - All the methods described for the ST_GlobalRasterUnion() function. When those methods are used
+--   - AREA_WEIGHTED_SUM_OF_RASTER_VALUES, 
+--     SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES, 
+--     AREA_WEIGHTED_MEAN_OF_RASTER_VALUES and 
+--     AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2 
+--     are for the ST_GlobalRasterUnion() function. When those methods are used, 
 --     geomrastcolumnname should be a column of type raster and valuecolumnname should be null.
 --
 -- Many more methods can be added over time. An almost exhaustive list of possible method can be find
@@ -1087,7 +1102,9 @@ RETURNS FLOAT AS $$
                     ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
                     quote_ident(args[12]) || ')';
-
+        ----------------------------------------------------------------
+        -- Methods for the ST_GlobalRasterUnion() function
+        ---------------------------------------------------------------- 
         ELSEIF args[14] = 'COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
             query = 'SELECT count(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
                     ', ' || args[9] || '))) 
@@ -1231,7 +1248,7 @@ RETURNS FLOAT AS $$
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
                     || quote_ident(args[12]) || ')';
                     
-        ELSEIF args[14] = 'VALUE_OF_BIGGEST' THEN -- Value of the geometry occupying the biggest area in the pixel
+        ELSEIF args[14] = 'VALUE_OF_BIGGEST' THEN -- Value of the geometry covering the biggest area in the pixel
             query = 'SELECT ' || quote_ident(args[13]) || 
                     ' val FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
@@ -1240,7 +1257,7 @@ RETURNS FLOAT AS $$
                                                         ' || quote_ident(args[12]) || 
                     ')) DESC, val DESC LIMIT 1';
 
-        ELSEIF args[14] = 'VALUE_OF_MERGED_BIGGEST' THEN -- Value of the combined geometry occupying the biggest area in the pixel
+        ELSEIF args[14] = 'VALUE_OF_MERGED_BIGGEST' THEN -- Value of the combined geometry covering the biggest area in the pixel
             query = 'SELECT val FROM (SELECT ' || quote_ident(args[13]) || ' val, 
                                             sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) 
                                             || ', '|| args[9] || '), ' || quote_ident(args[12]) ||
@@ -1249,7 +1266,7 @@ RETURNS FLOAT AS $$
                     || quote_ident(args[12]) || 
                     ') GROUP BY val) foo ORDER BY sumarea DESC, val DESC LIMIT 1';
 
-        ELSEIF args[14] = 'MIN_AREA' THEN -- Area of the geometry occupying the smallest area in the pixel
+        ELSEIF args[14] = 'MIN_AREA' THEN -- Area of the geometry covering the smallest area in the pixel
             query = 'SELECT area FROM (SELECT ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' 
                                                       || args[9] || '), ' || quote_ident(args[12]) || 
                     ')) area FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
@@ -1257,7 +1274,7 @@ RETURNS FLOAT AS $$
                     || quote_ident(args[12]) || 
                     ')) foo WHERE area > 0.0000000001 ORDER BY area LIMIT 1';
 
-        ELSEIF args[14] = 'VALUE_OF_MERGED_SMALLEST' THEN -- Value of the combined geometry occupying the biggest area in the pixel
+        ELSEIF args[14] = 'VALUE_OF_MERGED_SMALLEST' THEN -- Value of the combined geometry covering the biggest area in the pixel
             query = 'SELECT val FROM (SELECT ' || quote_ident(args[13]) || ' val, 
                                              sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '
                                              || args[9] || '), ' || quote_ident(args[12]) ||
@@ -1293,7 +1310,7 @@ RETURNS FLOAT AS $$
                     || quote_ident(args[12]) || 
                     ')';
 
-        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_VALUES' THEN -- Mean of every geometry weighted by the area they occupy
+        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_VALUES' THEN -- Mean of every geometry weighted by the area they cover
             query = 'SELECT CASE 
                               WHEN sum(area) = 0 THEN 0 
                               ELSE sum(area * val) / 
@@ -1309,7 +1326,7 @@ RETURNS FLOAT AS $$
                          || quote_ident(args[12]) || 
                     ')) foo';
       
-        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_VALUES_2' THEN -- Mean of every geometry weighted by the area they occupy
+        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_VALUES_2' THEN -- Mean of every geometry weighted by the area they cover
             query = 'SELECT CASE 
                               WHEN sum(area) = 0 THEN 0 
                               ELSE sum(area * val) / sum(area)
@@ -1321,10 +1338,30 @@ RETURNS FLOAT AS $$
                          ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
                          || quote_ident(args[12]) || 
                     ')) foo';
+        ---------------------------------------------------------------- 
+        -- Methods for the ST_GlobalRasterUnion() function
+        ---------------------------------------------------------------- 
+        ELSEIF args[14] = 'AREA_WEIGHTED_SUM_OF_RASTER_VALUES' THEN -- Sum of every pixel value weighted by the area they cover
+            query = 'SELECT sum(ST_Area((gv).geom) * (gv).val)
+                     FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' || 
+                                                                   args[9] || '), ' || quote_ident(args[12]) || ') gv 
+                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                         || quote_ident(args[12]) || 
+                    ')) foo';
 
-        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES' THEN -- Mean of every pixel value weighted by the area they occupy
+        ELSEIF args[14] = 'SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES' THEN -- Sum of the proportion of pixel values intersecting with the pixel
+            query = 'SELECT sum(ST_Area((gv).geom) * (gv).val / geomarea)
+                     FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' || 
+                                                                  args[9] || '), ' || quote_ident(args[12]) || ') gv, abs(ST_ScaleX(' || quote_ident(args[12]) || ') * ST_ScaleY(' || quote_ident(args[12]) || ')) geomarea
+                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                         || quote_ident(args[12]) || 
+                    ')) foo1';
+                    
+        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES' THEN -- Mean of every pixel value weighted by the maximum area they cover
             query = 'SELECT CASE 
-                              WHEN sum(area) = 0 THEN 0 
+                              WHEN sum(area) = 0 THEN NULL 
                               ELSE sum(area * val) / 
                                    greatest(sum(area), 
                                             ST_Area(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '))
@@ -1338,9 +1375,9 @@ RETURNS FLOAT AS $$
                          || quote_ident(args[12]) || 
                     ')) foo1) foo2';
 
-        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2' THEN -- Mean of every pixel value weighted by the area they occupy
+        ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2' THEN -- Mean of every pixel value weighted by the area they cover
             query = 'SELECT CASE 
-                              WHEN sum(area) = 0 THEN 0 
+                              WHEN sum(area) = 0 THEN NULL 
                               ELSE sum(area * val) / sum(area)
                             END 
                      FROM (SELECT ST_Area((gv).geom) area, (gv).val val
@@ -1505,7 +1542,7 @@ $$ LANGUAGE 'sql';
 --    from the global extent of the table and the pixel size is the minimum of all 
 --    pixel sizes of the rasters in the table.
 --
---  - Offers more methods for computing the value of each pixel and more can be 
+--  - Offers more methods for computing the value of each pixel. More can be 
 --    easily implemented in the ST_ExtractPixelCentroidValue4ma and 
 --    ST_ExtractPixelValue4ma functions.
 --
@@ -1523,7 +1560,7 @@ $$ LANGUAGE 'sql';
 -- When nodataval is null, nodata value is assumed to be identical for all rasters. 
 -- If not, the minimum of all raster nodata value is used.
 --
--- For now, those methods area implemented:
+-- For now, those methods are implemented:
 --
 --   - COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Number of non null raster value intersecting with the 
 --                                               pixel centroid.
@@ -1549,20 +1586,36 @@ $$ LANGUAGE 'sql';
 --   - RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Range (maximun - minimum) of raster values 
 --                                               intersecting with the pixel centroid.
 --
---   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES: Mean of all pixel values weighted by the area they 
---                                          occupy relative to the area of the pixel being computed. 
+--   - For the next methods, let say that 2 pixels are intersecting with the target pixel and that:
+--         - ia1 and ia2 are the areas of the intersection between the source pixel and the target pixel,
+--         - v1 and v2 are the values of the source pixels,
+--         - sa1 and sa2 are the areas of the sources pixels,
+--         - ta is the area of the target pixel,
+--         - x is the value assigned to the target pixel.
+--
+--   - AREA_WEIGHTED_SUM_OF_RASTER_VALUES: Sum of all source pixel values weighted by the proportion of 
+--                                         the target pixel they cover.
+--                                         This is the first part of the area weighted mean.
+--                                         x = ia1 * v1 + ia2 * v2
+--
+--   - SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES: Sum of all pixel values weighted by the proportion of their 
+--                                             intersecting parts with the source pixel.
+--                                             x = (ia1 * v1)/sa1 + (ia2 * v2)/sa2
+--
+--   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES: Mean of all source pixel values weighted by the proportion of 
+--                                          the target pixel they cover. 
 --                                          The weighted sum is divided by the maximum between the 
 --                                          area of the pixel and the sum of all the weighted pixel 
---                                          areas. i.e. If the pixel being computed is not entirely 
---                                          covered by other pixels, the value is multiplied by the 
---                                          proportion of the covering area.
+--                                          areas. i.e. Target pixels at the edge of the source rasters   
+--                                          global extent are weighted by the proportion of the covering area.
+--                                          x = (ia1 * v1 + ia2 * v2)/max(ia1 + ia2, ta)
 --                                          
---   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2: Mean of all pixel values weighted by the area they 
---                                            occupy relative to the area of the pixel being computed. 
+--   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2: Mean of all source pixel values weighted by the proportion of 
+--                                            the target pixel they cover. 
 --                                            The weighted sum is divided by the sum of all the weighted 
---                                            pixel areas. i.e. Even if a pixel is not entirely covered 
---                                            by other pixels, it gets the full weighted value.
---
+--                                            pixel areas. i.e. Target pixels at the edge of the source rasters   
+--                                            global extent take the full weight of their area.
+--                                            x = (ia1 * v1 + ia2 * v2)/(ia1 + ia2)
 --                                              
 -- Self contained and typical example:
 --

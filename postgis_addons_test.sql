@@ -1,12 +1,12 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.25 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.26 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
 -- the terms of the GNU General Public Licence. See the COPYING file.
 --
--- Copyright (C) 2013 Pierre Racine <pierreracine70@gmail.com>.
+-- Copyright (C) 2013-2017 Pierre Racine <pierre.racine@sbf.ulaval.ca>.
 --
 -- This test file return a table of two columns: 
 --
@@ -81,7 +81,7 @@ SELECT 'ST_ColumnExists'::text,               4,          3         UNION ALL
 SELECT 'ST_AddUniqueID'::text,                5,          4         UNION ALL
 SELECT 'ST_AreaWeightedSummaryStats'::text,   6,          2         UNION ALL
 SELECT 'ST_ExtractToRaster'::text,            8,         17         UNION ALL
-SELECT 'ST_GlobalRasterUnion'::text,          9,          9         UNION ALL
+SELECT 'ST_GlobalRasterUnion'::text,          9,         12         UNION ALL
 SELECT 'ST_BufferedUnion'::text,             10,          3         UNION ALL
 SELECT 'ST_NBiggestExteriorRings'::text,     11,          2         UNION ALL
 SELECT 'ST_BufferedSmooth'::text,            12,          1         UNION ALL
@@ -781,20 +781,74 @@ SELECT '9.8'::text number,
 UNION ALL
 SELECT '9.9'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
+       'Test AREA_WEIGHTED_SUM_OF_RASTER_VALUES'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast', 
+                                           'AREA_WEIGHTED_SUM_OF_RASTER_VALUES'))
+       ).valarray = '{{0,2,5,8,11,12,NULL,NULL,NULL},
+                      {0,3,6,9,12,13,NULL,NULL,NULL},
+                      {1,4,7,10,13,13,NULL,NULL,NULL},
+                      {1,4,7,10,15,18,6,9,12},
+                      {2,5,8,11,17,21,10,13,17},
+                      {2,5,7,11,16,20,11,14,18},
+                      {NULL,NULL,NULL,1,4,8,11,15,18},
+                      {NULL,NULL,NULL,1,5,8,12,16,19},
+                      {NULL,NULL,NULL,0,1,2,3,4,5}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.10'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast', 
+                                           'SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES'))
+       ).valarray = '{{0,2,5,8,11,12,NULL,NULL,NULL},
+                      {0,3,6,9,12,13,NULL,NULL,NULL},
+                      {1,4,7,10,13,13,NULL,NULL,NULL},
+                      {1,4,7,10,16,20,9,13,16},
+                      {2,5,8,11,18,24,14,19,24},
+                      {2,5,7,11,18,23,15,20,25},
+                      {NULL,NULL,NULL,1,6,11,16,21,26},
+                      {NULL,NULL,NULL,2,7,12,17,22,27},
+                      {NULL,NULL,NULL,0,2,3,5,6,8}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.11'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
        'Test AREA_WEIGHTED_MEAN_OF_RASTER_VALUES'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast', 
                                            'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES'))
        ).valarray = '{{0,4,8,12,16,17,NULL,NULL,NULL},
-                       {0,4,9,13,17,18,NULL,NULL,NULL},
-                       {1,5,9,14,18,19,NULL,NULL,NULL},
-                       {2,6,10,9,12,16,9,13,16},
-                       {3,7,11,9,12,15,14,19,24},
-                       {3,7,10,9,12,16,15,20,25},
-                       {NULL,NULL,NULL,1,6,11,16,21,26},
-                       {NULL,NULL,NULL,2,7,12,17,22,27},
-                       {NULL,NULL,NULL,0,2,3,5,6,8}}' passed
+                      {0,4,9,13,17,18,NULL,NULL,NULL},
+                      {1,5,9,14,18,19,NULL,NULL,NULL},
+                      {2,6,10,9,12,16,9,13,16},
+                      {3,7,11,9,12,15,14,19,24},
+                      {3,7,10,9,12,16,15,20,25},
+                      {NULL,NULL,NULL,1,6,11,16,21,26},
+                      {NULL,NULL,NULL,2,7,12,17,22,27},
+                      {NULL,NULL,NULL,0,2,3,5,6,8}}' passed
+---------------------------------------------------------
+UNION ALL
+SELECT '9.12'::text number,
+       'ST_GlobalRasterUnion'::text function_tested,
+       'Test AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2'::text description,
+       (ST_DumpValues(ST_GlobalRasterUnion('public', 
+                                           'test_globalrasterunion', 
+                                           'rast', 
+                                           'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2'))
+       ).valarray = '{{0,4,8,12,16,20,NULL,NULL,NULL},
+                      {0,4,9,13,17,20,NULL,NULL,NULL},
+                      {1,5,9,14,18,21,NULL,NULL,NULL},
+                      {2,6,10,9,12,16,13,18,23},
+                      {3,7,11,9,12,15,14,19,24},
+                      {4,8,12,9,12,16,15,20,25},
+                      {NULL,NULL,NULL,2,6,11,16,21,26},
+                      {NULL,NULL,NULL,3,7,12,17,22,27},
+                      {NULL,NULL,NULL,4,7,12,17,22,27}}' passed
 
 ---------------------------------------------------------
 -- Test 10 - ST_BufferedUnion

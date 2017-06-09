@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Legacy function ST_SummaryStatsAgg()
--- Version 1.25 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.26 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
 -- the terms of the GNU General Public Licence. See the COPYING file.
 --
--- Copyright (C) 2013 Pierre Racine <pierreracine70@gmail.com>.
+-- Copyright (C) 2013-2017 Pierre Racine <pierre.racine@sbf.ulaval.ca>.
 -- 
 -------------------------------------------------------------------------------
 -- ST_SummaryStatsAgg - Integrated in PostGIS in version 2.2.0
