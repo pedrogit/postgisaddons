@@ -49,7 +49,8 @@ DROP FUNCTION IF EXISTS ST_NBiggestExteriorRings(geometry, integer, text);
 DROP FUNCTION IF EXISTS ST_BufferedSmooth(geometry, double precision);
 
 DROP AGGREGATE IF EXISTS ST_DifferenceAgg(geometry, geometry);
-DROP FUNCTION IF EXISTS _ST_DifferenceAgg_StateFN(geometry, geometry, geometry);
+DROP FUNCTION IF EXISTS _ST_DifferenceAgg_StateFN(geomval, geometry, geometry);
+DROP FUNCTION IF EXISTS _ST_DifferenceAgg_FinalFN(geomval);
 
 DROP FUNCTION IF EXISTS ST_TrimMulti(geometry, double precision);
 

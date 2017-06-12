@@ -92,9 +92,9 @@
 --
 --   ST_ExtractToRaster - Compute a raster band by extracting values for the centroid 
 --                        or the footprint of each pixel from a global geometry
---                        coverage using different methods 
---                        like count, min, max, mean, value of biggest geometry or
---                        area weighted mean of values.
+--                        coverage using different methods like count, min, max, 
+--                        mean, value of biggest geometry or area weighted mean 
+--                        of values.
 --
 --   ST_GlobalRasterUnion - Build a new raster by extracting all the pixel values
 --                          from a global raster coverage using different methods
@@ -104,7 +104,7 @@
 --   ST_BufferedUnion - Alternative to ST_Union making a buffer around each geometry 
 --                      before unioning and removing it afterward. Used when ST_Union 
 --                      leaves internal undesirable vertexes after a complex union 
---                      or when holes want to be removed from the resulting union.
+--                      or when wanting to remove holes from the resulting union.
 --
 --   ST_NBiggestExteriorRings - Returns the n biggest exterior rings of the provided 
 --                              geometry based on their area or thir number of vertex.
@@ -1586,7 +1586,7 @@ $$ LANGUAGE 'sql';
 --   - RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Range (maximun - minimum) of raster values 
 --                                               intersecting with the pixel centroid.
 --
---   - For the next methods, let say that 2 pixels are intersecting with the target pixel and that:
+--   - For the next methods, let's say that 2 pixels are intersecting with the target pixel and that:
 --         - ia1 and ia2 are the areas of the intersection between the source pixel and the target pixel,
 --         - v1 and v2 are the values of the source pixels,
 --         - sa1 and sa2 are the areas of the sources pixels,
@@ -1909,8 +1909,8 @@ $$ LANGUAGE 'sql' IMMUTABLE;
 -- Refer to the self contained example below. Each geometry MUST have a unique ID 
 -- and, if the table contains a huge number of geometries, it should be indexed.
 --
--- Self contained and typical example removing, from a geometry, all
--- the overlapping geometries having a bigger area:
+-- Self contained and typical example removing, from every geometry, all
+-- the overlapping geometries having a bigger area. i.e larger polygons have priority:
 --
 -- WITH overlappingtable AS (
 --   SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))') geom
@@ -1920,26 +1920,32 @@ $$ LANGUAGE 'sql' IMMUTABLE;
 --   SELECT 3 id, ST_GeomFromText('POLYGON((2 1, 4.6 2, 5 0, 2 1))')
 --   UNION ALL
 --   SELECT 4 id, ST_GeomFromText('POLYGON((3 1, 5.4 2, 6 0, 3 1))')
+--   UNION ALL
+--   SELECT 5 id, ST_GeomFromText('POLYGON((3 1, 5.4 2, 6 0, 3 1))')
 -- )
 -- SELECT a.id, ST_DifferenceAgg(a.geom, b.geom) geom
 -- FROM overlappingtable a, 
 --      overlappingtable b
--- WHERE ST_Equals(a.geom, b.geom) OR 
+-- WHERE a.id = b.id OR 
 --       ((ST_Contains(a.geom, b.geom) OR 
 --         ST_Contains(b.geom, a.geom) OR 
 --         ST_Overlaps(a.geom, b.geom)) AND 
 --        (ST_Area(a.geom) < ST_Area(b.geom) OR 
 --         (ST_Area(a.geom) = ST_Area(b.geom) AND 
---          ST_AsText(a.geom) < ST_AsText(b.geom))))
--- GROUP BY a.id;
+--          a.id < b.id)))
+-- GROUP BY a.id
+-- HAVING ST_Area(ST_DifferenceAgg(a.geom, b.geom)) > 0.00001 AND NOT ST_IsEmpty(ST_DifferenceAgg(a.geom, b.geom));
+--
+-- The HAVING clause of the query makes sure that very small and empty remains not included in the result.
+--
 --
 -- In some cases you may want to use the polygons ids instead of the 
 -- polygons areas to decide which one is removed from the other one.
 -- You first have to ensure ids are unique for this to work. In that  
--- case you would replace:
+-- case you would simply replace:
 --
 --     ST_Area(a.geom) < ST_Area(b.geom) OR 
---     (ST_Area(a.geom) = ST_Area(b.geom) AND ST_AsText(a.geom) < ST_AsText(b.geom))
+--     (ST_Area(a.geom) = ST_Area(b.geom) AND a.id < b.id)
 --
 -- with:
 --
@@ -1947,68 +1953,79 @@ $$ LANGUAGE 'sql' IMMUTABLE;
 --
 -- to cut all the polygons with greatest ids from the polygons with 
 -- smallest ids.
---
--- You might also want that the ids are only used as the last discriminant 
--- when two different polygons have the same area instead of using the arbitrary 
--- order created by the text version of the geometries. In that case you 
--- would replace:
---
---     ST_Area(a.geom) < ST_Area(b.geom) OR 
---     (ST_Area(a.geom) = ST_Area(b.geom) AND ST_AsText(a.geom) < ST_AsText(b.geom))
---
--- with:
---
---     ST_Area(a.geom) < ST_Area(b.geom) OR 
---     (ST_Area(a.geom) = ST_Area(b.geom) AND a.id < b.id)
---
--- to cut all the polygon with greatest id from the polygons with 
--- smallest id when they have the same area.
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 10/18/2013 v. 1.14
 -----------------------------------------------------------
 -- ST_DifferenceAgg aggregate state function
 CREATE OR REPLACE FUNCTION _ST_DifferenceAgg_StateFN(
-    geom1 geometry, 
+    geom1 geomval, 
     geom2 geometry, 
     geom3 geometry
 )
-RETURNS geometry AS $$
+RETURNS geomval AS $$
     DECLARE
-       newgeom geometry;
+       newgeom geomval;
+       differ geometry;
+       equals boolean;
     BEGIN
         -- First pass: geom1 is null
-        IF geom1 IS NULL AND NOT ST_IsEmpty(geom2) THEN
+        IF geom1 IS NULL AND NOT ST_IsEmpty(geom2) AND ST_Area(geom3) > 0.0000001 THEN
             newgeom = CASE 
-                        WHEN ST_Equals(geom2, geom3) THEN geom2 
-                        ELSE ST_Difference(geom2, geom3)
+                        WHEN ST_Equals(geom2, geom3) THEN (geom2, 1) 
+                        ELSE (ST_Difference(geom2, geom3), 0)
                       END;
-        ELSIF NOT ST_IsEmpty(geom1) THEN
+        ELSIF NOT ST_IsEmpty((geom1).geom) AND ST_Area(geom3) > 0.0000001 THEN
+            equals = ST_Equals(geom2, geom3);
+            IF NOT equals THEN
+                BEGIN
+                    differ = ST_Difference((geom1).geom, geom3);
+                EXCEPTION
+            	WHEN OTHERS THEN
+	                BEGIN
+	                    differ = ST_Difference(ST_Buffer((geom1).geom, 0.000001), ST_Buffer(geom3, 0.000001));
+	                EXCEPTION
+		            WHEN OTHERS THEN
+		                BEGIN
+		                    differ = ST_Difference(ST_Buffer((geom1).geom, 0.00001), ST_Buffer(geom3, 0.00001));
+		                EXCEPTION
+		            	WHEN OTHERS THEN
+			                differ = (geom1).geom;
+		                END;
+	                END;
+                END;
+            END IF;
             newgeom = CASE 
-                        WHEN ST_Equals(geom2, geom3) THEN geom1 
-                        ELSE ST_Difference(geom1, geom3)
+                        WHEN equals AND (geom1).val = 0 THEN ((geom1).geom, 1)
+                        ELSE (differ, (geom1).val)
                       END;
         ELSE
             newgeom = geom1;
         END IF;
 
-        IF NOT ST_IsEmpty(newgeom) THEN
-            newgeom = ST_CollectionExtract(newgeom, 3);
+        IF NOT ST_IsEmpty((newgeom).geom) THEN
+            newgeom = (ST_CollectionExtract((newgeom).geom, 3), (newgeom).val);
         END IF;
 
-        IF newgeom IS NULL THEN
-            newgeom = ST_GeomFromText('MULTIPOLYGON EMPTY');
+        IF (newgeom).geom IS NULL THEN
+            newgeom = (ST_GeomFromText('MULTIPOLYGON EMPTY', ST_SRID(geom2)), (newgeom).val);
         END IF;
 
         RETURN newgeom;
     END;
 $$ LANGUAGE plpgsql IMMUTABLE;
-
+-----------------------------------------------------------
+-- ST_DifferenceAgg aggregate final function
+CREATE OR REPLACE FUNCTION _ST_DifferenceAgg_FinalFN(gv geomval)
+  RETURNS geometry AS $$ 
+    SELECT ($1).geom 
+$$ LANGUAGE sql VOLATILE STRICT;
 -----------------------------------------------------------
 -- ST_DifferenceAgg aggregate
 CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry) (
   SFUNC=_ST_DifferenceAgg_StateFN,
-  STYPE=geometry
+  FINALFUNC=_ST_DifferenceAgg_FinalFN,
+  STYPE=geomval
 );
 -------------------------------------------------------------------------------
 

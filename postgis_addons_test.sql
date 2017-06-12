@@ -85,7 +85,7 @@ SELECT 'ST_GlobalRasterUnion'::text,          9,         12         UNION ALL
 SELECT 'ST_BufferedUnion'::text,             10,          3         UNION ALL
 SELECT 'ST_NBiggestExteriorRings'::text,     11,          2         UNION ALL
 SELECT 'ST_BufferedSmooth'::text,            12,          1         UNION ALL
-SELECT 'ST_DifferenceAgg'::text,             13,          2         UNION ALL
+SELECT 'ST_DifferenceAgg'::text,             13,          4         UNION ALL
 SELECT 'ST_TrimMulti'::text,                 14,          4         UNION ALL
 SELECT 'ST_SplitAgg'::text,                  15,          5         UNION ALL
 SELECT 'ST_HasBasicIndex'::text,             16,          2
@@ -957,7 +957,7 @@ SELECT '13.1'::text number,
 FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
       FROM overlappingtable a, 
            overlappingtable b
-      WHERE ST_Equals(a.geom, b.geom) OR 
+      WHERE a.id = b.id OR 
             ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND 
              (a.id < b.id))
       GROUP BY a.id
@@ -985,6 +985,50 @@ FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
             ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND 
              (a.id < b.id))
       GROUP BY a.id
+     ) foo
+)
+---------------------------------------------------------
+UNION ALL
+(WITH overlappingtable AS (
+  SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))') geom
+  UNION ALL
+  SELECT 2 id, ST_GeomFromText('POLYGON((2.99999 1, 3 1.00001, 3 0.99999, 2.99999 1))')
+)
+SELECT '13.3'::text number,
+       'ST_DifferenceAgg'::text function_tested,
+       'Make sure that very small geometries are not removed'::text description,
+       ST_Union(geom)::text = '010300000001000000040000000000000000000000000000000000F03F00000000000008400000000000000040000000000000084000000000000000000000000000000000000000000000F03F' passed
+FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
+      FROM overlappingtable a, 
+           overlappingtable b
+      WHERE a.id = b.id OR 
+            ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND 
+             (a.id < b.id))
+      GROUP BY a.id
+      HAVING ST_Area(ST_DifferenceAgg(a.geom, b.geom)) > 0.00001 AND NOT ST_IsEmpty(ST_DifferenceAgg(a.geom, b.geom))
+     ) foo
+)
+---------------------------------------------------------
+UNION ALL
+(WITH overlappingtable AS (
+  SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))') geom
+  UNION ALL
+  SELECT 2 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))')
+  UNION ALL
+  SELECT 3 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))')
+)
+SELECT '13.4'::text number,
+       'ST_DifferenceAgg'::text function_tested,
+       'Make sure that only the first equivalent geometry is not removed (all the others should be removed.)'::text description,
+       geom::text = '010300000001000000040000000000000000000000000000000000F03F00000000000008400000000000000040000000000000084000000000000000000000000000000000000000000000F03F' passed
+FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
+      FROM overlappingtable a, 
+           overlappingtable b
+      WHERE a.id = b.id OR 
+            ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND 
+             (a.id < b.id))
+      GROUP BY a.id
+      HAVING ST_Area(ST_DifferenceAgg(a.geom, b.geom)) > 0.00001 AND NOT ST_IsEmpty(ST_DifferenceAgg(a.geom, b.geom))
      ) foo
 )
 
