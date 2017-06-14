@@ -122,6 +122,9 @@
 --
 --   ST_SplitAgg - Returns the first geometry as a set of geometries after being split 
 --                 by all the second geometries being part of the aggregate.
+--
+--   ST_ColumnIsUnique - Returns true if all the values in this column are unique.
+
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
 -------------------------------------------------------------------------------
@@ -149,8 +152,6 @@
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 26/09/2013 v. 1.4
 -----------------------------------------------------------
-
------------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_DeleteBand(
     rast raster,
     band int
@@ -177,7 +178,7 @@ RETURNS raster AS $$
 
         RETURN ST_Band(rast, bandarray);
     END;
-$$ LANGUAGE 'plpgsql' VOLATILE;
+$$ LANGUAGE plpgsql VOLATILE;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -215,8 +216,6 @@ $$ LANGUAGE 'plpgsql' VOLATILE;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 27/09/2013 v. 1.5
------------------------------------------------------------
-
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_CreateIndexRaster(
     rast raster, 
@@ -307,8 +306,6 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- Mathieu Basille <basille.web@ase-research.org>
 -- 10/01/2013 v. 1.6
 -----------------------------------------------------------
-
------------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_RandomPoints(
     geom geometry, 
     nb integer,
@@ -361,7 +358,7 @@ RETURNS SETOF geometry AS $$
         END LOOP; 
         RETURN; 
     END; 
-$$ LANGUAGE 'plpgsql' VOLATILE;
+$$ LANGUAGE plpgsql VOLATILE;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -382,8 +379,6 @@ $$ LANGUAGE 'plpgsql' VOLATILE;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 10/02/2013 v. 1.7
------------------------------------------------------------
-
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_ColumnExists(
     schemaname name, 
@@ -442,11 +437,11 @@ RETURNS boolean AS $$
     BEGIN
         -- Determine the type of the column
         query := 'SELECT typname 
-                 FROM pg_namespace
-		 LEFT JOIN pg_class ON (pg_namespace.oid = pg_class.relnamespace)
-		 LEFT JOIN pg_attribute ON (pg_attribute.attrelid = pg_class.oid)
-		 LEFT JOIN pg_type ON (pg_type.oid = pg_attribute.atttypid)
-		 WHERE nspname = ''' || schemaname || ''' AND relname = ''' || tablename || ''' AND attname = ''' || columnname || ''';';
+                  FROM pg_namespace
+                  LEFT JOIN pg_class ON (pg_namespace.oid = pg_class.relnamespace)
+                  LEFT JOIN pg_attribute ON (pg_attribute.attrelid = pg_class.oid)
+                  LEFT JOIN pg_type ON (pg_type.oid = pg_attribute.atttypid)
+                  WHERE nspname = ''' || schemaname || ''' AND relname = ''' || tablename || ''' AND attname = ''' || columnname || ''';';
         EXECUTE QUERY query INTO coltype;
         IF coltype IS NULL THEN
             --RAISE EXCEPTION 'column not found';
@@ -478,11 +473,21 @@ RETURNS boolean AS $$
            EXECUTE QUERY query INTO hasindex;
         END IF;
         IF hasindex IS NULL THEN
-	    hasindex = FALSE;
+            hasindex = FALSE;
         END IF;
-        RETURN hasindex; 
+        RETURN hasindex;
     END; 
-$$ LANGUAGE 'plpgsql' VOLATILE STRICT;
+$$ LANGUAGE plpgsql VOLATILE STRICT;
+
+-----------------------------------------------------------
+-- ST_HasBasicIndex variant defaulting to the 'public' schemaname
+CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
+    tablename name, 
+    columnname name
+) 
+RETURNS BOOLEAN AS $$
+    SELECT ST_HasBasicIndex('public', $1, $2)
+$$ LANGUAGE sql VOLATILE STRICT;
 -----------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -514,8 +519,6 @@ $$ LANGUAGE 'plpgsql' VOLATILE STRICT;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 10/02/2013 v. 1.7
------------------------------------------------------------
-
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_AddUniqueID(
     schemaname name, 
@@ -561,7 +564,7 @@ RETURNS boolean AS $$
 
         RETURN true;
     END;
-$$ LANGUAGE 'plpgsql' VOLATILE STRICT;
+$$ LANGUAGE plpgsql VOLATILE STRICT;
 
 -----------------------------------------------------------
 -- ST_AddUniqueID variant defaulting to the 'public' schemaname
@@ -803,7 +806,7 @@ RETURNS agg_areaweightedstatsstate  AS $$
         END IF;
         RETURN ret;
     END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 -----------------------------------------------------------
 -- _ST_AreaWeightedSummaryStats_StateFN state function variant taking a 
@@ -815,7 +818,7 @@ CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
 )
 RETURNS agg_areaweightedstatsstate AS $$
    SELECT _ST_AreaWeightedSummaryStats_StateFN($1, ($2, $3)::geomval);
-$$ LANGUAGE 'sql';
+$$ LANGUAGE sql;
 
 -----------------------------------------------------------
 -- _ST_AreaWeightedSummaryStats_StateFN state function variant defaulting 
@@ -826,7 +829,7 @@ CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
 )
 RETURNS agg_areaweightedstatsstate AS $$
     SELECT _ST_AreaWeightedSummaryStats_StateFN($1, ($2, 1)::geomval);
-$$ LANGUAGE 'sql';
+$$ LANGUAGE sql;
 
 -----------------------------------------------------------
 -- ST_AreaWeightedSummaryStats aggregate final function
@@ -875,7 +878,7 @@ RETURNS agg_areaweightedstats AS $$
                )::agg_areaweightedstats;
         RETURN ret;
     END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 -----------------------------------------------------------
 -- ST_AreaWeightedSummaryStats aggregate definition
@@ -1169,7 +1172,7 @@ RETURNS FLOAT AS $$
         EXECUTE query INTO result;
         RETURN result;
     END;
-$$ LANGUAGE 'plpgsql' IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE;
 
 -----------------------------------------------------------
 -- Callback function computing a value for the whole pixel shape
@@ -1395,7 +1398,7 @@ RETURNS FLOAT AS $$
         EXECUTE query INTO result;
         RETURN result;
     END; 
-$$ LANGUAGE 'plpgsql' IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE;
 
 -----------------------------------------------------------
 -- Main ST_ExtractToRaster function
@@ -1471,7 +1474,7 @@ RETURNS raster AS $$
         EXECUTE query INTO newrast USING rast, band;
         RETURN ST_AddBand(ST_DeleteBand(rast, band), newrast, 1, band);
     END
-$$ LANGUAGE 'plpgsql' IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE;
 
 ---------------------------------------------------------------------
 -- ST_ExtractToRaster variant defaulting band number to 1
@@ -1485,7 +1488,7 @@ CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
 )
 RETURNS raster AS $$
     SELECT ST_ExtractToRaster($1, 1, $2, $3, $4, $5, $6)
-$$ LANGUAGE 'sql';
+$$ LANGUAGE sql;
 
 ---------------------------------------------------------------------
 -- ST_ExtractToRaster variant defaulting valuecolumnname to null
@@ -1499,7 +1502,8 @@ CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
 )
 RETURNS raster AS $$
     SELECT ST_ExtractToRaster($1, $2, $3, $4, $5, null, $6)
-$$ LANGUAGE 'sql';
+$$ LANGUAGE sql;
+
 ---------------------------------------------------------------------
 -- ST_ExtractToRaster variant defaulting band number to 1 and valuecolumnname to null
 CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
@@ -1511,7 +1515,8 @@ CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
 )
 RETURNS raster AS $$
     SELECT ST_ExtractToRaster($1, 1, $2, $3, $4, null, $5)
-$$ LANGUAGE 'sql';
+$$ LANGUAGE sql;
+
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -1717,7 +1722,7 @@ RETURNS raster AS $$
         EXECUTE query INTO newrast;
         RETURN newrast;
     END; 
-$$ LANGUAGE 'plpgsql' IMMUTABLE;
+$$ LANGUAGE plpgsql IMMUTABLE;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -1781,7 +1786,7 @@ RETURNS geomval AS $$
 	              ($1).val
 	             )::geomval
 	   END;
-$$ LANGUAGE 'sql' IMMUTABLE;
+$$ LANGUAGE sql IMMUTABLE;
 
 -----------------------------------------------------------
 -- ST_BufferedUnion aggregate final function
@@ -1790,7 +1795,7 @@ CREATE OR REPLACE FUNCTION _ST_BufferedUnion_FinalFN(
 )
 RETURNS geometry AS $$
     SELECT ST_Buffer(($1).geom, -($1).val, 'endcap=square join=mitre')
-$$ LANGUAGE 'sql' IMMUTABLE STRICT;
+$$ LANGUAGE sql IMMUTABLE STRICT;
 
 -----------------------------------------------------------
 -- ST_BufferedUnion aggregate definition
@@ -1854,7 +1859,7 @@ RETURNS SETOF geometry AS $$
 	    RETURN;
 	END IF;
     END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -1891,7 +1896,7 @@ CREATE OR REPLACE FUNCTION ST_BufferedSmooth(
 )
 RETURNS geometry AS $$
     SELECT ST_Buffer(ST_Buffer($1, $2), -$2)
-$$ LANGUAGE 'sql' IMMUTABLE;
+$$ LANGUAGE sql IMMUTABLE;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -2063,7 +2068,7 @@ RETURNS geometry AS $$
     FROM (SELECT ST_CollectionExtract((ST_Dump($1)).geom, 3) newgeom
          ) foo 
     WHERE ST_Area(newgeom) > $2;
-$$ LANGUAGE 'sql' IMMUTABLE;
+$$ LANGUAGE sql IMMUTABLE;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -2201,3 +2206,77 @@ CREATE AGGREGATE ST_SplitAgg(geometry, geometry) (
     SFUNC=_ST_SplitAgg_StateFN,
     STYPE=geometry[]
 );
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_ColumnIsUnique
+--
+--   schemaname name - Name of the schema containing the table in which to check for 
+--                     the unicity of the values of a column.
+--   tablename name  - Name of the table in which to check for the unicity of the
+--                     values of a column.
+--   columnname name - Name of the column to check for unicity of the values.
+--
+--   RETURNS boolean
+--
+-- Returns true if all the values in this column are unique.
+--
+-- This function is mainly used by the ST_SummarizeGeoTable() function.
+--
+--
+-- Self contained and typical example:
+--
+-- CREATE TABLE testunique AS 
+-- SELECT * FROM (VALUES (1, 1), (2, 2), (3, 2)) AS t (id1, id2);
+-- 
+-- SELECT ST_ColumnIsUnique('public', 'testunique', 'id1')
+-- UNION ALL
+-- SELECT ST_ColumnIsUnique('public', 'testunique', 'id2')
+--
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 12/06/2017 v. 1.28
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_ColumnIsUnique(
+    schemaname name, 
+    tablename name, 
+    columnname name
+)
+RETURNS BOOLEAN AS $$
+    DECLARE
+        newschemaname text;
+        fqtn text;
+        query text;
+        isunique boolean;
+    BEGIN
+        newschemaname := '';
+        IF length(schemaname) > 0 THEN
+            newschemaname := schemaname;
+        ELSE
+	    newschemaname := 'public';
+        END IF;
+        fqtn := quote_ident(newschemaname) || '.' || quote_ident(tablename);
+
+        IF NOT ST_ColumnExists(newschemaname, tablename, columnname) THEN
+            RAISE EXCEPTION 'Column ''%'' does not exist...', columnname;
+        END IF;
+  
+        query = 'SELECT FALSE FROM ' || fqtn || ' GROUP BY ' || quote_ident(columnname) || ' HAVING count(' || quote_ident(columnname) || ') > 1 LIMIT 1';
+        EXECUTE QUERY query INTO isunique;
+        IF isunique IS NULL THEN
+              isunique = TRUE;
+        END IF;
+        RETURN isunique;
+    END;
+$$ LANGUAGE plpgsql VOLATILE STRICT;
+
+-----------------------------------------------------------
+-- ST_ColumnIsUnique variant defaulting to the 'public' schemaname
+CREATE OR REPLACE FUNCTION ST_ColumnIsUnique(
+    tablename name, 
+    columnname name
+) 
+RETURNS BOOLEAN AS $$
+    SELECT ST_ColumnIsUnique('public', $1, $2)
+$$ LANGUAGE sql VOLATILE STRICT;
+-------------------------------------------------------------------------------

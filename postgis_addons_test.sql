@@ -88,7 +88,7 @@ SELECT 'ST_BufferedSmooth'::text,            12,          1         UNION ALL
 SELECT 'ST_DifferenceAgg'::text,             13,          4         UNION ALL
 SELECT 'ST_TrimMulti'::text,                 14,          4         UNION ALL
 SELECT 'ST_SplitAgg'::text,                  15,          5         UNION ALL
-SELECT 'ST_HasBasicIndex'::text,             16,          2
+SELECT 'ST_HasBasicIndex'::text,             16,          3
 ),
 test_series AS (
 -- Build a table of function names with a sequence of number for each function to be tested
@@ -607,7 +607,7 @@ SELECT '8.15'::text number,
                           'test_extracttoraster', 
                           'geom', 
                           'val', 
-                          'PROPORTION_OF_COVERED_AREA') =                          '01000001000000000000001440000000000000F0BF000000000000000000000000000000400000000000000000000000000000000000000000020002004AFFFF7FFF6666663FCDCC4C3F6666663FCDCC4C3F'::raster passed
+                          'PROPORTION_OF_COVERED_AREA') = '01000001000000000000001440000000000000F0BF000000000000000000000000000000400000000000000000000000000000000000000000020002004AFFFF7FFF6666663FCDCC4C3F6666663FCDCC4C3F'::raster passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '8.16'::text number,
@@ -1171,7 +1171,7 @@ FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
       WHERE a.id = 1) foo)
 
 ---------------------------------------------------------
--- Test 15 - ST_HasBasicIndex
+-- Test 16 - ST_HasBasicIndex
 ---------------------------------------------------------
 
 UNION ALL
@@ -1185,6 +1185,12 @@ SELECT '16.2'::text number,
        'ST_HasBasicIndex'::text function_tested,
        'Check for the existence of an index on the column2 column of public.test_adduniqueid'::text description,
        ST_HasBasicIndex('public', 'test_adduniqueid', 'column2') passed
+---------------------------------------------------------
+UNION ALL
+SELECT '16.3'::text number,
+       'ST_HasBasicIndex'::text function_tested,
+       'Check defaulting to public schema'::text description,
+       ST_HasBasicIndex('test_adduniqueid', 'column2') passed
 ---------------------------------------------------------
 ---------------------------------------------------------
 ) b 

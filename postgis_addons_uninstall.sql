@@ -60,3 +60,7 @@ DROP FUNCTION IF EXISTS _ST_SplitAgg_StateFN(geometry[], geometry, geometry);
 DROP FUNCTION IF EXISTS _ST_SplitAgg_StateFN(geometry[], geometry, geometry, double precision);
 
 DROP FUNCTION IF EXISTS ST_HasBasicIndex(name, name, name);
+DROP FUNCTION IF EXISTS ST_HasBasicIndex(name, name);
+
+DROP FUNCTION IF EXISTS ST_ColumnIsUnique(name, name, name);
+DROP FUNCTION IF EXISTS ST_ColumnIsUnique(name, name);
