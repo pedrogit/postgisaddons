@@ -124,7 +124,11 @@
 --                 by all the second geometries being part of the aggregate.
 --
 --   ST_ColumnIsUnique - Returns true if all the values in this column are unique.
-
+--
+--   ST_GeoTableSummary - Returns a table summarysing a geometry table. Helps finding 
+--                        anomalies in geometry tables like duplicates, overlaps and 
+--                        very complex or very small geometries.
+--
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
 -------------------------------------------------------------------------------
@@ -2335,7 +2339,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --   RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometry, query text)
 --
 -- Returns a table summarysing a geometry table. Computed summaries help finding anomalies 
--- in geometry tables like duplicates, overlaps and very complex or small geometries.
+-- in geometry tables like duplicates, overlaps and very complex or very small geometries.
 --
 -- The return table contains 5 columns:
 --
