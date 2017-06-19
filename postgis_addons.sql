@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.28 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.29 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -128,6 +128,8 @@
 --   ST_GeoTableSummary - Returns a table summarysing a geometry table. Helps finding 
 --                        anomalies in geometry tables like duplicates, overlaps and 
 --                        very complex or very small geometries.
+--
+--   ST_SplitByGrid - Returns a geometry splitted in multiple parts by a specified grid.
 --
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
@@ -2817,3 +2819,103 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
 $$ LANGUAGE plpgsql VOLATILE;
 -------------------------------------------------------------------------------
 
+-------------------------------------------------------------------------------
+-- ST_SplitByGrid
+--
+--   geom geometry - Geometry to split.
+--
+--   xgridsize double precision  - Horizontal grid cell size.
+--
+--   ygridsize double precision  - Vertical grid cell size.
+--
+--   xgridoffset double precision  - Horizontal grid offset.
+--
+--   ygridoffset double precision  - Vertical grid offset.
+--
+--   RETURNS TABLE (geom geometry, tid int8, x int, y int)
+--
+-- Set function returnings the geometry splitted in multiple parts by a grid of the 
+-- specified size and optionnaly shifted by the specified offset. Each part comes 
+-- with a unique identifier for each cell of the grid it intersects with.
+-- This unique identifier remains the same for any subsequent call to the function 
+-- so that all geometry parts inside the same cell, from call to call get the same 
+-- uid.
+--
+-- This function is usefull to parallelize some queries.
+--
+--
+-- Self contained and typical example:
+--
+-- WITH splittable AS (
+--   SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))') geom
+--   UNION ALL
+--   SELECT 2 id, ST_GeomFromText('POLYGON((1 1, 4 2, 4 0, 1 1))')
+--   UNION ALL
+--   SELECT 3 id, ST_GeomFromText('POLYGON((2 1, 5 2, 5 0, 2 1))')
+--   UNION ALL
+--   SELECT 4 id, ST_GeomFromText('POLYGON((3 1, 6 2, 6 0, 3 1))')
+-- )
+-- SELECT (ST_SplitByGrid(geom, 0.5)).* FROM splittable
+--
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 19/06/2017 v. 1.29
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_SplitByGrid(
+    ingeom geometry, 
+    xgridsize double precision,
+    ygridsize double precision DEFAULT NULL,
+    xgridoffset double precision DEFAULT 0.0,
+    ygridoffset double precision DEFAULT 0.0
+)
+RETURNS TABLE (geom geometry, tid int8, x int, y int) AS $$
+    DECLARE
+        width int;
+        height int;
+        xminrounded double precision;
+        yminrounded double precision;
+        xmaxrounded double precision;
+        ymaxrounded double precision;
+        xmin double precision := ST_XMin(ingeom);
+        ymin double precision := ST_YMin(ingeom);
+        xmax double precision := ST_XMax(ingeom);
+        ymax double precision := ST_YMax(ingeom);
+        x int;
+        y int;
+        env geometry;
+        xfloor int;
+        yfloor int;
+    BEGIN
+        IF ingeom IS NULL OR ST_IsEmpty(ingeom) THEN
+            RETURN QUERY SELECT ingeom, NULL::int8;
+            RETURN;
+        END IF;
+        IF xgridsize IS NULL OR xgridsize <= 0 THEN
+            RAISE NOTICE 'Defaulting xgridsize to 1...';
+            xgridsize = 1;
+        END IF;
+        IF ygridsize IS NULL OR ygridsize <= 0 THEN
+            ygridsize = xgridsize;
+        END IF;
+        xfloor = floor((xmin - xgridoffset) / xgridsize);
+        xminrounded = xfloor * xgridsize + xgridoffset;
+        xmaxrounded = ceil((xmax - xgridoffset) / xgridsize) * xgridsize + xgridoffset;
+        yfloor = floor((ymin - ygridoffset) / ygridsize);
+        yminrounded = yfloor * ygridsize + ygridoffset;
+        ymaxrounded = ceil((ymax - ygridoffset) / ygridsize) * ygridsize + ygridoffset;
+        
+        width = round((xmaxrounded - xminrounded) / xgridsize);
+        height = round((ymaxrounded - yminrounded) / ygridsize);
+
+        FOR x IN 1..width LOOP
+            FOR y IN 1..height LOOP
+                env = ST_MakeEnvelope(xminrounded + (x - 1) * xgridsize, yminrounded + (y - 1) * ygridsize, xminrounded + x * xgridsize, yminrounded + y * ygridsize, ST_SRID(ingeom));
+                IF ST_Intersects(env, ingeom) THEN
+                     RETURN QUERY SELECT ST_Intersection(ingeom, env), ((xfloor::int8 + x) * 10000000 + (yfloor::int8 + y))::int8, xfloor + x, yfloor + y WHERE ST_GeometryType(ST_Intersection(ingeom, env)) = ST_GeometryType(ingeom); 
+                END IF;
+            END LOOP;
+        END LOOP;
+    RETURN;
+    END;
+$$ LANGUAGE plpgsql VOLATILE;
+-----------------------------------------------------------
