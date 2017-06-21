@@ -117,7 +117,7 @@ SELECT 'ST_DifferenceAgg'::text,             13,          4         UNION ALL
 SELECT 'ST_TrimMulti'::text,                 14,          4         UNION ALL
 SELECT 'ST_SplitAgg'::text,                  15,          5         UNION ALL
 SELECT 'ST_HasBasicIndex'::text,             16,          3         UNION ALL
-SELECT 'ST_GeoTableSummary'::text,           17,         12         UNION ALL
+SELECT 'ST_GeoTableSummary'::text,           17,         14         UNION ALL
 SELECT 'ST_SplitByGrid'::text,               18,          1
 ),
 test_series AS (
@@ -1287,7 +1287,7 @@ SELECT '17.7'::text number,
        'ST_GeoTableSummary'::text function_tested,
        'Check overlapping geometries results'::text description,
        idsandtypes = 'ERROR: Consider fixing invalid geometries before testing for overlaps...' passed
-FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
+FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, ARRAY['OVL'])
 WHERE summary = '3'
 ---------------------------------------------------------
 UNION ALL
@@ -1406,14 +1406,14 @@ SELECT '17.12'::text number,
        (array_agg(nb))[16] = 0 AND 
        (array_agg(nb))[17] = 0 AND 
        (array_agg(nb))[18] = 2 AND 
-       (array_agg(query))[1]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= -2.31715612180644 AND ST_Area(geom) < -2.01501160658064 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[2]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= -2.01501160658064 AND ST_Area(geom) < -1.71286709135483 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[3]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= -1.71286709135483 AND ST_Area(geom) < -1.41072257612903 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[4]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= -1.41072257612903 AND ST_Area(geom) < -1.10857806090322 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[5]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= -1.10857806090322 AND ST_Area(geom) < -0.806433545677416 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[6]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= -0.806433545677416 AND ST_Area(geom) < -0.504289030451611 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[7]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= -0.504289030451611 AND ST_Area(geom) < -0.202144515225805 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[8]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= -0.202144515225805 AND ST_Area(geom) < 0.1 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[1]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) = 0;' AND 
+       (array_agg(query))[2]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) > 0 AND ST_Area(geom) < 0.0000001 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[3]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.0000001 AND ST_Area(geom) < 0.000001 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[4]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.000001 AND ST_Area(geom) < 0.00001 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[5]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.00001 AND ST_Area(geom) < 0.0001 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[6]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.0001 AND ST_Area(geom) < 0.001 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[7]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.001 AND ST_Area(geom) < 0.01 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[8]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.01 AND ST_Area(geom) < 0.1 ORDER BY ST_Area(geom) DESC;' AND 
        (array_agg(query))[9]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.1 AND ST_Area(geom) < 0.402144515225805 ORDER BY ST_Area(geom) DESC;' AND 
        (array_agg(query))[10]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.402144515225805 AND ST_Area(geom) < 0.704289030451611 ORDER BY ST_Area(geom) DESC;' AND 
        (array_agg(query))[11]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.704289030451611 AND ST_Area(geom) < 1.00643354567742 ORDER BY ST_Area(geom) DESC;' AND 
@@ -1426,6 +1426,36 @@ SELECT '17.12'::text number,
        (array_agg(query))[18]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.81930063703225 AND ST_Area(geom) <= 0.0000001 + 3.12144515225805 ORDER BY ST_Area(geom) DESC;' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
 WHERE summary = '8'
+---------------------------------------------------------
+UNION ALL
+SELECT '17.13'::text number,
+       'ST_GeoTableSummary'::text function_tested,
+       'Check when the dosummary and the skip summary parameters are passed as text'::text description,
+       (array_agg(idsandtypes))[1] = 'SKIPPED' AND 
+       (array_agg(idsandtypes))[2] = 'DUPLICATE GEOMETRIES IDS (id)' AND 
+       (array_agg(idsandtypes))[3] = '1, 2, 3' AND 
+       (array_agg(idsandtypes))[4] = '8, 9, 10' AND 
+       (array_agg(idsandtypes))[5] = 'SKIPPED' AND 
+       (array_agg(idsandtypes))[6] = 'SKIPPED' AND 
+       (array_agg(idsandtypes))[7] = 'STATISTIC' AND 
+       (array_agg(idsandtypes))[8] = 'MIN number of vertexes' AND 
+       (array_agg(idsandtypes))[9] = 'MAX number of vertexes' AND 
+       (array_agg(idsandtypes))[10] = 'MEAN number of vertexes' AND 
+       (array_agg(idsandtypes))[11] = 'SKIPPED' AND 
+       (array_agg(idsandtypes))[12] = 'STATISTIC' AND 
+       (array_agg(idsandtypes))[13] = 'MIN area' AND 
+       (array_agg(idsandtypes))[14] = 'MAX area' AND 
+       (array_agg(idsandtypes))[15] = 'MEAN area' AND 
+       (array_agg(idsandtypes))[16] = 'SKIPPED'
+FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 's1, GDUP, VERTX, s7', 's1')
+
+---------------------------------------------------------------------------------------------------------
+UNION ALL
+SELECT '17.14'::text number,
+       'ST_GeoTableSummary'::text function_tested,
+       'Test the whereclause parameter'::text description,
+       string_agg(idsandtypes, ',') = 'DUPLICATE IDs (id),No duplicate IDs...,DUPLICATE GEOMETRIES IDS (id),1, 2, 3,OVERLAPPING GEOMETRIES IDS (id),ERROR: Consider fixing invalid geometries before testing for overlaps...,TYPES,ST_Polygon,ST_Point,EMPTY ST_Point,ST_LineString,EMPTY ST_GeometryCollection,STATISTIC,MIN number of vertexes,MAX number of vertexes,MEAN number of vertexes,NUMBER OF VERTEXES INTERVALS,[0 - 3[,[3 - 7[,[7 - 10[,[10 - 13[,[13 - 17[,[17 - 20[,[20 - 23[,[23 - 26[,[26 - 30[,[30 - 33],STATISTIC,MIN area,MAX area,MEAN area,AREAS INTERVALS,[0],]0 - 0.0000001[,[0.0000001 - 0.000001[,[0.000001 - 0.00001[,[0.00001 - 0.0001[,[0.0001 - 0.001[,[0.001 - 0.01[,[0.01 - 0.1[,[0.1 - 0.402144515225805[,[0.402144515225805 - 0.704289030451611[,[0.704289030451611 - 1.00643354567742[,[1.00643354567742 - 1.30857806090322[,[1.30857806090322 - 1.61072257612903[,[1.61072257612903 - 1.91286709135483[,[1.91286709135483 - 2.21501160658064[,[2.21501160658064 - 2.51715612180644[,[2.51715612180644 - 2.81930063703225[,[2.81930063703225 - 3.12144515225805]'
+FROM (SELECT (ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, null, null, 'id1 < 10')).idsandtypes) foo
 
 ---------------------------------------------------------
 -- Test 18 - ST_SplitByGrid

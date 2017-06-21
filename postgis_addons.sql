@@ -2264,7 +2264,8 @@ RETURNS BOOLEAN AS $$
         fqtn := quote_ident(newschemaname) || '.' || quote_ident(tablename);
 
         IF NOT ST_ColumnExists(newschemaname, tablename, columnname) THEN
-            RAISE EXCEPTION 'Column ''%'' does not exist...', columnname;
+            RAISE NOTICE 'ST_ColumnIsUnique(): Column ''%'' does not exist... Returning NULL', columnname;
+            RETURN null;
         END IF;
   
         query = 'SELECT FALSE FROM ' || fqtn || ' GROUP BY ' || quote_ident(columnname) || ' HAVING count(' || quote_ident(columnname) || ') > 1 LIMIT 1';
@@ -2326,9 +2327,9 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --
 --               e.g. ARRAY['TYPES', 'S6'] will compute only those two summaries.
 --
---               Default to ARRAY['S1', 'S2', 'S4', 'S5', 'S6', 'S7', 'S8'] so that 
---               invalid geometries do not make the overlap summary to prevent other
---               summaries to complete.
+--               Default to ARRAY['IDDUP', 'GDUP', 'TYPES', 'VERTX', 'VHISTO', 'AREAS', 'AHISTO'] 
+--               skipping the overlap summary because it fails when encountering invalid 
+--               geometries and prevent other summaries to complete.
 --
 --   skipsummary - List of summaries to skip. Can be the same value as for the 
 --                 'dosummary' parameter. The list of summaries to skip has precedence
@@ -2397,13 +2398,14 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 14/06/2017 v. 1.28
 -----------------------------------------------------------
+
 CREATE OR REPLACE FUNCTION ST_GeoTableSummary(
     schemaname name, 
     tablename name,
     geomcolumnname name DEFAULT 'geom',
     uidcolumn name DEFAULT NULL,
     nbinterval int DEFAULT 10,
-    dosummary text[] DEFAULT NULL,
+    dosummary text[] DEFAULT ARRAY['IDDUP', 'GDUP', 'TYPES', 'VERTX', 'VHISTO', 'AREAS', 'AHISTO'],
     skipsummary text[] DEFAULT NULL,
     whereclause text DEFAULT NULL
 ) 
@@ -2427,6 +2429,9 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
         colnamearrlength int := 0;
         colnameidx int := 0;
     BEGIN
+        IF geomcolumnname IS NULL THEN
+            geomcolumnname = 'geom';
+        END IF;
         IF nbinterval IS NULL THEN
             nbinterval = 10;
         END IF;
@@ -2477,7 +2482,7 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
         
         -- Summary #1: Check for duplicate IDs (IDDUP)
         IF (dosummary IS NULL OR 'IDDUP' = ANY (dosummary) OR 'S1' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
-           (skipsummary IS NULL OR NOT ('IDDUP' = ANY (skipsummary) OR 'S2' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+           (skipsummary IS NULL OR NOT ('IDDUP' = ANY (skipsummary) OR 'S1' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
             RETURN QUERY SELECT 'SUMMARY 1 - DUPLICATE IDs (IDDUP or S1)'::text, ('DUPLICATE IDs (' || newuidcolumn::text || ')')::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
             RAISE NOTICE 'Summary 1 - Duplicate IDs (IDDUP or S1)...';
 
@@ -2525,7 +2530,9 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
             RAISE NOTICE '  Checking ''%''...', newuidcolumn;
 
             -- Search for a unique id. Search first for 'id', if no uidcolumn name is provided, or for the provided name, then the list of available column names
-            WHILE (ST_ColumnExists(newschemaname, tablename, newuidcolumn) OR (newuidcolumn = 'id' AND uidcolumn IS NULL)) AND (NOT provided_uid_isunique OR NOT ST_ColumnIsUnique(newschemaname, tablename, newuidcolumn)) LOOP
+            WHILE (ST_ColumnExists(newschemaname, tablename, newuidcolumn) OR (newuidcolumn = 'id' AND uidcolumn IS NULL)) AND 
+                  NOT provided_uid_isunique AND 
+                  (ST_ColumnIsUnique(newschemaname, tablename, newuidcolumn) IS NULL OR NOT ST_ColumnIsUnique(newschemaname, tablename, newuidcolumn)) LOOP
                 IF uidcolumn IS NULL AND colnameidx < colnamearrlength THEN
                     colnameidx = colnameidx + 1;
                     RAISE NOTICE '  ''%'' is not unique. Checking ''%''...', newuidcolumn, colnamearr[colnameidx]::text;
@@ -2535,7 +2542,6 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                     RAISE NOTICE '  ''%'' is not unique. Checking ''%''...', newuidcolumn, newuidcolumn || '_' || uidcolumncnt::text;
                     newuidcolumn = newuidcolumn || '_' || uidcolumncnt::text;
                 END IF;
-                provided_uid_isunique = TRUE;
             END LOOP;
 
             IF NOT ST_ColumnExists(newschemaname, tablename, newuidcolumn) THEN
@@ -2797,10 +2803,20 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                                      WHEN serie = -3 THEN ''[0.0001 - 0.001[''
                                      WHEN serie = -2 THEN ''[0.001 - 0.01[''
                                      WHEN serie = -1 THEN ''[0.01 - 0.1[''
-                                     ELSE ''['' || (minarea + serie * binrange)::text || '' - '' || (minarea + (serie + 1) * binrange)::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '']'' ELSE ''['' END) END interv, 
+                                     ELSE ''['' || (minarea + serie * binrange)::text || '' - '' || (minarea + (serie + 1) * binrange)::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '']'' ELSE ''['' END) 
+                                END interv, 
                                 coalesce(cnt, 0)::double precision cnt, 
                                 NULL::geometry, 
-                                ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= '' || (minarea + serie * binrange)::text || '' AND ST_Area(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''= 0.0000001 + '' ELSE '' '' END) || (minarea + (serie + 1) * binrange)::text || '' ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                CASE WHEN serie = -8 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') = 0;''::text
+                                     WHEN serie = -7 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') > 0 AND ST_Area(' || geomcolumnname || ') < 0.0000001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = -6 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.0000001 AND ST_Area(' || geomcolumnname || ') < 0.000001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = -5 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.000001 AND ST_Area(' || geomcolumnname || ') < 0.00001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = -4 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.00001 AND ST_Area(' || geomcolumnname || ') < 0.0001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = -3 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.0001 AND ST_Area(' || geomcolumnname || ') < 0.001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = -2 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.001 AND ST_Area(' || geomcolumnname || ') < 0.01 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = -1 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.01 AND ST_Area(' || geomcolumnname || ') < 0.1 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     ELSE ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= '' || (minarea + serie * binrange)::text || '' AND ST_Area(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''= 0.0000001 + '' ELSE '' '' END) || (minarea + (serie + 1) * binrange)::text || '' ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                END
                          FROM generate_series(-8, ' || nbinterval || ' - 1) serie 
                               LEFT OUTER JOIN histo ON (serie = histo.bin), 
                               (SELECT * FROM bins LIMIT 1) foo
@@ -2817,6 +2833,22 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
         RETURN; 
     END; 
 $$ LANGUAGE plpgsql VOLATILE;
+-----------------------------------------------------------
+-- ST_GeoTableSummary variant accepting comma separated string instead of an array for 
+-- the dosummary and skipsummary parameters
+CREATE OR REPLACE FUNCTION ST_GeoTableSummary(
+    schemaname name, 
+    tablename name,
+    geomcolumnname name,
+    uidcolumn name,
+    nbinterval int,
+    dosummary text DEFAULT 'S1, S2, S4, S5, S6, S7, S8',
+    skipsummary text DEFAULT NULL,
+    whereclause text DEFAULT NULL
+) 
+RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometry, query text) AS $$ 
+    SELECT ST_GeoTableSummary($1, $2, $3, $4, $5, regexp_split_to_array($6, E'\\s*\,\\s'), regexp_split_to_array($7, E'\\s*\,\\s'), $8)
+$$ LANGUAGE sql VOLATILE;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
