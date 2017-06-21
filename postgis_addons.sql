@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.29 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.30 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -395,7 +395,7 @@ RETURNS BOOLEAN AS $$
     DECLARE
     BEGIN
         PERFORM 1 FROM information_schema.COLUMNS 
-        WHERE table_schema=schemaname AND table_name=tablename AND column_name=columnname;
+        WHERE lower(table_schema) = lower(schemaname) AND lower(table_name) = lower(tablename) AND lower(column_name) = lower(columnname);
         RETURN FOUND;
     END;
 $$ LANGUAGE plpgsql VOLATILE STRICT;
@@ -447,7 +447,7 @@ RETURNS boolean AS $$
                   LEFT JOIN pg_class ON (pg_namespace.oid = pg_class.relnamespace)
                   LEFT JOIN pg_attribute ON (pg_attribute.attrelid = pg_class.oid)
                   LEFT JOIN pg_type ON (pg_type.oid = pg_attribute.atttypid)
-                  WHERE nspname = ''' || schemaname || ''' AND relname = ''' || tablename || ''' AND attname = ''' || columnname || ''';';
+                  WHERE lower(nspname) = lower(''' || schemaname || ''') AND lower(relname) = lower(''' || tablename || ''') AND lower(attname) = lower(''' || columnname || ''');';
         EXECUTE QUERY query INTO coltype;
         IF coltype IS NULL THEN
             --RAISE EXCEPTION 'column not found';
@@ -463,7 +463,7 @@ RETURNS boolean AS $$
                       LEFT OUTER JOIN pg_class idxclass ON (idxclass.oid = pg_index.indexrelid)
                       LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam)
                       WHERE relclass.relkind = ''r'' AND amname = ''gist'' 
-                      AND nspname = ''' || schemaname || ''' AND relclass.relname = ''' || tablename || ''';';
+                      AND lower(nspname) = lower(''' || schemaname || ''') AND lower(relclass.relname) = lower(''' || tablename || ''');';
             EXECUTE QUERY query INTO hasindex;
         ELSE
            -- Otherwise we check for an index on the right column
@@ -475,7 +475,7 @@ RETURNS boolean AS $$
                      --LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam) 
                      LEFT OUTER JOIN pg_attribute ON (pg_attribute.attrelid = relclass.oid AND indkey[0] = attnum) 
                      WHERE relclass.relkind = ''r'' AND indkey[0] != 0 
-                     AND nspname = ''' || schemaname || ''' AND relclass.relname = ''' || tablename || ''' AND attname = ''' || columnname || ''';';
+                     AND lower(nspname) = lower(''' || schemaname || ''') AND lower(relclass.relname) = lower(''' || tablename || ''') AND lower(attname) = lower(''' || columnname || ''');';
            EXECUTE QUERY query INTO hasindex;
         END IF;
         IF hasindex IS NULL THEN
@@ -483,7 +483,7 @@ RETURNS boolean AS $$
         END IF;
         RETURN hasindex;
     END; 
-$$ LANGUAGE plpgsql VOLATILE STRICT;
+$$ LANGUAGE plpgsql VOLATILE;
 
 -----------------------------------------------------------
 -- ST_HasBasicIndex variant defaulting to the 'public' schemaname
@@ -493,7 +493,7 @@ CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
 ) 
 RETURNS BOOLEAN AS $$
     SELECT ST_HasBasicIndex('public', $1, $2)
-$$ LANGUAGE sql VOLATILE STRICT;
+$$ LANGUAGE sql VOLATILE;
 -----------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -538,7 +538,13 @@ RETURNS boolean AS $$
         seqname text;
         fqtn text;
     BEGIN
-        -- Determine the complete name of the table
+        IF replacecolumn IS NULL THEN
+            replacecolumn = false;
+        END IF;
+        IF indexit IS NULL THEN
+            indexit = true;
+        END IF;
+         -- Determine the complete name of the table
         fqtn := '';
         IF length(schemaname) > 0 THEN
             fqtn := quote_ident(schemaname) || '.';
@@ -548,9 +554,9 @@ RETURNS boolean AS $$
         -- Check if the requested column name already exists
         IF ST_ColumnExists(schemaname, tablename, columnname) THEN
             IF replacecolumn THEN
-                EXECUTE 'ALTER TABLE ' || fqtn || ' DROP COLUMN ' || quote_ident(columnname); 
+                EXECUTE 'ALTER TABLE ' || fqtn || ' DROP COLUMN ' || columnname; 
             ELSE
-                RAISE NOTICE 'Column already exist. Add ''true'' as the last argument if you want to replace the column.';
+                RAISE NOTICE 'Column already exist. Set the ''replacecolumn'' argument to ''true'' if you want to replace the column.';
                 RETURN false;
             END IF;
         END IF;
@@ -561,8 +567,8 @@ RETURNS boolean AS $$
         EXECUTE 'CREATE SEQUENCE ' || quote_ident(seqname);
 
         -- Add the new column and update it with nextval('sequence')
-        EXECUTE 'ALTER TABLE ' || fqtn || ' ADD COLUMN ' || quote_ident(columnname) || ' INTEGER';
-        EXECUTE 'UPDATE ' || fqtn || ' SET ' || quote_ident(columnname) || ' = nextval(''' || quote_ident(seqname) || ''')';
+        EXECUTE 'ALTER TABLE ' || fqtn || ' ADD COLUMN ' || columnname || ' INTEGER';
+        EXECUTE 'UPDATE ' || fqtn || ' SET ' || columnname || ' = nextval(''' || seqname || ''')';
 
         IF indexit THEN
             EXECUTE 'CREATE INDEX ' || tablename || '_' || columnname || '_idx ON ' || fqtn || ' USING btree(' || columnname || ');';
@@ -570,18 +576,19 @@ RETURNS boolean AS $$
 
         RETURN true;
     END;
-$$ LANGUAGE plpgsql VOLATILE STRICT;
+$$ LANGUAGE plpgsql VOLATILE;
 
 -----------------------------------------------------------
 -- ST_AddUniqueID variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_AddUniqueID(
     tablename name, 
     columnname name, 
-    replacecolumn boolean DEFAULT false
+    replacecolumn boolean DEFAULT false,
+    indexit boolean DEFAULT true
 ) 
 RETURNS BOOLEAN AS $$
-    SELECT ST_AddUniqueID('public', $1, $2, $3)
-$$ LANGUAGE sql VOLATILE STRICT;
+    SELECT ST_AddUniqueID('public', $1, $2, $3, $4)
+$$ LANGUAGE sql VOLATILE;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -2268,7 +2275,7 @@ RETURNS BOOLEAN AS $$
             RETURN null;
         END IF;
   
-        query = 'SELECT FALSE FROM ' || fqtn || ' GROUP BY ' || quote_ident(columnname) || ' HAVING count(' || quote_ident(columnname) || ') > 1 LIMIT 1';
+        query = 'SELECT FALSE FROM ' || fqtn || ' GROUP BY ' || columnname || ' HAVING count(' || columnname || ') > 1 LIMIT 1';
         EXECUTE QUERY query INTO isunique;
         IF isunique IS NULL THEN
               isunique = TRUE;
@@ -2423,7 +2430,7 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
         createidx boolean := FALSE;
         uidcolumncnt int := 0;
         whereclausewithwhere text := '';
-        sval text[] = ARRAY['IDDUP', 'S1', 'GDUP', 'GEODUP', 'S2', 'OVL', 'S3', 'TYPES', 'S4', 'VERTX', 'S5', 'VHISTO', 'S6', 'AREAS', 'AREA', 'S7', 'AHISTO', 'S8', 'ALL'];
+        sval text[] = ARRAY['IDDUP', 'S1', 'GDUP', 'GEODUP', 'S2', 'OVL', 'S3', 'TYPES', 'S4', 'VERTX', 'S5', 'VHISTO', 'S6', 'AREAS', 'AREA', 'S7', 'AHISTO', 'S8', 'SACOUNT', 'S9', 'ALL'];
         provided_uid_isunique boolean = FALSE;
         colnamearr text[];
         colnamearrlength int := 0;
@@ -2439,7 +2446,7 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
             whereclause = '';
         ELSE
             whereclausewithwhere = ' WHERE ' || whereclause || ' ';
-            whereclause = ' AND ' || whereclause || ' ';
+            whereclause = ' AND (' || whereclause || ') ';
         END IF;
         newschemaname := '';
         IF length(schemaname) > 0 THEN
@@ -2538,17 +2545,21 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                     RAISE NOTICE '  ''%'' is not unique. Checking ''%''...', newuidcolumn, colnamearr[colnameidx]::text;
                     newuidcolumn = colnamearr[colnameidx];
                 ELSE
-                    uidcolumncnt = uidcolumncnt + 1;
-                    RAISE NOTICE '  ''%'' is not unique. Checking ''%''...', newuidcolumn, newuidcolumn || '_' || uidcolumncnt::text;
-                    newuidcolumn = newuidcolumn || '_' || uidcolumncnt::text;
+                    IF upper(left(newuidcolumn, 2)) != 'ID' AND upper(newuidcolumn) != 'ID' THEN
+                        RAISE NOTICE '  ''%'' is not unique. Creating ''id''...', newuidcolumn;
+                        newuidcolumn = 'id';
+                        uidcolumn = newuidcolumn;
+                    ELSE
+                        uidcolumncnt = uidcolumncnt + 1;
+                        RAISE NOTICE '  ''%'' is not unique. Checking ''%''...', newuidcolumn, newuidcolumn || '_' || uidcolumncnt::text;
+                        newuidcolumn = newuidcolumn || '_' || uidcolumncnt::text;
+                    END IF;
                 END IF;
             END LOOP;
 
             IF NOT ST_ColumnExists(newschemaname, tablename, newuidcolumn) THEN
                 RAISE NOTICE '  Adding new unique column ''%''...', newuidcolumn;
-                query = 'SELECT ST_AddUniqueID(''' || newschemaname || ''', ''' || tablename || ''', ''' || newuidcolumn || ''');';
-                EXECUTE query;
-                query = 'CREATE INDEX ON ' || fqtn || ' USING btree(' || newuidcolumn || ');';
+                query = 'SELECT ST_AddUniqueID(''' || newschemaname || ''', ''' || tablename || ''', ''' || newuidcolumn || ''', null, true);';
                 EXECUTE query;
             ELSE
                RAISE NOTICE '  Column ''%'' exists and is unique...', newuidcolumn;
@@ -2740,8 +2751,8 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
 
         -- Create an index on ST_Area(geom) if necessary so further queries are executed faster
         IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND
-           (dosummary IS NULL OR 'AREAS' = ANY (dosummary) OR 'AREA' = ANY (dosummary) OR 'S7' = ANY (dosummary) OR 'AHISTO' = ANY (dosummary) OR 'S8' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
-           (skipsummary IS NULL OR NOT (('AREAS' = ANY (skipsummary) OR 'AREA' = ANY (skipsummary) OR 'S7' = ANY (skipsummary)) AND ('AHISTO' = ANY (skipsummary) OR 'S8' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary)))) THEN
+           (dosummary IS NULL OR 'AREAS' = ANY (dosummary) OR 'AREA' = ANY (dosummary) OR 'S7' = ANY (dosummary) OR 'AHISTO' = ANY (dosummary) OR 'S8' = ANY (dosummary) OR 'SACOUNT' = ANY (dosummary) OR 'S9' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+           (skipsummary IS NULL OR NOT (('AREAS' = ANY (skipsummary) OR 'AREA' = ANY (skipsummary) OR 'S7' = ANY (skipsummary)) AND ('AHISTO' = ANY (skipsummary) OR 'S8' = ANY (skipsummary)) AND ('SACOUNT' = ANY (skipsummary) OR 'S9' = ANY (skipsummary)) AND 'ALL' = ANY (skipsummary))) THEN
                 RAISE NOTICE 'Creating an index on ''ST_Area(%)''...', geomcolumnname;
             query = 'CREATE INDEX ON ' || fqtn || ' USING btree (ST_Area(' || geomcolumnname || '));';
             EXECUTE query;
@@ -2791,33 +2802,15 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
 
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                 query = 'WITH areas AS (SELECT coalesce(ST_Area(' || geomcolumnname || '), 0) area FROM ' || fqtn || whereclausewithwhere || '), 
-                              minmax AS (SELECT CASE WHEN min(area) < 0.1 THEN 0.1 ELSE min(area) END minarea, max(area) maxarea FROM areas), 
-                              bins AS (SELECT area, minarea, maxarea, CASE WHEN area = 0.0 THEN -8 WHEN area < 0.0000001 THEN -7 WHEN area < 0.000001 THEN -6 WHEN area < 0.00001 THEN -5 WHEN area < 0.0001 THEN -4 WHEN area < 0.001 THEN -3 WHEN area < 0.01 THEN -2 WHEN area < 0.1 THEN -1 ELSE floor((area - minarea)*' || nbinterval || '::numeric/(maxarea - minarea + 0.0000001)) END bin, (maxarea - minarea)/' || nbinterval || '.0 binrange FROM minmax, areas), 
+                              minmax AS (SELECT min(area) minarea, max(area) maxarea FROM areas), 
+                              bins AS (SELECT area, minarea, maxarea, floor((area - minarea)*' || nbinterval || '::numeric/(maxarea - minarea + 0.0000001)) bin, (maxarea - minarea)/' || nbinterval || '.0 binrange FROM minmax, areas), 
                               histo AS (SELECT bin, count(*) cnt FROM bins, minmax GROUP BY bin) 
                          SELECT 8::text, 
-                                CASE WHEN serie = -8 THEN ''[0]''
-                                     WHEN serie = -7 THEN '']0 - 0.0000001[''
-                                     WHEN serie = -6 THEN ''[0.0000001 - 0.000001[''
-                                     WHEN serie = -5 THEN ''[0.000001 - 0.00001[''
-                                     WHEN serie = -4 THEN ''[0.00001 - 0.0001[''
-                                     WHEN serie = -3 THEN ''[0.0001 - 0.001[''
-                                     WHEN serie = -2 THEN ''[0.001 - 0.01[''
-                                     WHEN serie = -1 THEN ''[0.01 - 0.1[''
-                                     ELSE ''['' || (minarea + serie * binrange)::text || '' - '' || (minarea + (serie + 1) * binrange)::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '']'' ELSE ''['' END) 
-                                END interv, 
+                                ''['' || (minarea + serie * binrange)::text || '' - '' || (minarea + (serie + 1) * binrange)::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '']'' ELSE ''['' END) interv, 
                                 coalesce(cnt, 0)::double precision cnt, 
                                 NULL::geometry, 
-                                CASE WHEN serie = -8 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') = 0;''::text
-                                     WHEN serie = -7 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') > 0 AND ST_Area(' || geomcolumnname || ') < 0.0000001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
-                                     WHEN serie = -6 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.0000001 AND ST_Area(' || geomcolumnname || ') < 0.000001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
-                                     WHEN serie = -5 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.000001 AND ST_Area(' || geomcolumnname || ') < 0.00001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
-                                     WHEN serie = -4 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.00001 AND ST_Area(' || geomcolumnname || ') < 0.0001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
-                                     WHEN serie = -3 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.0001 AND ST_Area(' || geomcolumnname || ') < 0.001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
-                                     WHEN serie = -2 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.001 AND ST_Area(' || geomcolumnname || ') < 0.01 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
-                                     WHEN serie = -1 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.01 AND ST_Area(' || geomcolumnname || ') < 0.1 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
-                                     ELSE ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= '' || (minarea + serie * binrange)::text || '' AND ST_Area(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''= 0.0000001 + '' ELSE '' '' END) || (minarea + (serie + 1) * binrange)::text || '' ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
-                                END
-                         FROM generate_series(-8, ' || nbinterval || ' - 1) serie 
+                                ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= '' || (CASE WHEN serie = 0 THEN ''('' ELSE '''' END) || (minarea + serie * binrange)::text || (CASE WHEN serie = 0 THEN '' - 0.0000001)'' ELSE '''' END) || '' AND ST_Area(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''= (0.0000001 + '' ELSE '' '' END) || (minarea + (serie + 1) * binrange)::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '')'' ELSE '''' END) || '' ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                         FROM generate_series(0, ' || nbinterval || ' - 1) serie 
                               LEFT OUTER JOIN histo ON (serie = histo.bin), 
                               (SELECT * FROM bins LIMIT 1) foo
                          ORDER BY serie;';
@@ -2830,6 +2823,60 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
             RAISE NOTICE 'Summary 8 - Histogram of areas (AHISTO or S8)...';
         END IF;
     
+        -- Summary #9: Build a list of the small areas (SACOUNT) < 0.1 units
+        IF (dosummary IS NULL OR 'SACOUNT' = ANY (dosummary) OR 'S9' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+           (skipsummary IS NULL OR NOT ('SACOUNT' = ANY (skipsummary) OR 'S9' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+            RETURN QUERY SELECT 'SACOUNT 9 - COUNT OF SMALL AREAS (SACOUNT or S9)'::text, 'AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
+            RAISE NOTICE 'Summary 9 - Count of small areas (SACOUNT or S9)...';
+
+            IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
+                query = 'WITH areas AS (SELECT coalesce(ST_Area(' || geomcolumnname || '), 0) area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') < 0.1 ' || whereclause || '), 
+                              bins AS (SELECT area, 
+                                              CASE WHEN area = 0.0 THEN 0 
+                                                   WHEN area < 0.0000001 THEN 1 
+                                                   WHEN area < 0.000001 THEN 2 
+                                                   WHEN area < 0.00001 THEN 3 
+                                                   WHEN area < 0.0001 THEN 4 
+                                                   WHEN area < 0.001 THEN 5 
+                                                   WHEN area < 0.01 THEN 6 
+                                                   WHEN area < 0.1 THEN 7 
+                                              END bin
+                                        FROM areas), 
+                              histo AS (SELECT bin, count(*) cnt FROM bins GROUP BY bin) 
+                         SELECT 9::text, 
+                                CASE WHEN serie = 0 THEN ''[0]''
+                                     WHEN serie = 1 THEN '']0 - 0.0000001[''
+                                     WHEN serie = 2 THEN ''[0.0000001 - 0.000001[''
+                                     WHEN serie = 3 THEN ''[0.000001 - 0.00001[''
+                                     WHEN serie = 4 THEN ''[0.00001 - 0.0001[''
+                                     WHEN serie = 5 THEN ''[0.0001 - 0.001[''
+                                     WHEN serie = 6 THEN ''[0.001 - 0.01[''
+                                     WHEN serie = 7 THEN ''[0.01 - 0.1[''
+                                 END interv, 
+                                coalesce(cnt, 0)::double precision cnt, 
+                                NULL::geometry, 
+                                CASE WHEN serie = 0 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') = 0;''::text
+                                     WHEN serie = 1 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') > 0 AND ST_Area(' || geomcolumnname || ') < 0.0000001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = 2 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.0000001 AND ST_Area(' || geomcolumnname || ') < 0.000001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = 3 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.000001 AND ST_Area(' || geomcolumnname || ') < 0.00001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = 4 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.00001 AND ST_Area(' || geomcolumnname || ') < 0.0001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = 5 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.0001 AND ST_Area(' || geomcolumnname || ') < 0.001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = 6 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.001 AND ST_Area(' || geomcolumnname || ') < 0.01 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                     WHEN serie = 7 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.01 AND ST_Area(' || geomcolumnname || ') < 0.1 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                                END
+                         FROM generate_series(0, 7) serie 
+                              LEFT OUTER JOIN histo ON (serie = histo.bin), 
+                              (SELECT * FROM bins LIMIT 1) foo
+                         ORDER BY serie;';
+                RETURN QUERY EXECUTE query;
+            ELSE
+                RETURN QUERY SELECT '9'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 9'::text, NULL::double precision, NULL::geometry, NULL::text;
+            END IF;
+        ELSE
+            RETURN QUERY SELECT 'SUMMARY 9 - COUNT OF AREAS (SACOUNT or S9)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text; 
+            RAISE NOTICE 'Summary 9 - Count of small areas (SACOUNT or S9)...';
+        END IF;
+
         RETURN; 
     END; 
 $$ LANGUAGE plpgsql VOLATILE;
@@ -2842,7 +2889,7 @@ CREATE OR REPLACE FUNCTION ST_GeoTableSummary(
     geomcolumnname name,
     uidcolumn name,
     nbinterval int,
-    dosummary text DEFAULT 'S1, S2, S4, S5, S6, S7, S8',
+    dosummary text DEFAULT 'IDDUP, GDUP, TYPES, VERTX, VHISTO, AREAS, AHISTO',
     skipsummary text DEFAULT NULL,
     whereclause text DEFAULT NULL
 ) 

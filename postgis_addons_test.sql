@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.29 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.30 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -105,7 +105,7 @@ WITH test_nb AS (
 SELECT 'ST_DeleteBand'::text function_tested, 1 maj_num,  9 nb_test UNION ALL
 SELECT 'ST_CreateIndexRaster'::text,          2,         15         UNION ALL
 SELECT 'ST_RandomPoints'::text,               3,          3         UNION ALL
-SELECT 'ST_ColumnExists'::text,               4,          3         UNION ALL
+SELECT 'ST_ColumnExists'::text,               4,          4         UNION ALL
 SELECT 'ST_AddUniqueID'::text,                5,          4         UNION ALL
 SELECT 'ST_AreaWeightedSummaryStats'::text,   6,          2         UNION ALL
 SELECT 'ST_ExtractToRaster'::text,            8,         17         UNION ALL
@@ -116,8 +116,8 @@ SELECT 'ST_BufferedSmooth'::text,            12,          1         UNION ALL
 SELECT 'ST_DifferenceAgg'::text,             13,          4         UNION ALL
 SELECT 'ST_TrimMulti'::text,                 14,          4         UNION ALL
 SELECT 'ST_SplitAgg'::text,                  15,          5         UNION ALL
-SELECT 'ST_HasBasicIndex'::text,             16,          3         UNION ALL
-SELECT 'ST_GeoTableSummary'::text,           17,         14         UNION ALL
+SELECT 'ST_HasBasicIndex'::text,             16,          4         UNION ALL
+SELECT 'ST_GeoTableSummary'::text,           17,         15         UNION ALL
 SELECT 'ST_SplitByGrid'::text,               18,          1
 ),
 test_series AS (
@@ -201,7 +201,7 @@ SELECT '1.8'::text number,
 UNION ALL
 SELECT '1.9'::text number,
        'ST_DeleteBand'::text function_tested,
-       'Test null band parameter'::text description,
+       'Null band parameter'::text description,
         ST_NumBands(ST_DeleteBand(rast, null)) = 2 passed
 FROM (SELECT ST_AddBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1),
                         ARRAY[ROW(NULL, '8BUI', 255, 0), 
@@ -387,7 +387,12 @@ SELECT '4.3'::text number,
        'ST_ColumnExists'::text function_tested,
        'Default schema variant'::text description,
        ST_ColumnExists('test_adduniqueid', 'column1') passed
-
+---------------------------------------------------------
+UNION ALL
+SELECT '4.4'::text number,
+       'ST_ColumnExists'::text function_tested,
+       'Mixed cases'::text description,
+       ST_ColumnExists('TesT_AddUniqueID', 'ColuMn1') passed
 ---------------------------------------------------------
 -- Test 5 - ST_AddUniqueID
 ---------------------------------------------------------
@@ -401,19 +406,19 @@ SELECT '5.1'::text number,
 UNION ALL
 SELECT '5.2'::text number,
        'ST_AddUniqueID'::text function_tested,
-       'Test replacement of existing column2'::text description,
+       'Replacement of existing column2'::text description,
        ST_AddUniqueID('public', 'test_adduniqueid', 'column2', true) passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '5.3'::text number,
        'ST_AddUniqueID'::text function_tested,
-       'Test variant defaulting to public schema'::text description,
+       'Default to public schema'::text description,
        ST_AddUniqueID('public', 'test_adduniqueid', 'column2', true) passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '5.4'::text number,
        'ST_AddUniqueID'::text function_tested,
-       'Test if index was created'::text description,
+       'If index was created'::text description,
        ST_HasBasicIndex('public', 'test_adduniqueid', 'column2') passed
 
 ---------------------------------------------------------
@@ -444,7 +449,7 @@ FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
 UNION ALL
 SELECT '6.2'::text number,
        'ST_AreaWeightedSummaryStats'::text function_tested,
-       'Test for null and empty geometry'::text description,
+       'Null and empty geometry'::text description,
        array_agg(aws)::text = '{"(2,1,0103000000010000000700000000000000000024400000000000000000000000000000244000000000000000400000000000002440000000000000084000000000000028400000000000000840000000000000284000000000000000400000000000002840000000000000000000000000000024400000000000000000,6,3,14,7,24,4,4,4,4,4,8,4,4,4)","(2,2,01060000000200000001030000000100000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000001030000000100000005000000000000000000284000000000000000000000000000002840000000000000F03F0000000000002A40000000000000F03F0000000000002A40000000000000000000000000000028400000000000000000,101,50.5,44,22,10001,99.019801980198,100,1,100,1,101,50.5,100,1)"}' passed
 FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
       FROM (SELECT ST_GeomFromEWKT('POLYGON((0 0,0 10, 10 10, 10 0, 0 0))') as geom, 'a' as id, 100 as val
@@ -469,7 +474,7 @@ FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
 UNION ALL
 SELECT '8.1'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test for null raster'::text description,
+       'Null raster'::text description,
        ST_ExtractToRaster(null, 
                           'public', 
                           'test_extracttoraster', 
@@ -479,7 +484,7 @@ SELECT '8.1'::text number,
 UNION ALL
 SELECT '8.2'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test for empty raster'::text description,
+       'Empty raster'::text description,
        ST_IsEmpty(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(0, 0, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                           'public', 
                           'test_extracttoraster', 
@@ -489,7 +494,7 @@ SELECT '8.2'::text number,
 UNION ALL
 SELECT '8.3'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test for no band raster'::text description,
+       'No band raster'::text description,
        ST_HasNoBand(ST_ExtractToRaster(ST_MakeEmptyRaster(10, 10, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), 
                           'public', 
                           'test_extracttoraster', 
@@ -499,7 +504,7 @@ SELECT '8.3'::text number,
 UNION ALL
 SELECT '8.4'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test COUNT_OF_VALUES_AT_PIXEL_CENTROID'::text description,
+       'COUNT_OF_VALUES_AT_PIXEL_CENTROID'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -511,7 +516,7 @@ SELECT '8.4'::text number,
 UNION ALL
 SELECT '8.5'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test MEAN_OF_VALUES_AT_PIXEL_CENTROID'::text description,
+       'MEAN_OF_VALUES_AT_PIXEL_CENTROID'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -523,7 +528,7 @@ SELECT '8.5'::text number,
 UNION ALL
 SELECT '8.6'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test COUNT_OF_POLYGONS'::text description,
+       'COUNT_OF_POLYGONS'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -535,7 +540,7 @@ SELECT '8.6'::text number,
 UNION ALL
 SELECT '8.7'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test COUNT_OF_LINESTRINGS'::text description,
+       'COUNT_OF_LINESTRINGS'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -547,7 +552,7 @@ SELECT '8.7'::text number,
 UNION ALL
 SELECT '8.8'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test COUNT_OF_POINTS'::text description,
+       'COUNT_OF_POINTS'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -559,7 +564,7 @@ SELECT '8.8'::text number,
 UNION ALL
 SELECT '8.9'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test COUNT_OF_GEOMETRIES'::text description,
+       'COUNT_OF_GEOMETRIES'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -571,7 +576,7 @@ SELECT '8.9'::text number,
 UNION ALL
 SELECT '8.10'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test VALUE_OF_BIGGEST'::text description,
+       'VALUE_OF_BIGGEST'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -583,7 +588,7 @@ SELECT '8.10'::text number,
 UNION ALL
 SELECT '8.11'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test VALUE_OF_MERGED_BIGGEST'::text description,
+       'VALUE_OF_MERGED_BIGGEST'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -595,7 +600,7 @@ SELECT '8.11'::text number,
 UNION ALL
 SELECT '8.12'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test MIN_AREA'::text description,
+       'MIN_AREA'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -607,7 +612,7 @@ SELECT '8.12'::text number,
 UNION ALL
 SELECT '8.13'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test VALUE_OF_MERGED_SMALLEST'::text description,
+       'VALUE_OF_MERGED_SMALLEST'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -619,7 +624,7 @@ SELECT '8.13'::text number,
 UNION ALL
 SELECT '8.14'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test SUM_OF_AREAS'::text description,
+       'SUM_OF_AREAS'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -631,7 +636,7 @@ SELECT '8.14'::text number,
 UNION ALL
 SELECT '8.15'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test PROPORTION_OF_COVERED_AREA'::text description,
+       'PROPORTION_OF_COVERED_AREA'::text description,
        ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                           'public', 
                           'test_extracttoraster', 
@@ -642,7 +647,7 @@ SELECT '8.15'::text number,
 UNION ALL
 SELECT '8.16'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test AREA_WEIGHTED_MEAN_OF_VALUES'::text description,
+       'AREA_WEIGHTED_MEAN_OF_VALUES'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                           'public', 
                           'test_extracttoraster', 
@@ -654,7 +659,7 @@ SELECT '8.16'::text number,
 UNION ALL
 SELECT '8.17'::text number,
        'ST_ExtractToRaster'::text function_tested,
-       'Test SUM_OF_LENGTHS'::text description,
+       'SUM_OF_LENGTHS'::text description,
        (ST_DumpValues(ST_ExtractToRaster(ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF'), 
                                          'public', 
                                          'test_extracttoraster', 
@@ -670,7 +675,7 @@ SELECT '8.17'::text number,
 UNION ALL
 SELECT '9.1'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       'COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast',
@@ -688,7 +693,7 @@ SELECT '9.1'::text number,
 UNION ALL
 SELECT '9.2'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test defaulting to FIRST_RASTER_VALUE_AT_PIXEL_CENTROID'::text description,
+       'Default to FIRST_RASTER_VALUE_AT_PIXEL_CENTROID'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 'test_globalrasterunion', 'rast'))
        ).valarray = '{{0,5,10,10,15,20,NULL,NULL,NULL},
                       {1,6,11,11,16,21,NULL,NULL,NULL}, 
@@ -703,7 +708,7 @@ SELECT '9.2'::text number,
 UNION ALL
 SELECT '9.3'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       'MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast',
@@ -721,7 +726,7 @@ SELECT '9.3'::text number,
 UNION ALL
 SELECT '9.4'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       'MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast',
@@ -739,7 +744,7 @@ SELECT '9.4'::text number,
 UNION ALL
 SELECT '9.5'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       'SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast',
@@ -757,7 +762,7 @@ SELECT '9.5'::text number,
 UNION ALL
 SELECT '9.6'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       'MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast', 
@@ -775,7 +780,7 @@ SELECT '9.6'::text number,
 UNION ALL
 SELECT '9.7'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       'STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast', 
@@ -793,7 +798,7 @@ SELECT '9.7'::text number,
 UNION ALL
 SELECT '9.8'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
+       'RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast', 
@@ -811,7 +816,7 @@ SELECT '9.8'::text number,
 UNION ALL
 SELECT '9.9'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test AREA_WEIGHTED_SUM_OF_RASTER_VALUES'::text description,
+       'AREA_WEIGHTED_SUM_OF_RASTER_VALUES'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast', 
@@ -829,7 +834,7 @@ SELECT '9.9'::text number,
 UNION ALL
 SELECT '9.10'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES'::text description,
+       'SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast', 
@@ -847,7 +852,7 @@ SELECT '9.10'::text number,
 UNION ALL
 SELECT '9.11'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test AREA_WEIGHTED_MEAN_OF_RASTER_VALUES'::text description,
+       'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast', 
@@ -865,7 +870,7 @@ SELECT '9.11'::text number,
 UNION ALL
 SELECT '9.12'::text number,
        'ST_GlobalRasterUnion'::text function_tested,
-       'Test AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2'::text description,
+       'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2'::text description,
        (ST_DumpValues(ST_GlobalRasterUnion('public', 
                                            'test_globalrasterunion', 
                                            'rast', 
@@ -901,7 +906,7 @@ FROM (SELECT 1 id, 'POLYGON((0 0,10 0,10 -9.9999,0 -10,0 0))'::geometry geom
 UNION ALL
 SELECT '10.2'::text number,
        'ST_BufferedUnion'::text function_tested,
-       'Test null geometry'::text description,
+       'Null geometry'::text description,
        ST_AsText(ST_BufferedUnion(geom, 0.05)) = 'POLYGON((10 0,20 0,20 -20,0 -20,0 -10,10 -10.0001,10 0))' passed
 FROM (SELECT 1 id, null geom
       UNION ALL
@@ -915,7 +920,7 @@ FROM (SELECT 1 id, null geom
 UNION ALL
 SELECT '10.3'::text number,
        'ST_BufferedUnion'::text function_tested,
-       'Test null buffer size'::text description,
+       'Null buffer size'::text description,
        ST_AsText(ST_BufferedUnion(geom, null)) = 'POLYGON((0 0,10 0,20 0,20 -9.9999,10 -10,10 -9.9999,0 -10,0 0))' passed
 FROM (SELECT 1 id, 'POLYGON((0 0,10 0,10 -9.9999,0 -10,0 0))'::geometry geom
       UNION ALL
@@ -1006,7 +1011,7 @@ UNION ALL
 )
 SELECT '13.2'::text number,
        'ST_DifferenceAgg'::text function_tested,
-       'Test with a null geometry'::text description,
+       'Null geometry'::text description,
        ST_Union(geom)::text = '0103000000010000000D0000000000000000000000000000000000F03F000000000000084000000000000000400000000000000840555555555555F53F000000000000144000000000000000400000000000001440ABAAAAAAAAAAFA3F0000000000000840000000000000F03F00000000000018400000000000000040000000000000184000000000000000000000000000001440565555555555D53F000000000000144000000000000000000000000000000840555555555555E53F000000000000084000000000000000000000000000000000000000000000F03F' passed
 FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
       FROM overlapping a, 
@@ -1078,19 +1083,19 @@ SELECT '14.1'::text number,
 UNION ALL
 SELECT '14.2'::text number,
        'ST_TrimMulti'::text function_tested,
-       'Test null geometry'::text description,
+       'Null geometry'::text description,
        ST_TrimMulti(null, 0.00001) IS NULL passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '14.3'::text number,
        'ST_TrimMulti'::text function_tested,
-       'Test empty geometry'::text description,
+       'Empty geometry'::text description,
        ST_TrimMulti('GEOMETRYCOLLECTION EMPTY'::geometry, 0.00001) IS NULL passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '14.4'::text number,
        'ST_TrimMulti'::text function_tested,
-       'Test geometry collection'::text description,
+       'Geometry collection'::text description,
        ST_TrimMulti(
          ST_Collect(ARRAY['MULTIPOLYGON(((2 2, 2 3, 2 4, 2 2)),
                                         ((0 0, 0 1, 1 1, 1 0, 0 0)))'::geometry, 
@@ -1136,7 +1141,7 @@ SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4
 )
 SELECT '15.2'::text number,
        'ST_SplitAgg'::text function_tested,
-       'Test null geometry on the "splitting" side'::text description,
+       'Null geometry on the "splitting" side'::text description,
        array_agg(geomtxt) = 
        '{"POLYGON((0 0,0 2,2 2,2 1,1 1,1 0.2,2 0.2,2 0,0 0),(0.2 1.5,0.2 0.5,0.8 0.5,0.8 1.5,0.2 1.5))",
          "POLYGON((2 1,2 0.2,1 0.2,1 1,2 1))"}' passed
@@ -1156,7 +1161,7 @@ SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4
 )
 SELECT '15.3'::text number,
        'ST_SplitAgg'::text function_tested,
-       'Test null geometry on the "to split" side. Should be null.'::text description,
+       'Null geometry on the "to split" side. Should be null.'::text description,
        array_agg(geomtxt) IS NULL passed
 FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
       FROM geomtable a, geomtable b
@@ -1174,7 +1179,7 @@ SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4
 )
 SELECT '15.4'::text number,
        'ST_SplitAgg'::text function_tested,
-       'Test empty geometry on the "to split" side. Should be null.'::text description,
+       'Empty geometry on the "to split" side. Should be null.'::text description,
        array_agg(geomtxt) IS NULL passed
 FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
       FROM geomtable a, geomtable b
@@ -1192,7 +1197,7 @@ SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4
 )
 SELECT '15.5'::text number,
        'ST_SplitAgg'::text function_tested,
-       'Test empty geometry on the "splitting" side'::text description,
+       'Empty geometry on the "splitting" side'::text description,
        array_agg(geomtxt) = 
        '{"POLYGON((0 0,0 2,2 2,2 1,1 1,1 0.2,2 0.2,2 0,0 0),(0.2 1.5,0.2 0.5,0.8 0.5,0.8 1.5,0.2 1.5))",
          "POLYGON((2 1,2 0.2,1 0.2,1 1,2 1))"}' passed
@@ -1207,21 +1212,27 @@ FROM (SELECT ST_AsText(unnest(ST_SplitAgg(a.geom, b.geom, 0.00001))) geomtxt
 UNION ALL
 SELECT '16.1'::text number,
        'ST_HasBasicIndex'::text function_tested,
-       'Check for the existence of an index on the column1 column of public.test_adduniqueid'::text description,
+       'Existence of an index on the column1 column of public.test_adduniqueid'::text description,
        NOT ST_HasBasicIndex('public', 'test_adduniqueid', 'column1') passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '16.2'::text number,
        'ST_HasBasicIndex'::text function_tested,
-       'Check for the existence of an index on the column2 column of public.test_adduniqueid'::text description,
+       'Existence of an index on the column2 column of public.test_adduniqueid'::text description,
        ST_HasBasicIndex('public', 'test_adduniqueid', 'column2') passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '16.3'::text number,
        'ST_HasBasicIndex'::text function_tested,
-       'Check defaulting to public schema'::text description,
+       'Default to public schema'::text description,
        ST_HasBasicIndex('test_adduniqueid', 'column2') passed
-
+---------------------------------------------------------
+UNION ALL
+SELECT '16.4'::text number,
+       'ST_HasBasicIndex'::text function_tested,
+       'Mixed cases'::text description,
+       ST_HasBasicIndex('Test_AddUniqueID', 'Column2') passed
+       
 ---------------------------------------------------------
 -- Test 17 - ST_GeoTableSummary
 ---------------------------------------------------------
@@ -1229,7 +1240,7 @@ SELECT '16.3'::text number,
 UNION ALL
 SELECT '17.1'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check for duplicates in column id1'::text description,
+       'Duplicates in column id1'::text description,
        idsandtypes = '11' AND nb = 2 passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id1')
 WHERE summary = '1'
@@ -1237,7 +1248,7 @@ WHERE summary = '1'
 UNION ALL
 SELECT '17.2'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check for duplicates in column id2'::text description,
+       'Duplicates in column id2'::text description,
        'No duplicate IDs...' = idsandtypes AND nb IS NULL passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id2')
 WHERE summary = '1'
@@ -1245,7 +1256,7 @@ WHERE summary = '1'
 UNION ALL
 SELECT '17.3'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check when uidcolumn is not provided'::text description,
+       'uidcolumn missing'::text description,
        (array_agg(idsandtypes))[1] = '''id'' does not exists... Skipping Summary 1' AND
        (array_agg(idsandtypes))[2] = 'DUPLICATE GEOMETRIES IDS (id2)' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom')
@@ -1254,7 +1265,7 @@ WHERE summary = '1' OR left(summary, 9) = 'SUMMARY 2'
 UNION ALL
 SELECT '17.4'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check when uidcolumn = ''id'''::text description,
+       'uidcolumn = ''id'''::text description,
        idsandtypes = 'DUPLICATE GEOMETRIES IDS (id)' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
 WHERE left(summary, 9) = 'SUMMARY 2'
@@ -1262,7 +1273,7 @@ WHERE left(summary, 9) = 'SUMMARY 2'
 UNION ALL
 SELECT '17.5'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check when uidcolumn is not numeric or text'::text description,
+       'uidcolumn not numeric or text'::text description,
        '''geom'' is not of type numeric or text... Skipping Summary 1' = idsandtypes AND nb IS NULL passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'geom')
 WHERE summary = '1'
@@ -1270,7 +1281,7 @@ WHERE summary = '1'
 UNION ALL
 SELECT '17.6'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check the duplicate geometries results'::text description,
+       'Duplicate geometries results'::text description,
        (array_agg(idsandtypes))[1] = '1, 2, 3' AND 
        (array_agg(idsandtypes))[2] = '8, 9, 10' AND
        (array_agg(nb))[1] = 3 AND 
@@ -1285,7 +1296,7 @@ WHERE summary = '2'
 UNION ALL
 SELECT '17.7'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check overlapping geometries results'::text description,
+       'Overlapping geometries results'::text description,
        idsandtypes = 'ERROR: Consider fixing invalid geometries before testing for overlaps...' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, ARRAY['OVL'])
 WHERE summary = '3'
@@ -1293,7 +1304,7 @@ WHERE summary = '3'
 UNION ALL
 SELECT '17.8'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check the geometry types results'::text description,
+       'Geometry types results'::text description,
        (array_agg(nb))[1] = 1 AND 
        (array_agg(nb))[2] = 2 AND 
        (array_agg(nb))[3] = 1 AND 
@@ -1316,7 +1327,7 @@ WHERE summary = '4'
 UNION ALL
 SELECT '17.9'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check the vertex statistics results'::text description,
+       'Vertex statistics results'::text description,
        (array_agg(nb))[1] = 0 AND 
        (array_agg(nb))[2] = 33 AND 
        (array_agg(nb))[3] = 7 AND 
@@ -1329,7 +1340,7 @@ WHERE summary = '5'
 UNION ALL
 SELECT '17.10'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check the vertex histogram results'::text description,
+       'Vertex histogram results'::text description,
        (array_agg(nb))[1] = 9 AND 
        (array_agg(nb))[2] = 1 AND 
        (array_agg(nb))[3] = 0 AND 
@@ -1356,7 +1367,7 @@ WHERE summary = '6'
 UNION ALL
 SELECT '17.11'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check the area statistics results'::text description,
+       'Area statistics results'::text description,
        (array_agg(nb))[1] = 0 AND 
        ((array_agg(nb))[2]*100000)::int = 312145 AND 
        ((array_agg(nb))[3]*100000)::int = 56754 AND 
@@ -1369,25 +1380,17 @@ WHERE summary = '7'
 UNION ALL
 SELECT '17.12'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check the area histogram results'::text description,
-       (array_agg(idsandtypes))[1] = '[0]' AND 
-       (array_agg(idsandtypes))[2] = ']0 - 0.0000001[' AND 
-       (array_agg(idsandtypes))[3] = '[0.0000001 - 0.000001[' AND 
-       (array_agg(idsandtypes))[4] = '[0.000001 - 0.00001[' AND 
-       (array_agg(idsandtypes))[5] = '[0.00001 - 0.0001[' AND 
-       (array_agg(idsandtypes))[6] = '[0.0001 - 0.001[' AND 
-       (array_agg(idsandtypes))[7] = '[0.001 - 0.01[' AND 
-       (array_agg(idsandtypes))[8] = '[0.01 - 0.1[' AND 
-       (array_agg(idsandtypes))[9] = '[0.1 - 0.402144515225805[' AND 
-       (array_agg(idsandtypes))[10] = '[0.402144515225805 - 0.704289030451611[' AND 
-       (array_agg(idsandtypes))[11] = '[0.704289030451611 - 1.00643354567742[' AND 
-       (array_agg(idsandtypes))[12] = '[1.00643354567742 - 1.30857806090322[' AND 
-       (array_agg(idsandtypes))[13] = '[1.30857806090322 - 1.61072257612903[' AND 
-       (array_agg(idsandtypes))[14] = '[1.61072257612903 - 1.91286709135483[' AND 
-       (array_agg(idsandtypes))[15] = '[1.91286709135483 - 2.21501160658064[' AND 
-       (array_agg(idsandtypes))[16] = '[2.21501160658064 - 2.51715612180644[' AND 
-       (array_agg(idsandtypes))[17] = '[2.51715612180644 - 2.81930063703225[' AND 
-       (array_agg(idsandtypes))[18] = '[2.81930063703225 - 3.12144515225805]' AND 
+       'Area histogram results'::text description,
+       (array_agg(idsandtypes))[1] = '[0 - 0.312144515225805[' AND 
+       (array_agg(idsandtypes))[2] = '[0.312144515225805 - 0.624289030451611[' AND 
+       (array_agg(idsandtypes))[3] = '[0.624289030451611 - 0.936433545677416[' AND 
+       (array_agg(idsandtypes))[4] = '[0.936433545677416 - 1.24857806090322[' AND 
+       (array_agg(idsandtypes))[5] = '[1.24857806090322 - 1.56072257612903[' AND 
+       (array_agg(idsandtypes))[6] = '[1.56072257612903 - 1.87286709135483[' AND 
+       (array_agg(idsandtypes))[7] = '[1.87286709135483 - 2.18501160658064[' AND 
+       (array_agg(idsandtypes))[8] = '[2.18501160658064 - 2.49715612180644[' AND 
+       (array_agg(idsandtypes))[9] = '[2.49715612180644 - 2.80930063703225[' AND 
+       (array_agg(idsandtypes))[10] = '[2.80930063703225 - 3.12144515225805]' AND 
        (array_agg(nb))[1] = 10 AND 
        (array_agg(nb))[2] = 0 AND 
        (array_agg(nb))[3] = 0 AND 
@@ -1397,15 +1400,40 @@ SELECT '17.12'::text number,
        (array_agg(nb))[7] = 0 AND 
        (array_agg(nb))[8] = 0 AND 
        (array_agg(nb))[9] = 0 AND 
-       (array_agg(nb))[10] = 0 AND 
-       (array_agg(nb))[11] = 0 AND 
-       (array_agg(nb))[12] = 0 AND 
-       (array_agg(nb))[13] = 0 AND 
-       (array_agg(nb))[14] = 0 AND 
-       (array_agg(nb))[15] = 0 AND 
-       (array_agg(nb))[16] = 0 AND 
-       (array_agg(nb))[17] = 0 AND 
-       (array_agg(nb))[18] = 2 AND 
+       (array_agg(nb))[10] = 2 AND 
+       (array_agg(query))[1]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= (0 - 0.0000001) AND ST_Area(geom) < 0.312144515225805 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[2]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.312144515225805 AND ST_Area(geom) < 0.624289030451611 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[3]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.624289030451611 AND ST_Area(geom) < 0.936433545677416 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[4]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.936433545677416 AND ST_Area(geom) < 1.24857806090322 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[5]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.24857806090322 AND ST_Area(geom) < 1.56072257612903 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[6]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.56072257612903 AND ST_Area(geom) < 1.87286709135483 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[7]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.87286709135483 AND ST_Area(geom) < 2.18501160658064 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[8]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.18501160658064 AND ST_Area(geom) < 2.49715612180644 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[9]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.49715612180644 AND ST_Area(geom) < 2.80930063703225 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[10]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.80930063703225 AND ST_Area(geom) <= (0.0000001 + 3.12144515225805) ORDER BY ST_Area(geom) DESC;' passed
+FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
+WHERE summary = '8'
+---------------------------------------------------------
+UNION ALL
+SELECT '17.13'::text number,
+       'ST_GeoTableSummary'::text function_tested,
+       'Small area count results'::text description,
+       (array_agg(idsandtypes))[1] = '[0]' AND 
+       (array_agg(idsandtypes))[2] = ']0 - 0.0000001[' AND 
+       (array_agg(idsandtypes))[3] = '[0.0000001 - 0.000001[' AND 
+       (array_agg(idsandtypes))[4] = '[0.000001 - 0.00001[' AND 
+       (array_agg(idsandtypes))[5] = '[0.00001 - 0.0001[' AND 
+       (array_agg(idsandtypes))[6] = '[0.0001 - 0.001[' AND 
+       (array_agg(idsandtypes))[7] = '[0.001 - 0.01[' AND 
+       (array_agg(idsandtypes))[8] = '[0.01 - 0.1[' AND 
+       (array_agg(nb))[1] = 9 AND 
+       (array_agg(nb))[2] = 0 AND 
+       (array_agg(nb))[3] = 0 AND 
+       (array_agg(nb))[4] = 0 AND 
+       (array_agg(nb))[5] = 0 AND 
+       (array_agg(nb))[6] = 0 AND 
+       (array_agg(nb))[7] = 0 AND 
+       (array_agg(nb))[8] = 0 AND  
        (array_agg(query))[1]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) = 0;' AND 
        (array_agg(query))[2]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) > 0 AND ST_Area(geom) < 0.0000001 ORDER BY ST_Area(geom) DESC;' AND 
        (array_agg(query))[3]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.0000001 AND ST_Area(geom) < 0.000001 ORDER BY ST_Area(geom) DESC;' AND 
@@ -1413,24 +1441,14 @@ SELECT '17.12'::text number,
        (array_agg(query))[5]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.00001 AND ST_Area(geom) < 0.0001 ORDER BY ST_Area(geom) DESC;' AND 
        (array_agg(query))[6]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.0001 AND ST_Area(geom) < 0.001 ORDER BY ST_Area(geom) DESC;' AND 
        (array_agg(query))[7]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.001 AND ST_Area(geom) < 0.01 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[8]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.01 AND ST_Area(geom) < 0.1 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[9]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.1 AND ST_Area(geom) < 0.402144515225805 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[10]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.402144515225805 AND ST_Area(geom) < 0.704289030451611 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[11]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.704289030451611 AND ST_Area(geom) < 1.00643354567742 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[12]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.00643354567742 AND ST_Area(geom) < 1.30857806090322 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[13]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.30857806090322 AND ST_Area(geom) < 1.61072257612903 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[14]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.61072257612903 AND ST_Area(geom) < 1.91286709135483 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[15]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.91286709135483 AND ST_Area(geom) < 2.21501160658064 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[16]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.21501160658064 AND ST_Area(geom) < 2.51715612180644 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[17]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.51715612180644 AND ST_Area(geom) < 2.81930063703225 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[18]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.81930063703225 AND ST_Area(geom) <= 0.0000001 + 3.12144515225805 ORDER BY ST_Area(geom) DESC;' passed
-FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
-WHERE summary = '8'
+       (array_agg(query))[8]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.01 AND ST_Area(geom) < 0.1 ORDER BY ST_Area(geom) DESC;' passed
+FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 'SACOUNT')
+WHERE summary = '9'
 ---------------------------------------------------------
 UNION ALL
-SELECT '17.13'::text number,
+SELECT '17.14'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Check when the dosummary and the skip summary parameters are passed as text'::text description,
+       'dosummary and skipsummary passed as text'::text description,
        (array_agg(idsandtypes))[1] = 'SKIPPED' AND 
        (array_agg(idsandtypes))[2] = 'DUPLICATE GEOMETRIES IDS (id)' AND 
        (array_agg(idsandtypes))[3] = '1, 2, 3' AND 
@@ -1451,10 +1469,10 @@ FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 's
 
 ---------------------------------------------------------------------------------------------------------
 UNION ALL
-SELECT '17.14'::text number,
+SELECT '17.15'::text number,
        'ST_GeoTableSummary'::text function_tested,
-       'Test the whereclause parameter'::text description,
-       string_agg(idsandtypes, ',') = 'DUPLICATE IDs (id),No duplicate IDs...,DUPLICATE GEOMETRIES IDS (id),1, 2, 3,OVERLAPPING GEOMETRIES IDS (id),ERROR: Consider fixing invalid geometries before testing for overlaps...,TYPES,ST_Polygon,ST_Point,EMPTY ST_Point,ST_LineString,EMPTY ST_GeometryCollection,STATISTIC,MIN number of vertexes,MAX number of vertexes,MEAN number of vertexes,NUMBER OF VERTEXES INTERVALS,[0 - 3[,[3 - 7[,[7 - 10[,[10 - 13[,[13 - 17[,[17 - 20[,[20 - 23[,[23 - 26[,[26 - 30[,[30 - 33],STATISTIC,MIN area,MAX area,MEAN area,AREAS INTERVALS,[0],]0 - 0.0000001[,[0.0000001 - 0.000001[,[0.000001 - 0.00001[,[0.00001 - 0.0001[,[0.0001 - 0.001[,[0.001 - 0.01[,[0.01 - 0.1[,[0.1 - 0.402144515225805[,[0.402144515225805 - 0.704289030451611[,[0.704289030451611 - 1.00643354567742[,[1.00643354567742 - 1.30857806090322[,[1.30857806090322 - 1.61072257612903[,[1.61072257612903 - 1.91286709135483[,[1.91286709135483 - 2.21501160658064[,[2.21501160658064 - 2.51715612180644[,[2.51715612180644 - 2.81930063703225[,[2.81930063703225 - 3.12144515225805]'
+       'Whereclause parameter'::text description,
+       string_agg(idsandtypes, ',') = 'DUPLICATE IDs (id),No duplicate IDs...,DUPLICATE GEOMETRIES IDS (id),1, 2, 3,OVERLAPPING GEOMETRIES IDS (id),ERROR: Consider fixing invalid geometries before testing for overlaps...,TYPES,ST_Polygon,ST_Point,EMPTY ST_Point,ST_LineString,EMPTY ST_GeometryCollection,STATISTIC,MIN number of vertexes,MAX number of vertexes,MEAN number of vertexes,NUMBER OF VERTEXES INTERVALS,[0 - 3[,[3 - 7[,[7 - 10[,[10 - 13[,[13 - 17[,[17 - 20[,[20 - 23[,[23 - 26[,[26 - 30[,[30 - 33],STATISTIC,MIN area,MAX area,MEAN area,AREAS INTERVALS,[0 - 0.312144515225805[,[0.312144515225805 - 0.624289030451611[,[0.624289030451611 - 0.936433545677416[,[0.936433545677416 - 1.24857806090322[,[1.24857806090322 - 1.56072257612903[,[1.56072257612903 - 1.87286709135483[,[1.87286709135483 - 2.18501160658064[,[2.18501160658064 - 2.49715612180644[,[2.49715612180644 - 2.80930063703225[,[2.80930063703225 - 3.12144515225805],AREAS INTERVALS,[0],]0 - 0.0000001[,[0.0000001 - 0.000001[,[0.000001 - 0.00001[,[0.00001 - 0.0001[,[0.0001 - 0.001[,[0.001 - 0.01[,[0.01 - 0.1['
 FROM (SELECT (ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, null, null, 'id1 < 10')).idsandtypes) foo
 
 ---------------------------------------------------------
