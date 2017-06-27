@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.30 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.31 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -125,11 +125,15 @@
 --
 --   ST_ColumnIsUnique - Returns true if all the values in this column are unique.
 --
---   ST_GeoTableSummary - Returns a table summarysing a geometry table. Helps finding 
+--   ST_GeoTableSummary - Returns a table summarysing a geometry table. Helps identify 
 --                        anomalies in geometry tables like duplicates, overlaps and 
 --                        very complex or very small geometries.
 --
---   ST_SplitByGrid - Returns a geometry splitted in multiple parts by a specified grid.
+--   ST_SplitByGrid - Set function returning a geometry splitted in multiple parts by a 
+--                    specified grid.
+--
+--   ST_Histogram - Set function returnings a table representing an histogram of the values 
+--                  for the specifed column.
 --
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
@@ -221,7 +225,7 @@ $$ LANGUAGE plpgsql VOLATILE;
 -- SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(10, 10, 0, 0, 1, 1, 0, 0), '32BUI', 0, true, true, true, false, 1000, 10) rast;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 27/09/2013 v. 1.5
+-- 27/09/2013 added in v1.5
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_CreateIndexRaster(
     rast raster, 
@@ -310,7 +314,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- Mathieu Basille <basille.web@ase-research.org>
--- 10/01/2013 v. 1.6
+-- 10/01/2013 added in v1.6
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_RandomPoints(
     geom geometry, 
@@ -384,7 +388,7 @@ $$ LANGUAGE plpgsql VOLATILE;
 -- SELECT ST_ColumnExists('public', 'spatial_ref_sys', 'srid') ;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 10/02/2013 v. 1.7
+-- 10/02/2013 added in v1.7
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_ColumnExists(
     schemaname name, 
@@ -428,7 +432,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -- SELECT ST_HasBasicIndex('public', 'spatial_ref_sys', 'srid') ;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 08/06/2017 v. 1.25
+-- 08/06/2017 added in v1.25
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
     schemaname name, 
@@ -524,7 +528,7 @@ $$ LANGUAGE sql VOLATILE;
 -- ALTER TABLE spatial_ref_sys DROP COLUMN id;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 10/02/2013 v. 1.7
+-- 10/02/2013 added in v1.7
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_AddUniqueID(
     schemaname name, 
@@ -702,7 +706,7 @@ $$ LANGUAGE sql VOLATILE;
 --      ) foo2;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 10/02/2013 v. 1.8
+-- 10/02/2013 added in v1.8
 -----------------------------------------------------------
 
 -----------------------------------------------------------
@@ -1059,7 +1063,7 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 -- FROM refrastertable;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 11/10/2013 v. 1.10
+-- 11/10/2013 added in v1.10
 -----------------------------------------------------------
 -- Callback function computing a value for the pixel centroid
 CREATE OR REPLACE FUNCTION ST_ExtractPixelCentroidValue4ma(
@@ -1218,21 +1222,21 @@ RETURNS FLOAT AS $$
 --RAISE NOTICE 'val = %', pixel[1][1][1];        
 --RAISE NOTICE 'y = %, x = %', pos[0][1], pos[0][2];        
         -- Reconstruct the pixel square
-	pixelgeom = ST_AsText(
-	              ST_PixelAsPolygon(
-	                ST_MakeEmptyRaster(args[1]::integer, -- raster width
-	                                   args[2]::integer, -- raster height
-	                                   args[3]::float,   -- raster upperleft x
-	                                   args[4]::float,   -- raster upperleft y
-	                                   args[5]::float,   -- raster scale x
-	                                   args[6]::float,   -- raster scale y
-	                                   args[7]::float,   -- raster skew x
-	                                   args[8]::float,   -- raster skew y
-	                                   args[9]::integer  -- raster SRID
-	                                  ), 
-	                                pos[0][1]::integer, -- x coordinate of the current pixel
-	                                pos[0][2]::integer  -- y coordinate of the current pixel
-	                               ));
+    pixelgeom = ST_AsText(
+                  ST_PixelAsPolygon(
+                    ST_MakeEmptyRaster(args[1]::integer, -- raster width
+                                       args[2]::integer, -- raster height
+                                       args[3]::float,   -- raster upperleft x
+                                       args[4]::float,   -- raster upperleft y
+                                       args[5]::float,   -- raster scale x
+                                       args[6]::float,   -- raster scale y
+                                       args[7]::float,   -- raster skew x
+                                       args[8]::float,   -- raster skew y
+                                       args[9]::integer  -- raster SRID
+                                      ), 
+                                    pos[0][1]::integer, -- x coordinate of the current pixel
+                                    pos[0][2]::integer  -- y coordinate of the current pixel
+                                   ));
         -- Query the appropriate value
         IF args[14] = 'COUNT_OF_POLYGONS' THEN -- Number of polygons intersecting the pixel
             query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
@@ -1657,7 +1661,7 @@ $$ LANGUAGE sql;
 -- But it would fail because the two rasters are not properly aligned.
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 10/07/2013 v. 1.11
+-- 10/07/2013 added in v1.11
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_GlobalRasterUnion(
     schemaname name, 
@@ -1776,7 +1780,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 --
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 10/18/2013 v. 1.13
+-- 10/18/2013 added in v1.13
 -----------------------------------------------------------
 -- ST_BufferedUnion aggregate state function
 CREATE OR REPLACE FUNCTION _ST_BufferedUnion_StateFN(
@@ -1794,11 +1798,11 @@ RETURNS geomval AS $$
                 WHEN $2 IS NULL THEN
                     $1
                 ELSE (ST_Union(($1).geom, 
-	                       ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre')
-	                      ), 
-	              ($1).val
-	             )::geomval
-	   END;
+                           ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre')
+                          ), 
+                  ($1).val
+                 )::geomval
+       END;
 $$ LANGUAGE sql IMMUTABLE;
 
 -----------------------------------------------------------
@@ -1847,7 +1851,7 @@ CREATE AGGREGATE ST_BufferedUnion(geometry, double precision)
 -- FROM geomtable
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 10/18/2013 v. 1.13
+-- 10/18/2013 added in v1.13
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_NBiggestExteriorRings(
     ingeom geometry, 
@@ -1857,20 +1861,20 @@ CREATE OR REPLACE FUNCTION ST_NBiggestExteriorRings(
 RETURNS SETOF geometry AS $$
     DECLARE
     BEGIN
-	IF upper(comptype) = 'AREA' THEN
-	    RETURN QUERY SELECT ring 
-	                 FROM (SELECT ST_MakePolygon(ST_ExteriorRing((ST_Dump(ingeom)).geom)) ring
-	                      ) foo
-	                 ORDER BY ST_Area(ring) DESC LIMIT nbrings;
-	ELSIF upper(comptype) = 'NBPOINTS' THEN
-	    RETURN QUERY SELECT ring 
-	                 FROM (SELECT ST_MakePolygon(ST_ExteriorRing((ST_Dump(ingeom)).geom)) ring
-	                      ) foo
-	                 ORDER BY ST_NPoints(ring) DESC LIMIT nbrings;
-	ELSE
-	    RAISE NOTICE 'ST_NBiggestExteriorRings: Unsupported comparison type: ''%''. Try ''AREA'' or ''NBPOINTS''.', comptype;
-	    RETURN;
-	END IF;
+    IF upper(comptype) = 'AREA' THEN
+        RETURN QUERY SELECT ring 
+                     FROM (SELECT ST_MakePolygon(ST_ExteriorRing((ST_Dump(ingeom)).geom)) ring
+                          ) foo
+                     ORDER BY ST_Area(ring) DESC LIMIT nbrings;
+    ELSIF upper(comptype) = 'NBPOINTS' THEN
+        RETURN QUERY SELECT ring 
+                     FROM (SELECT ST_MakePolygon(ST_ExteriorRing((ST_Dump(ingeom)).geom)) ring
+                          ) foo
+                     ORDER BY ST_NPoints(ring) DESC LIMIT nbrings;
+    ELSE
+        RAISE NOTICE 'ST_NBiggestExteriorRings: Unsupported comparison type: ''%''. Try ''AREA'' or ''NBPOINTS''.', comptype;
+        RETURN;
+    END IF;
     END;
 $$ LANGUAGE plpgsql;
 -------------------------------------------------------------------------------
@@ -1901,7 +1905,7 @@ $$ LANGUAGE plpgsql;
 -- FROM geomtable
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 10/18/2013 v. 1.13
+-- 10/18/2013 added in v1.13
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_BufferedSmooth(
     geom geometry, 
@@ -1973,7 +1977,7 @@ $$ LANGUAGE sql IMMUTABLE;
 -- smallest ids.
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 10/18/2013 v. 1.14
+-- 10/18/2013 added in v1.14
 -----------------------------------------------------------
 -- ST_DifferenceAgg aggregate state function
 CREATE OR REPLACE FUNCTION _ST_DifferenceAgg_StateFN(
@@ -1999,18 +2003,18 @@ RETURNS geomval AS $$
                 BEGIN
                     differ = ST_Difference((geom1).geom, geom3);
                 EXCEPTION
-            	WHEN OTHERS THEN
-	                BEGIN
-	                    differ = ST_Difference(ST_Buffer((geom1).geom, 0.000001), ST_Buffer(geom3, 0.000001));
-	                EXCEPTION
-		            WHEN OTHERS THEN
-		                BEGIN
-		                    differ = ST_Difference(ST_Buffer((geom1).geom, 0.00001), ST_Buffer(geom3, 0.00001));
-		                EXCEPTION
-		            	WHEN OTHERS THEN
-			                differ = (geom1).geom;
-		                END;
-	                END;
+                WHEN OTHERS THEN
+                    BEGIN
+                        differ = ST_Difference(ST_Buffer((geom1).geom, 0.000001), ST_Buffer(geom3, 0.000001));
+                    EXCEPTION
+                    WHEN OTHERS THEN
+                        BEGIN
+                            differ = ST_Difference(ST_Buffer((geom1).geom, 0.00001), ST_Buffer(geom3, 0.00001));
+                        EXCEPTION
+                        WHEN OTHERS THEN
+                            differ = (geom1).geom;
+                        END;
+                    END;
                 END;
             END IF;
             newgeom = CASE 
@@ -2070,7 +2074,7 @@ CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry) (
 --                                       ((0 0, 0 1, 1 1, 1 0, 0 0)))'), 0.00001) geom
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 13/11/2013 v. 1.16
+-- 13/11/2013 added in v1.16
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_TrimMulti(
     geom geometry, 
@@ -2145,7 +2149,7 @@ $$ LANGUAGE sql IMMUTABLE;
 -- ORDER BY geom, max(ST_Area(a.geom)) DESC;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 13/11/2013 v. 1.16
+-- 13/11/2013 added in v1.16
 -----------------------------------------------------------
 -- ST_SplitAgg aggregate state function
 CREATE OR REPLACE FUNCTION _ST_SplitAgg_StateFN(
@@ -2248,7 +2252,7 @@ CREATE AGGREGATE ST_SplitAgg(geometry, geometry) (
 --
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 12/06/2017 v. 1.28
+-- 12/06/2017 added in v1.28
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_ColumnIsUnique(
     schemaname name, 
@@ -2266,7 +2270,7 @@ RETURNS BOOLEAN AS $$
         IF length(schemaname) > 0 THEN
             newschemaname := schemaname;
         ELSE
-	    newschemaname := 'public';
+            newschemaname := 'public';
         END IF;
         fqtn := quote_ident(newschemaname) || '.' || quote_ident(tablename);
 
@@ -2305,38 +2309,38 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --   geomcolumnname name - Name of the geometry column to summarize. Will check
 --                         for duplicate values, overlaps and other stats.
 --
---   uidcolumn - Name of unique identifier column to summarize. Will check for
---               duplicate values. This column is created if it does not exist 
---               and it is required to enable other tests and help identifying 
---               duplicate and overlapping geometries. Default to 'id' when not 
---               specified or equal to NULL.
+--   uidcolumn  - Name of unique identifier column to summarize. Will check for
+--                duplicate values. This column is created if it does not exist 
+--                and it is required to enable other tests and help identifying 
+--                duplicate and overlapping geometries. Default to 'id' when not 
+--                specified or equal to NULL.
 --
 --   nbinterval - Number of bin for the number of vertexes and areas histograms.
 --                Default to 10.
 --
---   dosummary - List of summaries to do. Can be any of:
---               'S1' or 'IDDUP': Summary of duplicate IDs.
---               'S2' or 'GDUP', 'GEODUP': Summary duplicate geometries.
---               'S3' or 'OVL': Summary of overlapping geometries. Skipped by default.
---               'S4' or 'TYPES': Summary of the geometry types (number of NULL, 
---                                INVALID, EMPTY, POINTS, LINESTRING, POLYGON, 
---                                MULTIPOINT, MULTILINESTRING, MULTIPOLYGON, 
---                                GEOMETRYCOLLECTION geometries).
---               'S5' or 'VERTX': Summary of geometries number of vertexes (min, max 
---                                and mean number of vertexes).
---               'S6' or 'VHISTO': Histogram of geometries number of vertexes.
---               'S7' or 'AREAS', 'AREA': Summary of geometries areas (min, max, mean
---                                        geometries areas). Extra bins are added for
---                                        very small areas in addition to the number
---                                        requested.
---               'S8' or 'AHISTO': Histogram of geometries areas.
---               'ALL': Compute all summaries.
+--   dosummary  - List of summaries to do. Can be any of:
+--                'S1' or 'IDDUP': Summary of duplicate IDs.
+--                'S2' or 'GDUP', 'GEODUP': Summary duplicate geometries.
+--                'S3' or 'OVL': Summary of overlapping geometries. Skipped by default.
+--                'S4' or 'TYPES': Summary of the geometry types (number of NULL, 
+--                                 INVALID, EMPTY, POINTS, LINESTRING, POLYGON, 
+--                                 MULTIPOINT, MULTILINESTRING, MULTIPOLYGON, 
+--                                 GEOMETRYCOLLECTION geometries).
+--                'S5' or 'VERTX': Summary of geometries number of vertexes (min, max 
+--                                 and mean number of vertexes).
+--                'S6' or 'VHISTO': Histogram of geometries number of vertexes.
+--                'S7' or 'AREAS', 'AREA': Summary of geometries areas (min, max, mean
+--                                         geometries areas). Extra bins are added for
+--                                         very small areas in addition to the number
+--                                         requested.
+--                'S8' or 'AHISTO': Histogram of geometries areas.
+--                'ALL': Compute all summaries.
 --
---               e.g. ARRAY['TYPES', 'S6'] will compute only those two summaries.
+--                e.g. ARRAY['TYPES', 'S6'] will compute only those two summaries.
 --
---               Default to ARRAY['IDDUP', 'GDUP', 'TYPES', 'VERTX', 'VHISTO', 'AREAS', 'AHISTO'] 
---               skipping the overlap summary because it fails when encountering invalid 
---               geometries and prevent other summaries to complete.
+--                Default to ARRAY['IDDUP', 'GDUP', 'TYPES', 'VERTX', 'VHISTO', 'AREAS', 'AHISTO'] 
+--                skipping the overlap summary because it fails when encountering invalid 
+--                geometries and prevent other summaries to complete.
 --
 --   skipsummary - List of summaries to skip. Can be the same value as for the 
 --                 'dosummary' parameter. The list of summaries to skip has precedence
@@ -2368,7 +2372,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --   'geom' is the duplicate or the overlapping part itself so you can display them directly
 --          in your favorite GIS.
 --
---   'query' is the query you can use to recreate the rows summarized on this line.
+--   'query' is the query you can use to generate the rows summarized on this line.
 --        
 --
 -- Self contained and typical example:
@@ -2403,7 +2407,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 14/06/2017 v. 1.28
+-- 14/06/2017 added in v1.28
 -----------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION ST_GeoTableSummary(
@@ -2938,7 +2942,7 @@ $$ LANGUAGE sql VOLATILE;
 --
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
--- 19/06/2017 v. 1.29
+-- 19/06/2017 added in v1.29
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_SplitByGrid(
     ingeom geometry, 
@@ -2997,4 +3001,124 @@ RETURNS TABLE (geom geometry, tid int8, x int, y int) AS $$
     RETURN;
     END;
 $$ LANGUAGE plpgsql VOLATILE;
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_Histogram
+--
+--   schemaname text  - Name of the schema containing the table for which to 
+--                      compute the histogram.
+--
+--   tablename text   - Name of the table containing the column for which to 
+--                      compute the histogram.
+--
+--   columnname text  - Name of the column for which to compute the histogram.
+--
+--   nbinterval int   - Number of bins for the histogram. Default to 10. Must 
+--                      be > 0.
+--
+--   whereclause text - WHERE clause added to the query in order to filter
+--                      the values taken into account when building the 
+--                      histogram.
+--
+--   RETURNS TABLE (intervals text, nb int, query text)
+--
+-- Set function returnings a table representing an histogram of the values 
+-- for the specifed column.
+--
+-- The return table contains 3 columns:
+--
+--   'intervals' is a text column specifiing the lower and upper bounds of the 
+--               intervals (or bins). Start with '[' when the lower bound is 
+--               included in the interval and with ']' when the lowerbound is 
+--               not included in the interval. Complementarily ends with ']' 
+--               when the upper bound is included in the interval and with '[' 
+--               when the upper bound is not included in the interval.
+--
+--   'cnt' is a integer column specifying the number of occurrence of the value 
+--         in this interval (or bin).
+--
+--   'query' is the query you can use to generate the rows accounted for in this 
+--           interval.
+--
+-- Self contained and typical example:
+--
+-- CREATE TABLE histogramtest AS
+-- SELECT * FROM (VALUES (1), (2), (2), (3), (4), (5), (6), (7), (8), (9), (10)) AS t (val);
+--
+-- SELECT * FROM ST_Histogram('test', 'histogramtest1', 'val');
+--
 -----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 22/06/2017 v1.31
+-----------------------------------------------------------
+CREATE OR REPLACE FUNCTION ST_Histogram(
+    schemaname text, 
+    tablename text,
+    columnname text,
+    nbinterval int DEFAULT 10,
+    whereclause text DEFAULT NULL
+) 
+RETURNS TABLE (intervals text, nb int, query text) AS $$ 
+    DECLARE 
+    fqtn text;
+    query text;
+    newschemaname name;
+    findnewcolumnname boolean := FALSE;
+    newcolumnname text;
+    columnnamecnt int := 0;
+    whereclausewithwhere text := '';
+    minval double precision := 0;
+    maxval double precision := 0;
+    BEGIN
+        IF nbinterval IS NULL THEN
+            nbinterval = 10;
+        END IF;
+        IF nbinterval <= 0 THEN
+            RAISE NOTICE 'nbinterval is smaller or equal to zero. Returning nothing...';
+            RETURN;
+        END IF;
+        IF whereclause IS NULL OR whereclause = '' THEN
+            whereclause = '';
+        ELSE
+            whereclausewithwhere = ' WHERE ' || whereclause || ' ';
+            whereclause = ' AND (' || whereclause || ') ';
+        END IF;
+        newschemaname := '';
+        IF length(schemaname) > 0 THEN
+            newschemaname := schemaname;
+        ELSE
+            newschemaname := 'public';
+        END IF;
+        fqtn := quote_ident(newschemaname) || '.' || quote_ident(tablename);
+
+        query = 'SELECT min(' || columnname || '), max(' || columnname || ') FROM ' || fqtn || whereclausewithwhere;
+        EXECUTE QUERY query INTO minval, maxval;
+        IF maxval - minval = 0 THEN
+            RAISE NOTICE 'maximum valueb - minimum value = 0. Will create only 1 interval instead of %...', nbinterval;
+            nbinterval = 1;
+        END IF;
+       
+        -- Build an histogram with the column values.
+        IF ST_ColumnExists(newschemaname, tablename, columnname) THEN
+            query = 'WITH values AS (SELECT ' || columnname || ' val FROM ' || fqtn || whereclausewithwhere || '), 
+                          bins   AS (SELECT val, least(floor((val - ' || minval || ')*' || nbinterval || '::numeric/(' || (CASE WHEN maxval - minval = 0 THEN maxval + 0.000000001 ELSE maxval END) - minval || ')), ' || nbinterval || ' - 1) bin, ' || (maxval - minval) || '/' || nbinterval || '.0 nbperbin FROM values), 
+                          histo  AS (SELECT bin, count(*) cnt FROM bins GROUP BY bin) 
+                     SELECT ''['' || (' || minval || ' + serie * nbperbin)::float8::text || '' - '' || (' || minval || ' + (serie + 1) * nbperbin)::float8::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '']'' ELSE ''['' END) interv, 
+                            coalesce(cnt, 0)::int cnt, 
+                            ''SELECT * FROM ' || fqtn || ' WHERE ' || columnname || ' >= ''|| (' || minval || ' + serie * nbperbin)::float8::text || '' AND ' || columnname || ' <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''= '' ELSE '' '' END) || (' || minval || ' + (serie + 1) * nbperbin)::float8::text || '' ORDER BY ' || columnname || ';''::text
+                     FROM generate_series(0, ' || nbinterval || ' - 1) serie 
+                          LEFT OUTER JOIN histo ON (serie = histo.bin), 
+                          (SELECT * FROM bins LIMIT 1) foo
+                     ORDER BY serie;';
+            RETURN QUERY EXECUTE query;
+        ELSE
+            RAISE NOTICE '''%'' does not exists. Returning nothing...',columnname::text;
+            RETURN;
+        END IF;
+    
+        RETURN; 
+    END; 
+$$ LANGUAGE 'plpgsql' VOLATILE;
+
+-------------------------------------------------------------------------------

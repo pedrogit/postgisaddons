@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.30 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.31 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -93,6 +93,13 @@ UNION ALL
 SELECT 11 id1, 12 id2, ST_GeomFromText('POLYGON((0 0, 1 1, 1 2, 1 1, 0 0))'); -- invalid polygon
 
 -----------------------------------------------------------
+-- Table necessary to test ST_Histogram
+DROP TABLE IF EXISTS test_histogram;
+CREATE TABLE test_histogram AS
+SELECT id, r r1, r/10000000 r2 
+FROM (SELECT generate_series(1, 100) id, random() r FROM (SELECT setseed(0)) foo) foo2;
+
+-----------------------------------------------------------
 -- Comment out the following line and the last one of the file to display 
 -- only failing tests
 --SELECT * FROM (
@@ -118,7 +125,8 @@ SELECT 'ST_TrimMulti'::text,                 14,          4         UNION ALL
 SELECT 'ST_SplitAgg'::text,                  15,          5         UNION ALL
 SELECT 'ST_HasBasicIndex'::text,             16,          4         UNION ALL
 SELECT 'ST_GeoTableSummary'::text,           17,         15         UNION ALL
-SELECT 'ST_SplitByGrid'::text,               18,          1
+SELECT 'ST_SplitByGrid'::text,               18,          1         UNION ALL
+SELECT 'ST_Histogram'::text,                 19,          7
 ),
 test_series AS (
 -- Build a table of function names with a sequence of number for each function to be tested
@@ -1488,6 +1496,152 @@ SELECT '18.1'::text number,
        sum(x) = 72 AND 
        sum(y) = 45
 FROM (SELECT (ST_SplitByGrid(ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))'), 0.5)).*) foo
+
+---------------------------------------------------------
+-- Test 19 - ST_Histogram
+---------------------------------------------------------
+
+UNION ALL
+SELECT '19.1'::text number,
+       'ST_Histogram'::text function_tested,
+       'Basic test 1 with integer values'::text description,
+       (array_agg(intervals))[1] = '[1 - 2[' AND 
+       (array_agg(intervals))[2] = '[2 - 3[' AND 
+       (array_agg(intervals))[3] = '[3 - 4[' AND 
+       (array_agg(intervals))[4] = '[4 - 5[' AND 
+       (array_agg(intervals))[5] = '[5 - 6[' AND 
+       (array_agg(intervals))[6] = '[6 - 7[' AND 
+       (array_agg(intervals))[7] = '[7 - 8[' AND 
+       (array_agg(intervals))[8] = '[8 - 9[' AND 
+       (array_agg(intervals))[9] = '[9 - 10[' AND 
+       (array_agg(intervals))[10] = '[10 - 11]' AND 
+       (array_agg(nb))[1] = 1 AND 
+       (array_agg(nb))[2] = 1 AND 
+       (array_agg(nb))[3] = 1 AND 
+       (array_agg(nb))[4] = 1 AND 
+       (array_agg(nb))[5] = 1 AND 
+       (array_agg(nb))[6] = 1 AND 
+       (array_agg(nb))[7] = 1 AND 
+       (array_agg(nb))[8] = 1 AND 
+       (array_agg(nb))[9] = 1 AND 
+       (array_agg(nb))[10] = 3 AND 
+       (array_agg(query))[1]::text = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 1 AND id1 < 2 ORDER BY id1;' AND 
+       (array_agg(query))[2]::text = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 2 AND id1 < 3 ORDER BY id1;' AND 
+       (array_agg(query))[3]::text = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 3 AND id1 < 4 ORDER BY id1;' AND 
+       (array_agg(query))[4]::text = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 4 AND id1 < 5 ORDER BY id1;' AND 
+       (array_agg(query))[5]::text = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 5 AND id1 < 6 ORDER BY id1;' AND 
+       (array_agg(query))[6]::text = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 6 AND id1 < 7 ORDER BY id1;' AND 
+       (array_agg(query))[7]::text = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 7 AND id1 < 8 ORDER BY id1;' AND 
+       (array_agg(query))[8]::text = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 8 AND id1 < 9 ORDER BY id1;' AND 
+       (array_agg(query))[9]::text = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 9 AND id1 < 10 ORDER BY id1;' AND 
+       (array_agg(query))[10]::text = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 10 AND id1 <= 11 ORDER BY id1;' passed
+FROM ST_Histogram('public', 'test_geotablesummary', 'id1')
+---------------------------------------------------------
+
+UNION ALL
+SELECT '19.2'::text number,
+       'ST_Histogram'::text function_tested,
+       'Basic test 2 with integer values'::text description,
+       (array_agg(intervals))[1] = '[1 - 2.1[' AND 
+       (array_agg(intervals))[2] = '[2.1 - 3.2[' AND 
+       (array_agg(intervals))[3] = '[3.2 - 4.3[' AND 
+       (array_agg(intervals))[4] = '[4.3 - 5.4[' AND 
+       (array_agg(intervals))[5] = '[5.4 - 6.5[' AND 
+       (array_agg(intervals))[6] = '[6.5 - 7.6[' AND 
+       (array_agg(intervals))[7] = '[7.6 - 8.7[' AND 
+       (array_agg(intervals))[8] = '[8.7 - 9.8[' AND 
+       (array_agg(intervals))[9] = '[9.8 - 10.9[' AND 
+       (array_agg(intervals))[10] = '[10.9 - 12]' AND 
+       (array_agg(nb))[1] = 2 AND 
+       (array_agg(nb))[2] = 1 AND 
+       (array_agg(nb))[3] = 1 AND 
+       (array_agg(nb))[4] = 1 AND 
+       (array_agg(nb))[5] = 1 AND 
+       (array_agg(nb))[6] = 1 AND 
+       (array_agg(nb))[7] = 1 AND 
+       (array_agg(nb))[8] = 1 AND 
+       (array_agg(nb))[9] = 1 AND 
+       (array_agg(nb))[10] = 2 AND 
+       (array_agg(query))[1]::text = 'SELECT * FROM public.test_geotablesummary WHERE id2 >= 1 AND id2 < 2.1 ORDER BY id2;' AND 
+       (array_agg(query))[2]::text = 'SELECT * FROM public.test_geotablesummary WHERE id2 >= 2.1 AND id2 < 3.2 ORDER BY id2;' AND 
+       (array_agg(query))[3]::text = 'SELECT * FROM public.test_geotablesummary WHERE id2 >= 3.2 AND id2 < 4.3 ORDER BY id2;' AND 
+       (array_agg(query))[4]::text = 'SELECT * FROM public.test_geotablesummary WHERE id2 >= 4.3 AND id2 < 5.4 ORDER BY id2;' AND 
+       (array_agg(query))[5]::text = 'SELECT * FROM public.test_geotablesummary WHERE id2 >= 5.4 AND id2 < 6.5 ORDER BY id2;' AND 
+       (array_agg(query))[6]::text = 'SELECT * FROM public.test_geotablesummary WHERE id2 >= 6.5 AND id2 < 7.6 ORDER BY id2;' AND 
+       (array_agg(query))[7]::text = 'SELECT * FROM public.test_geotablesummary WHERE id2 >= 7.6 AND id2 < 8.7 ORDER BY id2;' AND 
+       (array_agg(query))[8]::text = 'SELECT * FROM public.test_geotablesummary WHERE id2 >= 8.7 AND id2 < 9.8 ORDER BY id2;' AND 
+       (array_agg(query))[9]::text = 'SELECT * FROM public.test_geotablesummary WHERE id2 >= 9.8 AND id2 < 10.9 ORDER BY id2;' AND 
+       (array_agg(query))[10]::text = 'SELECT * FROM public.test_geotablesummary WHERE id2 >= 10.9 AND id2 <= 12 ORDER BY id2;' passed
+FROM ST_Histogram('public', 'test_geotablesummary', 'id2')
+---------------------------------------------------------
+
+UNION ALL
+SELECT '19.3'::text number,
+       'ST_Histogram'::text function_tested,
+       'Basic test with float values'::text description,
+       (array_agg(intervals))[1] = '[0.0255749258212745 - 0.26533543120604[' AND 
+       (array_agg(intervals))[2] = '[0.26533543120604 - 0.505095936590806[' AND 
+       (array_agg(intervals))[3] = '[0.505095936590806 - 0.744856441975571[' AND 
+       (array_agg(intervals))[4] = '[0.744856441975571 - 0.984616947360336]' AND 
+       (array_agg(nb))[1] = 23 AND 
+       (array_agg(nb))[2] = 23 AND 
+       (array_agg(nb))[3] = 22 AND 
+       (array_agg(nb))[4] = 32 AND 
+       (array_agg(query))[1]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.0255749258212745 AND r1 < 0.26533543120604 ORDER BY r1;' AND 
+       (array_agg(query))[2]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.26533543120604 AND r1 < 0.505095936590806 ORDER BY r1;' AND 
+       (array_agg(query))[3]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.505095936590806 AND r1 < 0.744856441975571 ORDER BY r1;' AND 
+       (array_agg(query))[4]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.744856441975571 AND r1 <= 0.984616947360336 ORDER BY r1;' passed
+FROM ST_Histogram('public', 'test_histogram', 'r1', 4)
+---------------------------------------------------------
+
+UNION ALL
+SELECT '19.4'::text number,
+       'ST_Histogram'::text function_tested,
+       'Basic test with very small float values'::text description,
+       (array_agg(intervals))[1] = '[2.55749258212745e-009 - 2.6533543120604e-008[' AND 
+       (array_agg(intervals))[2] = '[2.6533543120604e-008 - 5.05095936590806e-008[' AND 
+       (array_agg(intervals))[3] = '[5.05095936590806e-008 - 7.44856441975571e-008[' AND 
+       (array_agg(intervals))[4] = '[7.44856441975571e-008 - 9.84616947360336e-008]' AND 
+       (array_agg(nb))[1] = 23 AND 
+       (array_agg(nb))[2] = 23 AND 
+       (array_agg(nb))[3] = 22 AND 
+       (array_agg(nb))[4] = 32 AND 
+       (array_agg(query))[1]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 2.55749258212745e-009 AND r2 < 2.6533543120604e-008 ORDER BY r2;' AND 
+       (array_agg(query))[2]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 2.6533543120604e-008 AND r2 < 5.05095936590806e-008 ORDER BY r2;' AND 
+       (array_agg(query))[3]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 5.05095936590806e-008 AND r2 < 7.44856441975571e-008 ORDER BY r2;' AND 
+       (array_agg(query))[4]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 7.44856441975571e-008 AND r2 <= 9.84616947360336e-008 ORDER BY r2;' passed
+FROM ST_Histogram('public', 'test_histogram', 'r2', 4)
+---------------------------------------------------------
+
+UNION ALL
+SELECT '19.5'::text number,
+       'ST_Histogram'::text function_tested,
+       'Basic test with three values'::text description,
+       (array_agg(intervals))[1] = '[1 - 2[' AND 
+       (array_agg(intervals))[2] = '[2 - 3]' AND 
+       (array_agg(nb))[1] = 1 AND 
+       (array_agg(nb))[2] = 2 AND 
+       (array_agg(query))[1]::text = 'SELECT * FROM public.test_histogram WHERE id >= 1 AND id < 2 ORDER BY id;' AND 
+       (array_agg(query))[2]::text = 'SELECT * FROM public.test_histogram WHERE id >= 2 AND id <= 3 ORDER BY id;' passed
+FROM ST_Histogram('public', 'test_histogram', 'id', 2, 'id < 4')
+---------------------------------------------------------
+
+UNION ALL
+SELECT '19.6'::text number,
+       'ST_Histogram'::text function_tested,
+       'max - min = 0'::text description,
+       intervals = '[11 - 11]' AND 
+       nb = 2 AND 
+       query = 'SELECT * FROM public.test_geotablesummary WHERE id1 >= 11 AND id1 <= 11 ORDER BY id1;' passed
+FROM ST_Histogram('public', 'test_geotablesummary', 'id1', 10, 'id1 > 10')
+---------------------------------------------------------
+
+UNION ALL
+SELECT '19.7'::text number,
+       'ST_Histogram'::text function_tested,
+       'intervals < 0'::text description,
+       count(*) = 0 passed
+FROM ST_Histogram('public', 'test_histogram', 'id', -4)
 ---------------------------------------------------------
 ) b 
 ON (a.function_tested = b.function_tested AND (regexp_split_to_array(number, '\.'))[2] = min_num) 
