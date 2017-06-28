@@ -7,57 +7,57 @@
 -- the terms of the GNU General Public Licence. See the COPYING file.
 --
 -- Copyright (C) 2013-2017 Pierre Racine <pierre.racine@sbf.ulaval.ca>.
--- 
+--
 -------------------------------------------------------------------------------
--- 
--- The PostGIS add-ons attempt to gather, in a single .sql file, useful and 
--- generic user contributed PL/pgSQL functions and to provide a fast and Agile 
+--
+-- The PostGIS add-ons attempt to gather, in a single .sql file, useful and
+-- generic user contributed PL/pgSQL functions and to provide a fast and Agile
 -- release cycle. Files will be tagged with an incremental version number
--- for every significant change or addition. They should ALWAYS be left in a 
+-- for every significant change or addition. They should ALWAYS be left in a
 -- stable, installable and tested state.
 --
--- Signatures and return values for existing functions should not change from 
+-- Signatures and return values for existing functions should not change from
 -- minor revision to minor revision. New functions might be added though.
 --
 -- PostGIS PL/pgSQL Add-ons tries to make life as easy as possible for users
--- wishing to contribute their functions. This is why it limits itself to 
--- only three files: the main function executable file, a test file and an 
--- unsinstall file. All functions are documented inside the main function file 
--- (this file). 
+-- wishing to contribute their functions. This is why it limits itself to
+-- only three files: the main function executable file, a test file and an
+-- unsinstall file. All functions are documented inside the main function file
+-- (this file).
 --
 -- To be included, a function:
 --
 --   - must be written in pure PL/pgSQL or SQL code (no C or any compilable code),
 --   - must be generic enough to be useful to other PostGIS users,
---   - must follow functions and variables naming and indentation conventions 
+--   - must follow functions and variables naming and indentation conventions
 --     already in use in the files,
 --   - must be documented according to the rules defined below in this file,
 --   - must be accompagned by a series of test in the postgis_addons_test.sql file,
---   - must be accompagned by the appropriate DROP statements in the 
+--   - must be accompagned by the appropriate DROP statements in the
 --     expostgis_addons_uninstall.sql file.
 --
 -- You must also accept to release your work under the same licence already in use for this product.
--- 
+--
 -------------------------------------------------------------------------------
 --
 -- File description
--- 
---   - postgis_addons.sql             Main redistributable file containing all the 
+--
+--   - postgis_addons.sql             Main redistributable file containing all the
 --                                    functions.
 --   - postgis_addons_uninstall.sql   Uninstallation file.
---   - postgis_addons_test.sql        Self contained test file to be executed after  
---                                    installation and before any commit of the main 
+--   - postgis_addons_test.sql        Self contained test file to be executed after
+--                                    installation and before any commit of the main
 --                                    file.
--- 
+--
 -------------------------------------------------------------------------------
 --
 -- Documentation
--- 
--- Each function must be documented directly in the postgis_addons.sql file just 
--- before the definition of the function. 
--- 
+--
+-- Each function must be documented directly in the postgis_addons.sql file just
+-- before the definition of the function.
+--
 -- Mandatory documentation elements for each function:
--- 
+--
 --   - Function name,
 --   - Parameters listing and description of each parameter,
 --   - Description,
@@ -83,17 +83,17 @@
 --
 --   ST_HasBasicIndex - Returns true if a table column has at least one index defined.
 --
---   ST_AddUniqueID - Adds a column to a table and fill it with a unique integer 
+--   ST_AddUniqueID - Adds a column to a table and fill it with a unique integer
 --                    starting at 1.
 --
---   ST_AreaWeightedSummaryStats - Aggregate function computing statistics on a 
---                                 series of intersected values weighted by the 
+--   ST_AreaWeightedSummaryStats - Aggregate function computing statistics on a
+--                                 series of intersected values weighted by the
 --                                 area of the corresponding geometry.
 --
---   ST_ExtractToRaster - Compute a raster band by extracting values for the centroid 
+--   ST_ExtractToRaster - Compute a raster band by extracting values for the centroid
 --                        or the footprint of each pixel from a global geometry
---                        coverage using different methods like count, min, max, 
---                        mean, value of biggest geometry or area weighted mean 
+--                        coverage using different methods like count, min, max,
+--                        mean, value of biggest geometry or area weighted mean
 --                        of values.
 --
 --   ST_GlobalRasterUnion - Build a new raster by extracting all the pixel values
@@ -101,38 +101,38 @@
 --                          like count, min, max, mean, stddev and range. Similar
 --                          and slower but more flexible than ST_Union.
 --
---   ST_BufferedUnion - Alternative to ST_Union making a buffer around each geometry 
---                      before unioning and removing it afterward. Used when ST_Union 
---                      leaves internal undesirable vertexes after a complex union 
+--   ST_BufferedUnion - Alternative to ST_Union making a buffer around each geometry
+--                      before unioning and removing it afterward. Used when ST_Union
+--                      leaves internal undesirable vertexes after a complex union
 --                      or when wanting to remove holes from the resulting union.
 --
---   ST_NBiggestExteriorRings - Returns the n biggest exterior rings of the provided 
+--   ST_NBiggestExteriorRings - Returns the n biggest exterior rings of the provided
 --                              geometry based on their area or thir number of vertex.
 --
---   ST_BufferedSmooth - Returns a smoothed version of the geometry. The smoothing is 
---                       done by making a buffer around the geometry and removing it 
+--   ST_BufferedSmooth - Returns a smoothed version of the geometry. The smoothing is
+--                       done by making a buffer around the geometry and removing it
 --                       afterward.
 --
---   ST_DifferenceAgg - Returns the first geometry after having removed all the 
---                      subsequent geometries in the aggregate. Used to remove 
+--   ST_DifferenceAgg - Returns the first geometry after having removed all the
+--                      subsequent geometries in the aggregate. Used to remove
 --                      overlaps in a geometry table.
 --
---   ST_TrimMulti - Returns a multigeometry from which simple geometries having an area  
+--   ST_TrimMulti - Returns a multigeometry from which simple geometries having an area
 --                  smaller than the tolerance parameter have been removed.
 --
---   ST_SplitAgg - Returns the first geometry as a set of geometries after being split 
+--   ST_SplitAgg - Returns the first geometry as a set of geometries after being split
 --                 by all the second geometries being part of the aggregate.
 --
 --   ST_ColumnIsUnique - Returns true if all the values in this column are unique.
 --
---   ST_GeoTableSummary - Returns a table summarysing a geometry table. Helps identify 
---                        anomalies in geometry tables like duplicates, overlaps and 
+--   ST_GeoTableSummary - Returns a table summarysing a geometry table. Helps identify
+--                        anomalies in geometry tables like duplicates, overlaps and
 --                        very complex or very small geometries.
 --
---   ST_SplitByGrid - Set function returning a geometry splitted in multiple parts by a 
+--   ST_SplitByGrid - Set function returning a geometry splitted in multiple parts by a
 --                    specified grid.
 --
---   ST_Histogram - Set function returnings a table representing an histogram of the values 
+--   ST_Histogram - Set function returnings a table representing an histogram of the values
 --                  for the specifed column.
 --
 -------------------------------------------------------------------------------
@@ -151,7 +151,7 @@
 --
 -- SELECT ST_NumBands(ST_DeleteBand(rast, 2)) nb1, ST_NumBands(rast) nb2
 -- FROM (SELECT ST_AddBand(ST_MakeEmptyRaster(10, 10, 0, 0, 1),
---                         ARRAY[ROW(NULL, '8BUI', 255, 0), 
+--                         ARRAY[ROW(NULL, '8BUI', 255, 0),
 --                               ROW(NULL, '16BUI', 1, 2)]::addbandarg[]) rast
 --      ) foo;
 --
@@ -165,7 +165,7 @@
 CREATE OR REPLACE FUNCTION ST_DeleteBand(
     rast raster,
     band int
-) 
+)
 RETURNS raster AS $$
     DECLARE
         numband int := ST_NumBands(rast);
@@ -194,7 +194,7 @@ $$ LANGUAGE plpgsql VOLATILE;
 -------------------------------------------------------------------------------
 -- ST_CreateIndexRaster
 --
---   rast raster          - Raster from which are copied the metadata to build the new, index raster. 
+--   rast raster          - Raster from which are copied the metadata to build the new, index raster.
 --                          Generally created from scratch with ST_MakeEmptyRaster().
 --   pixeltype text       - Pixel type of the new index raster. The default is 32BUI.
 --   startvalue int       - The first value assigned to the index raster. The default is 0.
@@ -202,12 +202,12 @@ $$ LANGUAGE plpgsql VOLATILE;
 --   incwithy boolean     - When true (default), indexes increase with the y raster coordinate of the pixel.
 --                          (When scaley is negative, indexes decrease with y.)
 --   rowsfirst boolean    - When true (default), indexes increase vertically first, and then horizontally.
---   rowscanorder boolean - When true (default), indexes increase always in the same direction (row scan). 
+--   rowscanorder boolean - When true (default), indexes increase always in the same direction (row scan).
 --                          When false indexes increase alternatively in direction and then in the other
 --                          direction (row-prime scan).
---   colinc int           - Colums increment value. Must be greater than rowinc * (ST_Height() - 1) when 
+--   colinc int           - Colums increment value. Must be greater than rowinc * (ST_Height() - 1) when
 --                          columnfirst is true.
---   rowinc int           - Row increment value. Must be greater than colinc * (ST_Width() - 1) when 
+--   rowinc int           - Row increment value. Must be greater than colinc * (ST_Width() - 1) when
 --                          columnfirst is false.
 --
 --   RETURNS raster
@@ -228,10 +228,10 @@ $$ LANGUAGE plpgsql VOLATILE;
 -- 27/09/2013 added in v1.5
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_CreateIndexRaster(
-    rast raster, 
-    pixeltype text DEFAULT '32BUI', 
-    startvalue int DEFAULT 0, 
-    incwithx boolean DEFAULT true, 
+    rast raster,
+    pixeltype text DEFAULT '32BUI',
+    startvalue int DEFAULT 0,
+    incwithx boolean DEFAULT true,
     incwithy boolean DEFAULT true,
     rowsfirst boolean DEFAULT true,
     rowscanorder boolean DEFAULT true,
@@ -263,11 +263,11 @@ RETURNS raster AS $$
             END IF;
             --RAISE NOTICE 'abs([rast.x] - %) * % + abs([rast.y] - (% ^ ((abs([rast.x] - % + 1) % 2) | % # ))::int) * % + %', xdir::text, colincx::text, h::text, xdir::text, rsflag::text, ydflag::text, rowincy::text, newstartvalue::text;
             newraster = ST_SetBandNodataValue(
-                          ST_MapAlgebra(newraster, 
-                                        pixeltype, 
-                                        'abs([rast.x] - ' || xdir::text || ') * ' || colincx::text || 
-                                        ' + abs([rast.y] - (' || h::text || ' ^ ((abs([rast.x] - ' || 
-                                        xdir::text || ' + 1) % 2) | ' || rsflag::text || ' # ' || 
+                          ST_MapAlgebra(newraster,
+                                        pixeltype,
+                                        'abs([rast.x] - ' || xdir::text || ') * ' || colincx::text ||
+                                        ' + abs([rast.y] - (' || h::text || ' ^ ((abs([rast.x] - ' ||
+                                        xdir::text || ' + 1) % 2) | ' || rsflag::text || ' # ' ||
                                         ydflag::text || '))::int) * ' || rowincy::text || ' + ' || newstartvalue::text),
                           ST_BandNodataValue(newraster)
                         );
@@ -276,15 +276,15 @@ RETURNS raster AS $$
                 RAISE EXCEPTION 'Row increment (now %) must be greater than the number of index on one row (now % pixel x % = %)...', rowincx, w - 1, colincy, (w - 1) * colincy;
             END IF;
             newraster = ST_SetBandNodataValue(
-                          ST_MapAlgebra(newraster, 
-                                        pixeltype, 
-                                        'abs([rast.x] - (' || w::text || ' ^ ((abs([rast.y] - ' || 
-                                        ydir::text || ' + 1) % 2) | ' || rsflag::text || ' # ' || 
-                                        xdflag::text || '))::int) * ' || colincy::text || ' + abs([rast.y] - ' || 
-                                        ydir::text || ') * ' || rowincx::text || ' + ' || newstartvalue::text), 
+                          ST_MapAlgebra(newraster,
+                                        pixeltype,
+                                        'abs([rast.x] - (' || w::text || ' ^ ((abs([rast.y] - ' ||
+                                        ydir::text || ' + 1) % 2) | ' || rsflag::text || ' # ' ||
+                                        xdflag::text || '))::int) * ' || colincy::text || ' + abs([rast.y] - ' ||
+                                        ydir::text || ') * ' || rowincx::text || ' + ' || newstartvalue::text),
                           ST_BandNodataValue(newraster)
                         );
-        END IF;    
+        END IF;
         RETURN newraster;
     END;
 $$ LANGUAGE plpgsql IMMUTABLE;
@@ -293,10 +293,10 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -------------------------------------------------------------------------------
 -- ST_RandomPoints
 --
---   geom geometry - Geometry in which to create the random points. Should be a polygon 
+--   geom geometry - Geometry in which to create the random points. Should be a polygon
 --                   or a multipolygon.
 --   nb int        - Number of random points to create.
---   seed numeric  - Value between -1.0 and 1.0, inclusive, setting the seek if repeatable 
+--   seed numeric  - Value between -1.0 and 1.0, inclusive, setting the seek if repeatable
 --                   results are desired. Default to null.
 --
 --   RETURNS set of points
@@ -317,64 +317,64 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- 10/01/2013 added in v1.6
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_RandomPoints(
-    geom geometry, 
+    geom geometry,
     nb integer,
     seed numeric DEFAULT NULL
-) 
-RETURNS SETOF geometry AS $$ 
-    DECLARE 
-        pt geometry; 
-        xmin float8; 
-        xmax float8; 
-        ymin float8; 
-        ymax float8; 
-        xrange float8; 
-        yrange float8; 
-        srid int; 
-        count integer := 0; 
-        gtype text; 
-    BEGIN 
-        SELECT ST_GeometryType(geom) INTO gtype; 
+)
+RETURNS SETOF geometry AS $$
+    DECLARE
+        pt geometry;
+        xmin float8;
+        xmax float8;
+        ymin float8;
+        ymax float8;
+        xrange float8;
+        yrange float8;
+        srid int;
+        count integer := 0;
+        gtype text;
+    BEGIN
+        SELECT ST_GeometryType(geom) INTO gtype;
 
         -- Make sure the geometry is some kind of polygon
-        IF (gtype IS NULL OR (gtype != 'ST_Polygon') AND (gtype != 'ST_MultiPolygon')) THEN 
+        IF (gtype IS NULL OR (gtype != 'ST_Polygon') AND (gtype != 'ST_MultiPolygon')) THEN
             RAISE NOTICE 'Attempting to get random points in a non polygon geometry';
             RETURN NEXT null;
             RETURN;
-        END IF; 
+        END IF;
 
         -- Compute the extent
-        SELECT ST_XMin(geom), ST_XMax(geom), ST_YMin(geom), ST_YMax(geom), ST_SRID(geom) 
-        INTO xmin, xmax, ymin, ymax, srid; 
+        SELECT ST_XMin(geom), ST_XMax(geom), ST_YMin(geom), ST_YMax(geom), ST_SRID(geom)
+        INTO xmin, xmax, ymin, ymax, srid;
 
         -- and the range of the extent
-        SELECT xmax - xmin, ymax - ymin 
-        INTO xrange, yrange; 
+        SELECT xmax - xmin, ymax - ymin
+        INTO xrange, yrange;
 
         -- Set the seed if provided
-        IF seed IS NOT NULL THEN 
-            PERFORM setseed(seed); 
-        END IF; 
+        IF seed IS NOT NULL THEN
+            PERFORM setseed(seed);
+        END IF;
 
         -- Find valid points one after the other checking if they are inside the polygon
-        WHILE count < nb LOOP 
-            SELECT ST_SetSRID(ST_MakePoint(xmin + xrange * random(), ymin + yrange * random()), srid) 
-            INTO pt; 
+        WHILE count < nb LOOP
+            SELECT ST_SetSRID(ST_MakePoint(xmin + xrange * random(), ymin + yrange * random()), srid)
+            INTO pt;
 
-            IF ST_Contains(geom, pt) THEN 
-                count := count + 1; 
-                RETURN NEXT pt; 
-            END IF; 
-        END LOOP; 
-        RETURN; 
-    END; 
+            IF ST_Contains(geom, pt) THEN
+                count := count + 1;
+                RETURN NEXT pt;
+            END IF;
+        END LOOP;
+        RETURN;
+    END;
 $$ LANGUAGE plpgsql VOLATILE;
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
 -- ST_ColumnExists
 --
---   schemaname name - Name of the schema containing the table in which to check for 
+--   schemaname name - Name of the schema containing the table in which to check for
 --                     the existance of a column.
 --   tablename name  - Name of the table in which to check for the existance of a column.
 --   columnname name - Name of the column to check for the existence of.
@@ -391,14 +391,14 @@ $$ LANGUAGE plpgsql VOLATILE;
 -- 10/02/2013 added in v1.7
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_ColumnExists(
-    schemaname name, 
-    tablename name, 
+    schemaname name,
+    tablename name,
     columnname name
 )
 RETURNS BOOLEAN AS $$
     DECLARE
     BEGIN
-        PERFORM 1 FROM information_schema.COLUMNS 
+        PERFORM 1 FROM information_schema.COLUMNS
         WHERE lower(table_schema) = lower(schemaname) AND lower(table_name) = lower(tablename) AND lower(column_name) = lower(columnname);
         RETURN FOUND;
     END;
@@ -407,9 +407,9 @@ $$ LANGUAGE plpgsql VOLATILE STRICT;
 -----------------------------------------------------------
 -- ST_ColumnExists variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_ColumnExists(
-    tablename name, 
+    tablename name,
     columnname name
-) 
+)
 RETURNS BOOLEAN AS $$
     SELECT ST_ColumnExists('public', $1, $2)
 $$ LANGUAGE sql VOLATILE STRICT;
@@ -418,7 +418,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -------------------------------------------------------------------------------
 -- ST_HasBasicIndex
 --
---   schemaname name - Name of the schema containing the table for which to check for 
+--   schemaname name - Name of the schema containing the table for which to check for
 --                     the existance of an index.
 --   tablename name  - Name of the table for which to check for the existance of an index.
 --   columnname name - Name of the column to check for the existence of an index.
@@ -435,7 +435,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -- 08/06/2017 added in v1.25
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
-    schemaname name, 
+    schemaname name,
     tablename name,
     columnname name
 )
@@ -446,7 +446,7 @@ RETURNS boolean AS $$
         hasindex boolean := FALSE;
     BEGIN
         -- Determine the type of the column
-        query := 'SELECT typname 
+        query := 'SELECT typname
                   FROM pg_namespace
                   LEFT JOIN pg_class ON (pg_namespace.oid = pg_class.relnamespace)
                   LEFT JOIN pg_attribute ON (pg_attribute.attrelid = pg_class.oid)
@@ -457,8 +457,8 @@ RETURNS boolean AS $$
             --RAISE EXCEPTION 'column not found';
             RETURN NULL;
         ELSIF coltype = 'raster' THEN
-            -- When column type is RASTER we ignore the column name and 
-            -- only check if the type of the index is gist since it is a functional 
+            -- When column type is RASTER we ignore the column name and
+            -- only check if the type of the index is gist since it is a functional
             -- index and we can not check on which column it is applied
             query := 'SELECT TRUE
                       FROM pg_index
@@ -466,19 +466,19 @@ RETURNS boolean AS $$
                       LEFT OUTER JOIN pg_namespace ON (pg_namespace.oid = relclass.relnamespace)
                       LEFT OUTER JOIN pg_class idxclass ON (idxclass.oid = pg_index.indexrelid)
                       LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam)
-                      WHERE relclass.relkind = ''r'' AND amname = ''gist'' 
+                      WHERE relclass.relkind = ''r'' AND amname = ''gist''
                       AND lower(nspname) = lower(''' || schemaname || ''') AND lower(relclass.relname) = lower(''' || tablename || ''');';
             EXECUTE QUERY query INTO hasindex;
         ELSE
            -- Otherwise we check for an index on the right column
-           query := 'SELECT TRUE 
+           query := 'SELECT TRUE
                      FROM pg_index
-                     LEFT OUTER JOIN pg_class relclass ON (relclass.oid = pg_index.indrelid) 
-                     LEFT OUTER JOIN pg_namespace ON (pg_namespace.oid = relclass.relnamespace) 
-                     LEFT OUTER JOIN pg_class idxclass ON (idxclass.oid = pg_index.indexrelid) 
-                     --LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam) 
-                     LEFT OUTER JOIN pg_attribute ON (pg_attribute.attrelid = relclass.oid AND indkey[0] = attnum) 
-                     WHERE relclass.relkind = ''r'' AND indkey[0] != 0 
+                     LEFT OUTER JOIN pg_class relclass ON (relclass.oid = pg_index.indrelid)
+                     LEFT OUTER JOIN pg_namespace ON (pg_namespace.oid = relclass.relnamespace)
+                     LEFT OUTER JOIN pg_class idxclass ON (idxclass.oid = pg_index.indexrelid)
+                     --LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam)
+                     LEFT OUTER JOIN pg_attribute ON (pg_attribute.attrelid = relclass.oid AND indkey[0] = attnum)
+                     WHERE relclass.relkind = ''r'' AND indkey[0] != 0
                      AND lower(nspname) = lower(''' || schemaname || ''') AND lower(relclass.relname) = lower(''' || tablename || ''') AND lower(attname) = lower(''' || columnname || ''');';
            EXECUTE QUERY query INTO hasindex;
         END IF;
@@ -486,15 +486,15 @@ RETURNS boolean AS $$
             hasindex = FALSE;
         END IF;
         RETURN hasindex;
-    END; 
+    END;
 $$ LANGUAGE plpgsql VOLATILE;
 
 -----------------------------------------------------------
 -- ST_HasBasicIndex variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
-    tablename name, 
+    tablename name,
     columnname name
-) 
+)
 RETURNS BOOLEAN AS $$
     SELECT ST_HasBasicIndex('public', $1, $2)
 $$ LANGUAGE sql VOLATILE;
@@ -503,7 +503,7 @@ $$ LANGUAGE sql VOLATILE;
 -------------------------------------------------------------------------------
 -- ST_AddUniqueID
 --
---   schemaname name       - Name of the schema containing the table in which to check for 
+--   schemaname name       - Name of the schema containing the table in which to check for
 --                           the existance of a column.
 --   tablename name        - Name of the table in which to check for the existance of a column.
 --   columnname name       - Name of the new id column to check for the existence of.
@@ -531,9 +531,9 @@ $$ LANGUAGE sql VOLATILE;
 -- 10/02/2013 added in v1.7
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_AddUniqueID(
-    schemaname name, 
-    tablename name, 
-    columnname name, 
+    schemaname name,
+    tablename name,
+    columnname name,
     replacecolumn boolean DEFAULT false,
     indexit boolean DEFAULT true
 )
@@ -558,7 +558,7 @@ RETURNS boolean AS $$
         -- Check if the requested column name already exists
         IF ST_ColumnExists(schemaname, tablename, columnname) THEN
             IF replacecolumn THEN
-                EXECUTE 'ALTER TABLE ' || fqtn || ' DROP COLUMN ' || columnname; 
+                EXECUTE 'ALTER TABLE ' || fqtn || ' DROP COLUMN ' || columnname;
             ELSE
                 RAISE NOTICE 'Column already exist. Set the ''replacecolumn'' argument to ''true'' if you want to replace the column.';
                 RETURN false;
@@ -585,11 +585,11 @@ $$ LANGUAGE plpgsql VOLATILE;
 -----------------------------------------------------------
 -- ST_AddUniqueID variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_AddUniqueID(
-    tablename name, 
-    columnname name, 
+    tablename name,
+    columnname name,
     replacecolumn boolean DEFAULT false,
     indexit boolean DEFAULT true
-) 
+)
 RETURNS BOOLEAN AS $$
     SELECT ST_AddUniqueID('public', $1, $2, $3, $4)
 $$ LANGUAGE sql VOLATILE;
@@ -598,11 +598,11 @@ $$ LANGUAGE sql VOLATILE;
 -------------------------------------------------------------------------------
 -- ST_AreaWeightedSummaryStats
 --
---   geomval - A set of geomval couple (geometry, double precision) resulting from 
+--   geomval - A set of geomval couple (geometry, double precision) resulting from
 --             ST_Intersection(raster, geometry).
 --             A variant taking a geometry and a value also exist.
 --
---   Aggregate function computing statistics on a series of intersected 
+--   Aggregate function computing statistics on a series of intersected
 --   values weighted by the area of the corresponding geometry.
 --
 -- Statictics computed are:
@@ -610,45 +610,45 @@ $$ LANGUAGE sql VOLATILE;
 --   - count          - Total number of values in the aggregate.
 --   - distinctcount  - Number of different values in the aggregate.
 --   - geom           - Geometric union of all the geometries involved in the aggregate.
---   - totalarea      - Total area of all the geometries involved in the aggregate (might 
---                      be greater than the area of the unioned geometry if there are 
+--   - totalarea      - Total area of all the geometries involved in the aggregate (might
+--                      be greater than the area of the unioned geometry if there are
 --                      overlapping geometries).
 --   - meanarea       - Mean area of the geometries involved in the aggregate.
 --   - totalperimeter - Total perimeter of all the geometries involved in the aggregate.
 --   - meanperimeter  - Mean perimeter of the geometries involved in the aggregate.
---   - weightedsum    - Sum of all the values involved in the aggregate multiplied by 
+--   - weightedsum    - Sum of all the values involved in the aggregate multiplied by
 --                      (weighted by) the area of each geometry.
 --   - weightedmean   - Weighted sum divided by the total area.
 --   - maxareavalue   - Value of the geometry having the greatest area.
 --   - minareavalue   - Value of the geometry having the smallest area.
---   - maxcombinedareavalue - Value of the geometry having the greatest area after 
+--   - maxcombinedareavalue - Value of the geometry having the greatest area after
 --                            geometries with the same value have been unioned.
---   - mincombinedareavalue - Value of the geometry having the smallest area after 
+--   - mincombinedareavalue - Value of the geometry having the smallest area after
 --                            geometries with the same value have been unioned.
 --   - sum            - Simple sum of all the values in the aggregate.
 --   - man            - Simple mean of all the values in the aggregate.
 --   - max            - Simple max of all the values in the aggregate.
 --   - min            - Simple min of all the values in the aggregate.
 --
--- This function aggregates the geometries and associated values when extracting values 
--- from one table with a table of polygons using ST_Intersection. It was specially 
--- written to be used with ST_Intersection(raster, geometry) which returns a set of 
--- (geometry, value) which have to be aggregated considering the relative importance 
--- of the area intersecting with each pixel of the raster. The function is provided 
--- only to avoid having to write the correct, often tricky, syntax to aggregate those 
+-- This function aggregates the geometries and associated values when extracting values
+-- from one table with a table of polygons using ST_Intersection. It was specially
+-- written to be used with ST_Intersection(raster, geometry) which returns a set of
+-- (geometry, value) which have to be aggregated considering the relative importance
+-- of the area intersecting with each pixel of the raster. The function is provided
+-- only to avoid having to write the correct, often tricky, syntax to aggregate those
 -- values.
 --
 -- Since ST_AreaWeightedSummaryStats is an aggregate, you always have to
--- add a GROUP BY clause to tell which column to use to group the polygons parts and 
+-- add a GROUP BY clause to tell which column to use to group the polygons parts and
 -- aggregate the corresponding values.
 --
--- Note that you will always get better performance by writing yourself the right code 
--- to aggregate any of the values computed by ST_AreaWeightedSummaryStats. But for 
--- relatively small datasets, it will often be faster to use this function than to try 
--- to write the proper code. 
--- 
--- Sometimes, for tricky reasons, the function might fail when it tries to recreate 
--- the original geometry by ST_Unioning the intersected parts. When ST_Union 
+-- Note that you will always get better performance by writing yourself the right code
+-- to aggregate any of the values computed by ST_AreaWeightedSummaryStats. But for
+-- relatively small datasets, it will often be faster to use this function than to try
+-- to write the proper code.
+--
+-- Sometimes, for tricky reasons, the function might fail when it tries to recreate
+-- the original geometry by ST_Unioning the intersected parts. When ST_Union
 -- fails, the whole ST_AreaWeightedSummaryStats function fails. If this happens, you will
 -- probably have to write your own aggregating code to avoid the unioning.
 --
@@ -658,22 +658,22 @@ $$ LANGUAGE sql VOLATILE;
 -- Self contained example:
 --
 -- SELECT id,
---        (aws).count, 
+--        (aws).count,
 --        (aws).distinctcount,
---        (aws).geom, 
---        (aws).totalarea, 
---        (aws).meanarea, 
---        (aws).totalperimeter, 
---        (aws).meanperimeter, 
---        (aws).weightedsum, 
---        (aws).weightedmean, 
---        (aws).maxareavalue, 
---        (aws).minareavalue, 
---        (aws).maxcombinedareavalue, 
---        (aws).mincombinedareavalue, 
---        (aws).sum, 
---        (aws).mean, 
---        (aws).max, 
+--        (aws).geom,
+--        (aws).totalarea,
+--        (aws).meanarea,
+--        (aws).totalperimeter,
+--        (aws).meanperimeter,
+--        (aws).weightedsum,
+--        (aws).weightedmean,
+--        (aws).maxareavalue,
+--        (aws).minareavalue,
+--        (aws).maxcombinedareavalue,
+--        (aws).mincombinedareavalue,
+--        (aws).sum,
+--        (aws).mean,
+--        (aws).max,
 --        (aws).min
 -- FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
 --       FROM (SELECT ST_GeomFromEWKT('POLYGON((0 0,0 10, 10 10, 10 0, 0 0))') as geom, 'a' as id, 100 as val
@@ -694,9 +694,9 @@ $$ LANGUAGE sql VOLATILE;
 -- Typical exemple:
 --
 -- SELECT gt.id,
---        (aws).geom, 
---        (aws).totalarea, 
---        (aws).weightedmean, 
+--        (aws).geom,
+--        (aws).totalarea,
+--        (aws).weightedmean,
 -- FROM (SELECT ST_AreaWeightedSummaryStats(gv) aws
 --       FROM (SELECT ST_Intersection(rt.rast, gt.geom) gv
 --             FROM rasttable rt, geomtable gt
@@ -723,11 +723,11 @@ CREATE TYPE agg_areaweightedstats AS (
     weightedmean double precision,
     maxareavalue double precision,
     minareavalue double precision,
-    maxcombinedareavalue double precision, 
-    mincombinedareavalue double precision, 
-    sum  double precision, 
-    mean double precision, 
-    max  double precision, 
+    maxcombinedareavalue double precision,
+    mincombinedareavalue double precision,
+    sum  double precision,
+    mean double precision,
+    max  double precision,
     min  double precision
 );
 
@@ -742,16 +742,16 @@ CREATE TYPE agg_areaweightedstatsstate AS (
     weightedsum  double precision,
     maxareavalue double precision[],
     minareavalue double precision[],
-    combinedweightedareas double precision[], 
-    sum double precision, 
-    max double precision, 
+    combinedweightedareas double precision[],
+    sum double precision,
+    max double precision,
     min double precision
 );
 
 -----------------------------------------------------------
 -- ST_AreaWeightedSummaryStats aggregate state function
 CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
-    aws agg_areaweightedstatsstate, 
+    aws agg_areaweightedstatsstate,
     gv geomval
 )
 RETURNS agg_areaweightedstatsstate  AS $$
@@ -763,14 +763,14 @@ RETURNS agg_areaweightedstatsstate  AS $$
         geomtype text := GeometryType(($2).geom);
     BEGIN
         -- If the geometry is a GEOMETRYCOLLECTION extract the polygon part
-        IF geomtype = 'GEOMETRYCOLLECTION' THEN 
+        IF geomtype = 'GEOMETRYCOLLECTION' THEN
             newgeom := ST_CollectionExtract(newgeom, 3);
         END IF;
         -- Skip anything that is not a polygon
-        IF newgeom IS NULL OR ST_IsEmpty(newgeom) OR geomtype = 'POINT' OR geomtype = 'LINESTRING' OR geomtype = 'MULTIPOINT' OR geomtype = 'MULTILINESTRING' THEN 
+        IF newgeom IS NULL OR ST_IsEmpty(newgeom) OR geomtype = 'POINT' OR geomtype = 'LINESTRING' OR geomtype = 'MULTIPOINT' OR geomtype = 'MULTILINESTRING' THEN
             ret := aws;
         -- At the first iteration the state parameter is always null
-        ELSEIF $1 IS NULL THEN 
+        ELSEIF $1 IS NULL THEN
             ret := (1,                                 -- count
                     ARRAY[($2).val],                   -- distinctvalues
                     newgeom,                           -- unionedgeom
@@ -786,9 +786,9 @@ RETURNS agg_areaweightedstatsstate  AS $$
                    )::agg_areaweightedstatsstate;
         ELSE
             -- Search for the new value in the array of distinct values
-            SELECT n 
-            FROM generate_series(1, array_length(($1).distinctvalues, 1)) n 
-            WHERE (($1).distinctvalues)[n] = ($2).val 
+            SELECT n
+            FROM generate_series(1, array_length(($1).distinctvalues, 1)) n
+            WHERE (($1).distinctvalues)[n] = ($2).val
             INTO i;
 
             -- If the value already exists, increment the corresponding area with the new area
@@ -797,24 +797,24 @@ RETURNS agg_areaweightedstatsstate  AS $$
             END IF;
             ret := (($1).count + 1,                                     -- count
                     CASE WHEN i IS NULL                                 -- distinctvalues
-                         THEN array_append(($1).distinctvalues, ($2).val) 
-                         ELSE ($1).distinctvalues 
-                    END, 
+                         THEN array_append(($1).distinctvalues, ($2).val)
+                         ELSE ($1).distinctvalues
+                    END,
                     ST_Union(($1).unionedgeom, newgeom),                -- unionedgeom
                     ($1).totalarea + ST_Area(newgeom),                  -- totalarea
                     ($1).totalperimeter + ST_Perimeter(newgeom),        -- totalperimeter
                     ($1).weightedsum + ($2).val * ST_Area(newgeom),     -- weightedsum
                     CASE WHEN ST_Area(newgeom) > (($1).maxareavalue)[1] -- maxareavalue
-                         THEN ARRAY[ST_Area(newgeom), ($2).val] 
+                         THEN ARRAY[ST_Area(newgeom), ($2).val]
                          ELSE ($1).maxareavalue
                     END,
                     CASE WHEN ST_Area(newgeom) < (($1).minareavalue)[1] -- minareavalue
-                         THEN ARRAY[ST_Area(newgeom), ($2).val] 
-                         ELSE ($1).minareavalue 
+                         THEN ARRAY[ST_Area(newgeom), ($2).val]
+                         ELSE ($1).minareavalue
                     END,
                     CASE WHEN i IS NULL                                 -- combinedweightedareas
-                         THEN array_append(($1).combinedweightedareas, ST_Area(newgeom)) 
-                         ELSE newcombinedweightedareas 
+                         THEN array_append(($1).combinedweightedareas, ST_Area(newgeom))
+                         ELSE newcombinedweightedareas
                     END,
                     ($1).sum + ($2).val,                                -- sum
                     greatest(($1).max, ($2).val),                       -- max
@@ -826,11 +826,11 @@ RETURNS agg_areaweightedstatsstate  AS $$
 $$ LANGUAGE plpgsql;
 
 -----------------------------------------------------------
--- _ST_AreaWeightedSummaryStats_StateFN state function variant taking a 
+-- _ST_AreaWeightedSummaryStats_StateFN state function variant taking a
 -- geometry and a value, converting them to a geomval
 CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
-    aws agg_areaweightedstatsstate, 
-    geom geometry, 
+    aws agg_areaweightedstatsstate,
+    geom geometry,
     val double precision
 )
 RETURNS agg_areaweightedstatsstate AS $$
@@ -838,10 +838,10 @@ RETURNS agg_areaweightedstatsstate AS $$
 $$ LANGUAGE sql;
 
 -----------------------------------------------------------
--- _ST_AreaWeightedSummaryStats_StateFN state function variant defaulting 
+-- _ST_AreaWeightedSummaryStats_StateFN state function variant defaulting
 -- the value to 1 and creating a geomval
 CREATE OR REPLACE FUNCTION _ST_AreaWeightedSummaryStats_StateFN(
-    aws agg_areaweightedstatsstate, 
+    aws agg_areaweightedstatsstate,
     geom geometry
 )
 RETURNS agg_areaweightedstatsstate AS $$
@@ -863,7 +863,7 @@ RETURNS agg_areaweightedstats AS $$
         ret agg_areaweightedstats;
     BEGIN
         -- Search for the max and the min areas in the array of all distinct values
-        FOR a IN SELECT n, (($1).combinedweightedareas)[n] warea 
+        FOR a IN SELECT n, (($1).combinedweightedareas)[n] warea
                  FROM generate_series(1, array_length(($1).combinedweightedareas, 1)) n LOOP
             IF a.warea > maxarea THEN
                 imax := a.n;
@@ -872,7 +872,7 @@ RETURNS agg_areaweightedstats AS $$
             IF a.warea < minarea THEN
                 imin := a.n;
                 minarea = a.warea;
-            END IF;    
+            END IF;
         END LOOP;
 
         ret := (($1).count,
@@ -889,7 +889,7 @@ RETURNS agg_areaweightedstats AS $$
                 (($1).distinctvalues)[imax],
                 (($1).distinctvalues)[imin],
                 ($1).sum,
-                ($1).sum / ($1).count, 
+                ($1).sum / ($1).count,
                 ($1).max,
                 ($1).min
                )::agg_areaweightedstats;
@@ -899,7 +899,7 @@ $$ LANGUAGE plpgsql;
 
 -----------------------------------------------------------
 -- ST_AreaWeightedSummaryStats aggregate definition
-CREATE AGGREGATE ST_AreaWeightedSummaryStats(geomval) 
+CREATE AGGREGATE ST_AreaWeightedSummaryStats(geomval)
 (
   SFUNC=_ST_AreaWeightedSummaryStats_StateFN,
   STYPE=agg_areaweightedstatsstate,
@@ -907,9 +907,9 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geomval)
 );
 
 -----------------------------------------------------------
--- ST_AreaWeightedSummaryStats aggregate variant taking a 
+-- ST_AreaWeightedSummaryStats aggregate variant taking a
 -- geometry and a value. Useful when used with two geometry tables.
-CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry, double precision) 
+CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry, double precision)
 (
   SFUNC=_ST_AreaWeightedSummaryStats_StateFN,
   STYPE=agg_areaweightedstatsstate,
@@ -917,7 +917,7 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry, double precision)
 );
 
 -----------------------------------------------------------
--- ST_AreaWeightedSummaryStats aggregate variant defaulting 
+-- ST_AreaWeightedSummaryStats aggregate variant defaulting
 -- the value to 1.
 -- Useful when querying for stat not involving the value like
 -- count, distinctcount, geom, totalarea, meanarea, totalperimeter
@@ -948,24 +948,24 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 -- Return a raster which values are extracted from a coverage using one spatial query for each pixel. It is
 -- VERY important that the coverage from which values are extracted is spatially indexed.
 --
--- Methods for computing the values can be grouped in two categories: 
--- 
+-- Methods for computing the values can be grouped in two categories:
+--
 -- Values extracted at the pixel centroid:
 --
---   - COUNT_OF_VALUES_AT_PIXEL_CENTROID: Number of features intersecting with the pixel centroid. 
+--   - COUNT_OF_VALUES_AT_PIXEL_CENTROID: Number of features intersecting with the pixel centroid.
 --                                        Greater than 1 when many geometries overlaps.
 --
---   - MEAN_OF_VALUES_AT_PIXEL_CENTROID: Average of all values intersecting with the pixel centroid. 
+--   - MEAN_OF_VALUES_AT_PIXEL_CENTROID: Average of all values intersecting with the pixel centroid.
 --                                       Many values are taken into account when many geometries overlaps.
 --
---   - COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID, 
---     FIRST_RASTER_VALUE_AT_PIXEL_CENTROID, 
---     MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID, 
+--   - COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID,
+--     FIRST_RASTER_VALUE_AT_PIXEL_CENTROID,
+--     MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID,
 --     MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID,
---     SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID, 
+--     SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID,
 --     MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID,
---     STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID and 
---     RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID 
+--     STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID and
+--     RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID
 --     are for the ST_GlobalRasterUnion() function. When those methods are used,
 --     geomrastcolumnname should be a column of type raster and valuecolumnname should be null.
 --
@@ -981,10 +981,10 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --
 --   - VALUE_OF_BIGGEST: Value associated with the polygon covering the biggest area in the pixel.
 --
---   - VALUE_OF_MERGED_BIGGEST: Value associated with the polygon covering the biggest area in the  
+--   - VALUE_OF_MERGED_BIGGEST: Value associated with the polygon covering the biggest area in the
 --                              pixel. Same value polygons are merged first.
 --
---   - VALUE_OF_MERGED_SMALLEST: Value associated with the polygon covering the smallest area in the  
+--   - VALUE_OF_MERGED_SMALLEST: Value associated with the polygon covering the smallest area in the
 --                               pixel. Same value polygons are merged first.
 --
 --   - MIN_AREA: Area of the geometry covering the smallest area in the pixel.
@@ -993,28 +993,28 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --
 --   - SUM_OF_LENGTHS: Sum of the lengths of all linestrings intersecting with the pixel.
 --
---   - PROPORTION_OF_COVERED_AREA: Proportion, between 0.0 and 1.0, of the pixel area covered by the 
+--   - PROPORTION_OF_COVERED_AREA: Proportion, between 0.0 and 1.0, of the pixel area covered by the
 --                                 conjunction of all the polygons intersecting with the pixel.
 --
 --   - AREA_WEIGHTED_MEAN_OF_VALUES: Mean of all polygon values weighted by the proportion of the area
 --                                   of the target polygon they cover.
---                                   The weighted sum is divided by the maximum between the 
---                                   area of the geometry and the sum of all the weighted geometry 
---                                   areas. i.e. If the geometry being processed is not entirely 
---                                   covered by other geometries, the value is multiplied by the 
+--                                   The weighted sum is divided by the maximum between the
+--                                   area of the geometry and the sum of all the weighted geometry
+--                                   areas. i.e. If the geometry being processed is not entirely
+--                                   covered by other geometries, the value is multiplied by the
 --                                   proportion of the covering area.
 --
 --   - AREA_WEIGHTED_MEAN_OF_VALUES_2: Mean of all polygon values weighted by the proportion of the area
 --                                     of the target polygon they cover.
---                                     The weighted sum is divided by the sum of all the weighted 
---                                     geometry areas. i.e. Even if a geometry is not entirely covered 
+--                                     The weighted sum is divided by the sum of all the weighted
+--                                     geometry areas. i.e. Even if a geometry is not entirely covered
 --                                     by other geometries, it gets the full weighted value.
 --
---   - AREA_WEIGHTED_SUM_OF_RASTER_VALUES, 
---     SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES, 
---     AREA_WEIGHTED_MEAN_OF_RASTER_VALUES and 
---     AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2 
---     are for the ST_GlobalRasterUnion() function. When those methods are used, 
+--   - AREA_WEIGHTED_SUM_OF_RASTER_VALUES,
+--     SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES,
+--     AREA_WEIGHTED_MEAN_OF_RASTER_VALUES and
+--     AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2
+--     are for the ST_GlobalRasterUnion() function. When those methods are used,
 --     geomrastcolumnname should be a column of type raster and valuecolumnname should be null.
 --
 -- Many more methods can be added over time. An almost exhaustive list of possible method can be find
@@ -1023,7 +1023,7 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 -- Self contained example:
 --
 -- We first create a table of geometries:
--- 
+--
 -- DROP TABLE IF EXISTS st_extracttoraster_example;
 -- CREATE TABLE st_extracttoraster_example AS
 -- SELECT 'a'::text id, 1 val, ST_GeomFromText('POLYGON((0 1, 10 2, 10 0, 0 1))') geom
@@ -1052,9 +1052,9 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --
 -- Typical example
 --
--- In the typical case the geometry table already exists and you already have 
--- a raster table that serve as a reference grid. You have to pass to 
--- ST_ExtractToRaster() an empty raster created from the reference grid to which 
+-- In the typical case the geometry table already exists and you already have
+-- a raster table that serve as a reference grid. You have to pass to
+-- ST_ExtractToRaster() an empty raster created from the reference grid to which
 -- you add a band having the proper pixel type for storing the desired value.
 --
 -- SELECT ST_ExtractToRaster(
@@ -1067,11 +1067,11 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 -----------------------------------------------------------
 -- Callback function computing a value for the pixel centroid
 CREATE OR REPLACE FUNCTION ST_ExtractPixelCentroidValue4ma(
-    pixel double precision[][][], 
-    pos int[][], 
+    pixel double precision[][][],
+    pos int[][],
     VARIADIC args text[]
 )
-RETURNS FLOAT AS $$ 
+RETURNS FLOAT AS $$
     DECLARE
         pixelgeom text;
         result float4;
@@ -1091,7 +1091,7 @@ RETURNS FLOAT AS $$
         -- args[12] = geometry or raster table geometry or raster column name
         -- args[13] = geometry table value column name
         -- args[14] = method
-        
+
         -- Reconstruct the pixel centroid
         pixelgeom = ST_AsText(
                       ST_Centroid(
@@ -1112,73 +1112,73 @@ RETURNS FLOAT AS $$
 
         -- Query the appropriate value
         IF args[14] = 'COUNT_OF_VALUES_AT_PIXEL_CENTROID' THEN
-            query = 'SELECT count(' || quote_ident(args[13]) || 
-                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
+            query = 'SELECT count(' || quote_ident(args[13]) ||
+                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                     quote_ident(args[12]) || ')';
-                    
+
         ELSEIF args[14] = 'MEAN_OF_VALUES_AT_PIXEL_CENTROID' THEN
-            query = 'SELECT avg(' || quote_ident(args[13]) || 
-                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
+            query = 'SELECT avg(' || quote_ident(args[13]) ||
+                    ') FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                     quote_ident(args[12]) || ')';
         ----------------------------------------------------------------
         -- Methods for the ST_GlobalRasterUnion() function
-        ---------------------------------------------------------------- 
+        ----------------------------------------------------------------
         ELSEIF args[14] = 'COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
-            query = 'SELECT count(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
-                    ', ' || args[9] || '))) 
-                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT count(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) ||
+                    ', ' || args[9] || ')))
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                     quote_ident(args[12]) || ')';
-                    
+
         ELSEIF args[14] = 'FIRST_RASTER_VALUE_AT_PIXEL_CENTROID' THEN
-            query = 'SELECT ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
-                    ', ' || args[9] || ')) 
-                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) ||
+                    ', ' || args[9] || '))
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                     quote_ident(args[12]) || ') LIMIT 1';
-                    
+
         ELSEIF args[14] = 'MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
-            query = 'SELECT min(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
-                    ', ' || args[9] || '))) 
-                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT min(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) ||
+                    ', ' || args[9] || ')))
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                     quote_ident(args[12]) || ')';
 
         ELSEIF args[14] = 'MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
-            query = 'SELECT max(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
-                    ', ' || args[9] || '))) 
-                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT max(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) ||
+                    ', ' || args[9] || ')))
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                     quote_ident(args[12]) || ')';
 
         ELSEIF args[14] = 'SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
-            query = 'SELECT sum(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
-                    ', ' || args[9] || '))) 
-                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT sum(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) ||
+                    ', ' || args[9] || ')))
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                     quote_ident(args[12]) || ')';
 
         ELSEIF args[14] = 'MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
-            query = 'SELECT avg(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
-                    ', ' || args[9] || '))) 
-                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT avg(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) ||
+                    ', ' || args[9] || ')))
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                     quote_ident(args[12]) || ')';
 
         ELSEIF args[14] = 'STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
-            query = 'SELECT stddev_pop(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
-                    ', ' || args[9] || '))) 
-                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+            query = 'SELECT stddev_pop(ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) ||
+                    ', ' || args[9] || ')))
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                     quote_ident(args[12]) || ')';
 
         ELSEIF args[14] = 'RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID' THEN
             query = 'SELECT max(val) - min(val)
-                     FROM (SELECT ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) || 
+                     FROM (SELECT ST_Value(' || quote_ident(args[12]) || ', ST_GeomFromText(' || quote_literal(pixelgeom) ||
                     ', ' || args[9] || ')) val
-                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
+                    FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
                     ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                     quote_ident(args[12]) || ')) foo';
 
@@ -1194,11 +1194,11 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -----------------------------------------------------------
 -- Callback function computing a value for the whole pixel shape
 CREATE OR REPLACE FUNCTION ST_ExtractPixelValue4ma(
-    pixel double precision[][][], 
-    pos int[][], 
+    pixel double precision[][][],
+    pos int[][],
     VARIADIC args text[]
 )
-RETURNS FLOAT AS $$ 
+RETURNS FLOAT AS $$
     DECLARE
         pixelgeom text;
         result float4;
@@ -1219,8 +1219,8 @@ RETURNS FLOAT AS $$
         -- args[13] = geometry table value column name
         -- args[14] = method
 
---RAISE NOTICE 'val = %', pixel[1][1][1];        
---RAISE NOTICE 'y = %, x = %', pos[0][1], pos[0][2];        
+--RAISE NOTICE 'val = %', pixel[1][1][1];
+--RAISE NOTICE 'y = %, x = %', pos[0][1], pos[0][2];
         -- Reconstruct the pixel square
     pixelgeom = ST_AsText(
                   ST_PixelAsPolygon(
@@ -1233,179 +1233,179 @@ RETURNS FLOAT AS $$
                                        args[7]::float,   -- raster skew x
                                        args[8]::float,   -- raster skew y
                                        args[9]::integer  -- raster SRID
-                                      ), 
+                                      ),
                                     pos[0][1]::integer, -- x coordinate of the current pixel
                                     pos[0][2]::integer  -- y coordinate of the current pixel
                                    ));
         -- Query the appropriate value
         IF args[14] = 'COUNT_OF_POLYGONS' THEN -- Number of polygons intersecting the pixel
-            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_Polygon'' OR 
-                             ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiPolygon'') AND 
-                            ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                            || quote_ident(args[12]) || ') AND 
-                            ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
+            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_Polygon'' OR
+                             ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiPolygon'') AND
+                            ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                            || quote_ident(args[12]) || ') AND
+                            ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                             quote_ident(args[12]) || ')) > 0.0000000001';
-                    
+
         ELSEIF args[14] = 'COUNT_OF_LINESTRINGS' THEN -- Number of linestring intersecting the pixel
-            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_LineString'' OR 
+            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_LineString'' OR
                              ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiLineString'') AND
-                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                             || quote_ident(args[12]) || ') AND 
-                             ST_Length(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' || 
+                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                             || quote_ident(args[12]) || ') AND
+                             ST_Length(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' ||
                              quote_ident(args[12]) || ')) > 0.0000000001';
-                    
+
         ELSEIF args[14] = 'COUNT_OF_POINTS' THEN -- Number of points intersecting the pixel
-            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_Point'' OR 
+            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE (ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_Point'' OR
                              ST_GeometryType(' || quote_ident(args[12]) || ') = ''ST_MultiPoint'') AND
-                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+                             ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
                              || quote_ident(args[12]) || ')';
-                    
+
         ELSEIF args[14] = 'COUNT_OF_GEOMETRIES' THEN -- Number of geometries intersecting the pixel
-            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+            query = 'SELECT count(*) FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
                     || quote_ident(args[12]) || ')';
-                    
+
         ELSEIF args[14] = 'VALUE_OF_BIGGEST' THEN -- Value of the geometry covering the biggest area in the pixel
-            query = 'SELECT ' || quote_ident(args[13]) || 
-                    ' val FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                    || quote_ident(args[12]) || 
-                    ') ORDER BY ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), 
-                                                        ' || quote_ident(args[12]) || 
+            query = 'SELECT ' || quote_ident(args[13]) ||
+                    ' val FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                    || quote_ident(args[12]) ||
+                    ') ORDER BY ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '),
+                                                        ' || quote_ident(args[12]) ||
                     ')) DESC, val DESC LIMIT 1';
 
         ELSEIF args[14] = 'VALUE_OF_MERGED_BIGGEST' THEN -- Value of the combined geometry covering the biggest area in the pixel
-            query = 'SELECT val FROM (SELECT ' || quote_ident(args[13]) || ' val, 
-                                            sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) 
+            query = 'SELECT val FROM (SELECT ' || quote_ident(args[13]) || ' val,
+                                            sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom)
                                             || ', '|| args[9] || '), ' || quote_ident(args[12]) ||
-                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                    || quote_ident(args[12]) || 
+                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                    || quote_ident(args[12]) ||
                     ') GROUP BY val) foo ORDER BY sumarea DESC, val DESC LIMIT 1';
 
         ELSEIF args[14] = 'MIN_AREA' THEN -- Area of the geometry covering the smallest area in the pixel
-            query = 'SELECT area FROM (SELECT ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' 
-                                                      || args[9] || '), ' || quote_ident(args[12]) || 
-                    ')) area FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                    || quote_ident(args[12]) || 
+            query = 'SELECT area FROM (SELECT ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '
+                                                      || args[9] || '), ' || quote_ident(args[12]) ||
+                    ')) area FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                    || quote_ident(args[12]) ||
                     ')) foo WHERE area > 0.0000000001 ORDER BY area LIMIT 1';
 
         ELSEIF args[14] = 'VALUE_OF_MERGED_SMALLEST' THEN -- Value of the combined geometry covering the biggest area in the pixel
-            query = 'SELECT val FROM (SELECT ' || quote_ident(args[13]) || ' val, 
+            query = 'SELECT val FROM (SELECT ' || quote_ident(args[13]) || ' val,
                                              sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '
                                              || args[9] || '), ' || quote_ident(args[12]) ||
-                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                    || quote_ident(args[12]) || 
-                    ') AND ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                                                                     || quote_ident(args[12]) || ')) > 0.0000000001 
+                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                    || quote_ident(args[12]) ||
+                    ') AND ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                                                                     || quote_ident(args[12]) || ')) > 0.0000000001
                       GROUP BY val) foo ORDER BY sumarea ASC, val DESC LIMIT 1';
 
         ELSEIF args[14] = 'SUM_OF_AREAS' THEN -- Sum of areas intersecting with the pixel (no matter the value)
-            query = 'SELECT sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+            query = 'SELECT sum(ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
                                                                           || quote_ident(args[12]) ||
-                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                    || quote_ident(args[12]) || 
+                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                    || quote_ident(args[12]) ||
                     ')';
 
         ELSEIF args[14] = 'SUM_OF_LENGTHS' THEN -- Sum of lengths intersecting with the pixel (no matter the value)
-            query = 'SELECT sum(ST_Length(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+            query = 'SELECT sum(ST_Length(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
                                                                           || quote_ident(args[12]) ||
-                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                    || quote_ident(args[12]) || 
+                    '))) sumarea FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                    || quote_ident(args[12]) ||
                     ')';
 
         ELSEIF args[14] = 'PROPORTION_OF_COVERED_AREA' THEN -- Proportion of the pixel covered by polygons (no matter the value)
-            query = 'SELECT ST_Area(ST_Union(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
+            query = 'SELECT ST_Area(ST_Union(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
                                                                                || quote_ident(args[12]) ||
-                    ')))/ST_Area(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || ')) sumarea 
-                     FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                    || quote_ident(args[12]) || 
+                    ')))/ST_Area(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || ')) sumarea
+                     FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                    ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                    || quote_ident(args[12]) ||
                     ')';
 
         ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_VALUES' THEN -- Mean of every geometry weighted by the area they cover
-            query = 'SELECT CASE 
-                              WHEN sum(area) = 0 THEN 0 
-                              ELSE sum(area * val) / 
-                                   greatest(sum(area), 
+            query = 'SELECT CASE
+                              WHEN sum(area) = 0 THEN 0
+                              ELSE sum(area * val) /
+                                   greatest(sum(area),
                                             ST_Area(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '))
                                            )
-                            END 
-                     FROM (SELECT ' || quote_ident(args[13]) || ' val, 
-                                 ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                                                         || quote_ident(args[12]) || ')) area 
-                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                         || quote_ident(args[12]) || 
+                            END
+                     FROM (SELECT ' || quote_ident(args[13]) || ' val,
+                                 ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                                                         || quote_ident(args[12]) || ')) area
+                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                         || quote_ident(args[12]) ||
                     ')) foo';
-      
+
         ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_VALUES_2' THEN -- Mean of every geometry weighted by the area they cover
-            query = 'SELECT CASE 
-                              WHEN sum(area) = 0 THEN 0 
+            query = 'SELECT CASE
+                              WHEN sum(area) = 0 THEN 0
                               ELSE sum(area * val) / sum(area)
-                            END 
-                     FROM (SELECT ' || quote_ident(args[13]) || ' val, 
-                                 ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                                                         || quote_ident(args[12]) || ')) area 
-                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                         || quote_ident(args[12]) || 
+                            END
+                     FROM (SELECT ' || quote_ident(args[13]) || ' val,
+                                 ST_Area(ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                                                         || quote_ident(args[12]) || ')) area
+                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                         || quote_ident(args[12]) ||
                     ')) foo';
-        ---------------------------------------------------------------- 
+        ----------------------------------------------------------------
         -- Methods for the ST_GlobalRasterUnion() function
-        ---------------------------------------------------------------- 
+        ----------------------------------------------------------------
         ELSEIF args[14] = 'AREA_WEIGHTED_SUM_OF_RASTER_VALUES' THEN -- Sum of every pixel value weighted by the area they cover
             query = 'SELECT sum(ST_Area((gv).geom) * (gv).val)
-                     FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' || 
-                                                                   args[9] || '), ' || quote_ident(args[12]) || ') gv 
-                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                         || quote_ident(args[12]) || 
+                     FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' ||
+                                                                   args[9] || '), ' || quote_ident(args[12]) || ') gv
+                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                         || quote_ident(args[12]) ||
                     ')) foo';
 
         ELSEIF args[14] = 'SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES' THEN -- Sum of the proportion of pixel values intersecting with the pixel
             query = 'SELECT sum(ST_Area((gv).geom) * (gv).val / geomarea)
-                     FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' || 
+                     FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' ||
                                                                   args[9] || '), ' || quote_ident(args[12]) || ') gv, abs(ST_ScaleX(' || quote_ident(args[12]) || ') * ST_ScaleY(' || quote_ident(args[12]) || ')) geomarea
-                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                         || quote_ident(args[12]) || 
+                           FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                         ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                         || quote_ident(args[12]) ||
                     ')) foo1';
-                    
+
         ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES' THEN -- Mean of every pixel value weighted by the maximum area they cover
-            query = 'SELECT CASE 
-                              WHEN sum(area) = 0 THEN NULL 
-                              ELSE sum(area * val) / 
-                                   greatest(sum(area), 
+            query = 'SELECT CASE
+                              WHEN sum(area) = 0 THEN NULL
+                              ELSE sum(area * val) /
+                                   greatest(sum(area),
                                             ST_Area(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '))
-                                           ) 
-                            END 
+                                           )
+                            END
                      FROM (SELECT ST_Area((gv).geom) area, (gv).val val
-                           FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' || 
-                                                                        args[9] || '), ' || quote_ident(args[12]) || ') gv 
-                                 FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                               ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                         || quote_ident(args[12]) || 
+                           FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' ||
+                                                                        args[9] || '), ' || quote_ident(args[12]) || ') gv
+                                 FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                               ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                         || quote_ident(args[12]) ||
                     ')) foo1) foo2';
 
         ELSEIF args[14] = 'AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2' THEN -- Mean of every pixel value weighted by the area they cover
-            query = 'SELECT CASE 
-                              WHEN sum(area) = 0 THEN NULL 
+            query = 'SELECT CASE
+                              WHEN sum(area) = 0 THEN NULL
                               ELSE sum(area * val) / sum(area)
-                            END 
+                            END
                      FROM (SELECT ST_Area((gv).geom) area, (gv).val val
-                           FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' || 
-                                                                        args[9] || '), ' || quote_ident(args[12]) || ') gv 
-                                 FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) || 
-                               ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), ' 
-                         || quote_ident(args[12]) || 
+                           FROM (SELECT ST_Intersection(ST_GeomFromText(' || quote_literal(pixelgeom) || ', ' ||
+                                                                        args[9] || '), ' || quote_ident(args[12]) || ') gv
+                                 FROM ' || quote_ident(args[10]) || '.' || quote_ident(args[11]) ||
+                               ' WHERE ST_Intersects(ST_GeomFromText(' || quote_literal(pixelgeom) || ', '|| args[9] || '), '
+                         || quote_ident(args[12]) ||
                     ')) foo1) foo2';
 
         ELSE
@@ -1414,21 +1414,21 @@ RETURNS FLOAT AS $$
 --RAISE NOTICE 'query = %', query;
         EXECUTE query INTO result;
         RETURN result;
-    END; 
+    END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
 -----------------------------------------------------------
 -- Main ST_ExtractToRaster function
 CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
-    rast raster, 
-    band integer, 
-    schemaname name, 
-    tablename name, 
-    geomrastcolumnname name, 
-    valuecolumnname name, 
+    rast raster,
+    band integer,
+    schemaname name,
+    tablename name,
+    geomrastcolumnname name,
+    valuecolumnname name,
     method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
 )
-RETURNS raster AS $$ 
+RETURNS raster AS $$
     DECLARE
         query text;
         newrast raster;
@@ -1448,7 +1448,7 @@ RETURNS raster AS $$
         ELSE
             newvaluecolumnname = quote_literal(valuecolumnname);
         END IF;
-        
+
         query = 'SELECT count(*) FROM "' || schemaname || '"."' || tablename || '" WHERE ST_Intersects($1, ' || geomrastcolumnname || ')';
 
         EXECUTE query INTO intcount USING rast;
@@ -1464,9 +1464,9 @@ RETURNS raster AS $$
             END IF;
         END IF;
 
-        query = 'SELECT ST_MapAlgebra($1, 
-                                      $2, 
-                                      ''' || fct2call || '(double precision[], integer[], text[])''::regprocedure, 
+        query = 'SELECT ST_MapAlgebra($1,
+                                      $2,
+                                      ''' || fct2call || '(double precision[], integer[], text[])''::regprocedure,
                                       ST_BandPixelType($1, $2),
                                       null,
                                       null,
@@ -1480,7 +1480,7 @@ RETURNS raster AS $$
                                       ST_ScaleY($1)::text,
                                       ST_SkewX($1)::text,
                                       ST_SkewY($1)::text,
-                                      ST_SRID($1)::text,' || 
+                                      ST_SRID($1)::text,' ||
                                       quote_literal(schemaname) || ', ' ||
                                       quote_literal(tablename) || ', ' ||
                                       quote_literal(geomrastcolumnname) || ', ' ||
@@ -1496,11 +1496,11 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 ---------------------------------------------------------------------
 -- ST_ExtractToRaster variant defaulting band number to 1
 CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
-    rast raster, 
-    schemaname name, 
-    tablename name, 
-    geomcolumnname name, 
-    valuecolumnname name, 
+    rast raster,
+    schemaname name,
+    tablename name,
+    geomcolumnname name,
+    valuecolumnname name,
     method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
 )
 RETURNS raster AS $$
@@ -1512,9 +1512,9 @@ $$ LANGUAGE sql;
 CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
     rast raster,
     band integer,
-    schemaname name, 
-    tablename name, 
-    geomcolumnname name, 
+    schemaname name,
+    tablename name,
+    geomcolumnname name,
     method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
 )
 RETURNS raster AS $$
@@ -1525,9 +1525,9 @@ $$ LANGUAGE sql;
 -- ST_ExtractToRaster variant defaulting band number to 1 and valuecolumnname to null
 CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
     rast raster,
-    schemaname name, 
-    tablename name, 
-    geomcolumnname name, 
+    schemaname name,
+    tablename name,
+    geomcolumnname name,
     method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
 )
 RETURNS raster AS $$
@@ -1542,7 +1542,7 @@ $$ LANGUAGE sql;
 --   schemaname text       - Name of the schema containing the table from which to union rasters.
 --   tablename text        - Name of the table from which to union rasters.
 --   rastercolumnname text - Name of the column containing the raster to union.
---   pixeltype             - Pixel type of the new raster. Can be: 1BB, 2BUI, 4BUI, 8BSI, 8BUI, 
+--   pixeltype             - Pixel type of the new raster. Can be: 1BB, 2BUI, 4BUI, 8BSI, 8BUI,
 --                           16BSI, 16BUI, 32BSI, 32BUI, 32BF, 64BF
 --   nodataval             - Nodata value of the new raster.
 --
@@ -1550,62 +1550,62 @@ $$ LANGUAGE sql;
 --
 -- Returns a raster being the union of all raster of a raster table.
 --
--- The source raster table should be tiled and indexed for optimal performance. 
+-- The source raster table should be tiled and indexed for optimal performance.
 -- Smaller tile sizes generally give better performance.
 --
 -- Differs from ST_Union in many ways:
--- 
---  - Takes the names of a schema, a table and a raster column instead of rasters 
---    themselves. That means the function works on a whole table and can not be used 
---    on a selection or a group of rasters (unless you build a view on the table and 
+--
+--  - Takes the names of a schema, a table and a raster column instead of rasters
+--    themselves. That means the function works on a whole table and can not be used
+--    on a selection or a group of rasters (unless you build a view on the table and
 --    you pass the name of the view in place of the name of the table).
 --
 --  - Works with unaligned rasters. The extent of the resulting raster is computed
---    from the global extent of the table and the pixel size is the minimum of all 
+--    from the global extent of the table and the pixel size is the minimum of all
 --    pixel sizes of the rasters in the table.
 --
---  - Offers more methods for computing the value of each pixel. More can be 
---    easily implemented in the ST_ExtractPixelCentroidValue4ma and 
+--  - Offers more methods for computing the value of each pixel. More can be
+--    easily implemented in the ST_ExtractPixelCentroidValue4ma and
 --    ST_ExtractPixelValue4ma functions.
 --
---  - Because methods are implemented in PL/pgSQL and involve a SQL query for 
---    each pixel, ST_GlobalUnionToRaster will generally be way slower than 
---    ST_Union. It is however more flexible, allows more value determination 
---    methods and even might be faster on big coverages because it does not 
---    require internal memory copy of progressively bigger and bigger raster 
+--  - Because methods are implemented in PL/pgSQL and involve a SQL query for
+--    each pixel, ST_GlobalUnionToRaster will generally be way slower than
+--    ST_Union. It is however more flexible, allows more value determination
+--    methods and even might be faster on big coverages because it does not
+--    require internal memory copy of progressively bigger and bigger raster
 --    pieces.
 --
--- When pixeltype is null, it is assumed to be identical for all rasters. If not, 
--- the maximum of all pixel type stings is used. In some cases, this might not 
+-- When pixeltype is null, it is assumed to be identical for all rasters. If not,
+-- the maximum of all pixel type stings is used. In some cases, this might not
 -- make sense at all... e.g. Most rasters are 32BUI, one is 8BUI and 8BUI is used.
 --
--- When nodataval is null, nodata value is assumed to be identical for all rasters. 
+-- When nodataval is null, nodata value is assumed to be identical for all rasters.
 -- If not, the minimum of all raster nodata value is used.
 --
 -- For now, those methods are implemented:
 --
---   - COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Number of non null raster value intersecting with the 
+--   - COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Number of non null raster value intersecting with the
 --                                               pixel centroid.
 --
---   - FIRST_RASTER_VALUE_AT_PIXEL_CENTROID: First raster value intersecting with the 
+--   - FIRST_RASTER_VALUE_AT_PIXEL_CENTROID: First raster value intersecting with the
 --                                           pixel centroid. This is the default.
 --
---   - MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Minimum of all raster values intersecting with the 
+--   - MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Minimum of all raster values intersecting with the
 --                                             pixel centroid.
 --
---   - MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Maximum of all raster values intersecting with the 
+--   - MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Maximum of all raster values intersecting with the
 --                                             pixel centroid.
 --
---   - SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Sum of all raster values intersecting with the 
+--   - SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Sum of all raster values intersecting with the
 --                                             pixel centroid.
 --
---   - MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Average of all raster values intersecting 
+--   - MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Average of all raster values intersecting
 --                                              with the pixel centroid.
 --
---   - STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Population standard deviation of all raster 
+--   - STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Population standard deviation of all raster
 --                                                 values intersecting with the pixel centroid.
 --
---   - RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Range (maximun - minimum) of raster values 
+--   - RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Range (maximun - minimum) of raster values
 --                                               intersecting with the pixel centroid.
 --
 --   - For the next methods, let's say that 2 pixels are intersecting with the target pixel and that:
@@ -1615,34 +1615,34 @@ $$ LANGUAGE sql;
 --         - ta is the area of the target pixel,
 --         - x is the value assigned to the target pixel.
 --
---   - AREA_WEIGHTED_SUM_OF_RASTER_VALUES: Sum of all source pixel values weighted by the proportion of 
+--   - AREA_WEIGHTED_SUM_OF_RASTER_VALUES: Sum of all source pixel values weighted by the proportion of
 --                                         the target pixel they cover.
 --                                         This is the first part of the area weighted mean.
 --                                         x = ia1 * v1 + ia2 * v2
 --
---   - SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES: Sum of all pixel values weighted by the proportion of their 
+--   - SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES: Sum of all pixel values weighted by the proportion of their
 --                                             intersecting parts with the source pixel.
 --                                             x = (ia1 * v1)/sa1 + (ia2 * v2)/sa2
 --
---   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES: Mean of all source pixel values weighted by the proportion of 
---                                          the target pixel they cover. 
---                                          The weighted sum is divided by the maximum between the 
---                                          area of the pixel and the sum of all the weighted pixel 
---                                          areas. i.e. Target pixels at the edge of the source rasters   
+--   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES: Mean of all source pixel values weighted by the proportion of
+--                                          the target pixel they cover.
+--                                          The weighted sum is divided by the maximum between the
+--                                          area of the pixel and the sum of all the weighted pixel
+--                                          areas. i.e. Target pixels at the edge of the source rasters
 --                                          global extent are weighted by the proportion of the covering area.
 --                                          x = (ia1 * v1 + ia2 * v2)/max(ia1 + ia2, ta)
---                                          
---   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2: Mean of all source pixel values weighted by the proportion of 
---                                            the target pixel they cover. 
---                                            The weighted sum is divided by the sum of all the weighted 
---                                            pixel areas. i.e. Target pixels at the edge of the source rasters   
+--
+--   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2: Mean of all source pixel values weighted by the proportion of
+--                                            the target pixel they cover.
+--                                            The weighted sum is divided by the sum of all the weighted
+--                                            pixel areas. i.e. Target pixels at the edge of the source rasters
 --                                            global extent take the full weight of their area.
 --                                            x = (ia1 * v1 + ia2 * v2)/(ia1 + ia2)
---                                              
+--
 -- Self contained and typical example:
 --
 -- We first create a table of geometries:
--- 
+--
 -- DROP TABLE IF EXISTS test_globalrasterunion;
 -- CREATE TABLE test_globalrasterunion AS
 -- SELECT ST_CreateIndexRaster(ST_MakeEmptyRaster(5, 5, 0, 0, 1, 1, 0, 0), '8BUI') rast
@@ -1664,14 +1664,14 @@ $$ LANGUAGE sql;
 -- 10/07/2013 added in v1.11
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_GlobalRasterUnion(
-    schemaname name, 
-    tablename name, 
+    schemaname name,
+    tablename name,
     rastercolumnname name,
     method text DEFAULT 'FIRST_RASTER_VALUE_AT_PIXEL_CENTROID',
     pixeltype text DEFAULT null,
     nodataval double precision DEFAULT null
 )
-RETURNS raster AS $$ 
+RETURNS raster AS $$
     DECLARE
         query text;
         newrast raster;
@@ -1694,9 +1694,9 @@ RETURNS raster AS $$
         ELSE
             nodatavaltxt = nodataval;
         END IF;
-        query = 'SELECT ST_MapAlgebra(rast, 
+        query = 'SELECT ST_MapAlgebra(rast,
                                       1,
-                                      ''' || fct2call || '(double precision[], integer[], text[])''::regprocedure, 
+                                      ''' || fct2call || '(double precision[], integer[], text[])''::regprocedure,
                                       ST_BandPixelType(rast, 1),
                                       null,
                                       null,
@@ -1710,14 +1710,14 @@ RETURNS raster AS $$
                                       ST_ScaleY(rast)::text,
                                       ST_SkewX(rast)::text,
                                       ST_SkewY(rast)::text,
-                                      ST_SRID(rast)::text,' || 
+                                      ST_SRID(rast)::text,' ||
                                       quote_literal(schemaname) || ', ' ||
                                       quote_literal(tablename) || ', ' ||
-                                      quote_literal(rastercolumnname) || ', 
+                                      quote_literal(rastercolumnname) || ',
                                       null' || ', ' ||
                                       quote_literal(upper(method)) || '
                                      ) rast
-                 FROM (SELECT ST_AsRaster(ST_Union(rast::geometry), 
+                 FROM (SELECT ST_AsRaster(ST_Union(rast::geometry),
                                           min(scalex),
                                           min(scaley),
                                           min(gridx),
@@ -1727,18 +1727,18 @@ RETURNS raster AS $$
                                           min(nodataval)
                                          ) rast
                        FROM (SELECT ' || quote_ident(rastercolumnname) || ' rast,
-                                    ST_ScaleX(' || quote_ident(rastercolumnname) || ') scalex, 
-                                    ST_ScaleY(' || quote_ident(rastercolumnname) || ') scaley, 
-                                    ST_UpperLeftX(' || quote_ident(rastercolumnname) || ') gridx, 
-                                    ST_UpperLeftY(' || quote_ident(rastercolumnname) || ') gridy, 
-                                    ' || pixeltypetxt || ' pixeltype, 
+                                    ST_ScaleX(' || quote_ident(rastercolumnname) || ') scalex,
+                                    ST_ScaleY(' || quote_ident(rastercolumnname) || ') scaley,
+                                    ST_UpperLeftX(' || quote_ident(rastercolumnname) || ') gridx,
+                                    ST_UpperLeftY(' || quote_ident(rastercolumnname) || ') gridy,
+                                    ' || pixeltypetxt || ' pixeltype,
                                     ' || nodatavaltxt || ' nodataval
-                             FROM ' || quote_ident(schemaname) || '.' || quote_ident(tablename) || ' 
+                             FROM ' || quote_ident(schemaname) || '.' || quote_ident(tablename) || '
                             ) foo1
                       ) foo2';
         EXECUTE query INTO newrast;
         RETURN newrast;
-    END; 
+    END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 -------------------------------------------------------------------------------
 
@@ -1746,16 +1746,16 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- ST_BufferedUnion
 --
 --   geom geometry            - Set of geometry to union.
---   bufsize double precision - Radius of the buffer to add to every geometry 
+--   bufsize double precision - Radius of the buffer to add to every geometry
 --                              before union (and to remove after).
 --
 -- RETURNS geometry
 --
--- Aggregate function alternative to ST_Union making a buffer around 
--- each geometry before unioning and removing it afterward. Used 
--- when ST_Union leaves internal undesirable vertexes after a complex 
--- union (which is sometimes the case when unioning all the extents of 
--- a raster coverage loaded with raster2pgsql), when ST_Union fails or 
+-- Aggregate function alternative to ST_Union making a buffer around
+-- each geometry before unioning and removing it afterward. Used
+-- when ST_Union leaves internal undesirable vertexes after a complex
+-- union (which is sometimes the case when unioning all the extents of
+-- a raster coverage loaded with raster2pgsql), when ST_Union fails or
 -- when remaining holes have to be removed from the resulting union.
 --
 -- ST_BufferedUnion is slower than ST_Union but the result is often cleaner
@@ -1763,7 +1763,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 --
 -- Self contained example (to be compared with the result of ST_Union):
 --
--- SELECT ST_BufferedUnion(geom, 0.0005) 
+-- SELECT ST_BufferedUnion(geom, 0.0005)
 -- FROM (SELECT 1 id, 'POLYGON((0 0,10 0,10 -9.9999,0 -10,0 0))'::geometry geom
 --       UNION ALL
 --       SELECT 2 id, 'POLYGON((10 0,20 0,20 -9.9999,10 -10,10 0))'::geometry
@@ -1774,7 +1774,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 --      ) foo
 --
 -- Typical example:
--- 
+--
 -- SELECT ST_BufferedUnion(rast::geometry) geom
 -- FROM rastertable
 --
@@ -1784,22 +1784,22 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -----------------------------------------------------------
 -- ST_BufferedUnion aggregate state function
 CREATE OR REPLACE FUNCTION _ST_BufferedUnion_StateFN(
-    gv geomval, 
-    geom geometry, 
+    gv geomval,
+    geom geometry,
     bufsize double precision DEFAULT 0.0
 )
 RETURNS geomval AS $$
     SELECT CASE WHEN $1 IS NULL AND $2 IS NULL THEN
                     null
-                WHEN $1 IS NULL THEN 
-                    (ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre'), 
+                WHEN $1 IS NULL THEN
+                    (ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre'),
                      CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END
                     )::geomval
                 WHEN $2 IS NULL THEN
                     $1
-                ELSE (ST_Union(($1).geom, 
+                ELSE (ST_Union(($1).geom,
                            ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre')
-                          ), 
+                          ),
                   ($1).val
                  )::geomval
        END;
@@ -1834,15 +1834,15 @@ CREATE AGGREGATE ST_BufferedUnion(geometry, double precision)
 -- RETURNS set of geometry
 --
 -- Returns the 'nbrings' biggest exterior rings of the provided geometry. Biggest
--- can be defined in terms of the area of the ring (AREA) or in terms of the 
+-- can be defined in terms of the area of the ring (AREA) or in terms of the
 -- total number of vertexes in the ring (NBPOINT).
 --
 -- Self contained example:
 --
 -- SELECT ST_NBiggestExteriorRings(
---          ST_GeomFromText('MULTIPOLYGON( ((0 0, 0 5, 0 10, 8 10, 8 0, 0 0)), 
---                                         ((20 0, 20 5, 20 10, 30 10, 30 0, 20 0)), 
---                                         ((40 0, 40 10, 52 10, 52 0, 40 0)) )'), 
+--          ST_GeomFromText('MULTIPOLYGON( ((0 0, 0 5, 0 10, 8 10, 8 0, 0 0)),
+--                                         ((20 0, 20 5, 20 10, 30 10, 30 0, 20 0)),
+--                                         ((40 0, 40 10, 52 10, 52 0, 40 0)) )'),
 --          2, 'NBPOINTS') geom
 --
 -- Typical example:
@@ -1854,20 +1854,20 @@ CREATE AGGREGATE ST_BufferedUnion(geometry, double precision)
 -- 10/18/2013 added in v1.13
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_NBiggestExteriorRings(
-    ingeom geometry, 
-    nbrings integer, 
+    ingeom geometry,
+    nbrings integer,
     comptype text DEFAULT 'AREA'
 )
 RETURNS SETOF geometry AS $$
     DECLARE
     BEGIN
     IF upper(comptype) = 'AREA' THEN
-        RETURN QUERY SELECT ring 
+        RETURN QUERY SELECT ring
                      FROM (SELECT ST_MakePolygon(ST_ExteriorRing((ST_Dump(ingeom)).geom)) ring
                           ) foo
                      ORDER BY ST_Area(ring) DESC LIMIT nbrings;
     ELSIF upper(comptype) = 'NBPOINTS' THEN
-        RETURN QUERY SELECT ring 
+        RETURN QUERY SELECT ring
                      FROM (SELECT ST_MakePolygon(ST_ExteriorRing((ST_Dump(ingeom)).geom)) ring
                           ) foo
                      ORDER BY ST_NPoints(ring) DESC LIMIT nbrings;
@@ -1883,20 +1883,20 @@ $$ LANGUAGE plpgsql;
 -- ST_BufferedSmooth
 --
 --   geom geometry            - Geometry to smooth.
---   bufsize double precision - Radius of the buffer to add and remove to every 
+--   bufsize double precision - Radius of the buffer to add and remove to every
 --                              geometry.
 --
 -- RETURNS geometry
 --
--- Returns a smoothed version fo the geometry. The smoothing is done by 
+-- Returns a smoothed version fo the geometry. The smoothing is done by
 -- making a buffer around the geometry and removing it afterward.
 --
--- Note that topology will not be preserved if this function is applied on a 
+-- Note that topology will not be preserved if this function is applied on a
 -- topological set of geometries.
 --
 -- Self contained example:
 --
--- SELECT ST_BufferedSmooth(ST_GeomFromText('POLYGON((-2 1, -5 5, -1 2, 0 5, 1 2, 
+-- SELECT ST_BufferedSmooth(ST_GeomFromText('POLYGON((-2 1, -5 5, -1 2, 0 5, 1 2,
 -- 5 5, 2 1, 5 0, 2 -1, 5 -5, 1 -2, 0 -5, -1 -2, -5 -5, -2 -1, -5 0, -2 1))'), 1)
 --
 -- Typical example:
@@ -1908,7 +1908,7 @@ $$ LANGUAGE plpgsql;
 -- 10/18/2013 added in v1.13
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_BufferedSmooth(
-    geom geometry, 
+    geom geometry,
     bufsize double precision DEFAULT 0
 )
 RETURNS geometry AS $$
@@ -1928,7 +1928,7 @@ $$ LANGUAGE sql IMMUTABLE;
 -- Returns the first geometry after having removed all the subsequent geometries in
 -- the aggregate. This function is used to remove overlaps in a table of polygons.
 --
--- Refer to the self contained example below. Each geometry MUST have a unique ID 
+-- Refer to the self contained example below. Each geometry MUST have a unique ID
 -- and, if the table contains a huge number of geometries, it should be indexed.
 --
 -- Self contained and typical example removing, from every geometry, all
@@ -1946,14 +1946,14 @@ $$ LANGUAGE sql IMMUTABLE;
 --   SELECT 5 id, ST_GeomFromText('POLYGON((3 1, 5.4 2, 6 0, 3 1))')
 -- )
 -- SELECT a.id, ST_DifferenceAgg(a.geom, b.geom) geom
--- FROM overlappingtable a, 
+-- FROM overlappingtable a,
 --      overlappingtable b
--- WHERE a.id = b.id OR 
---       ((ST_Contains(a.geom, b.geom) OR 
---         ST_Contains(b.geom, a.geom) OR 
---         ST_Overlaps(a.geom, b.geom)) AND 
---        (ST_Area(a.geom) < ST_Area(b.geom) OR 
---         (ST_Area(a.geom) = ST_Area(b.geom) AND 
+-- WHERE a.id = b.id OR
+--       ((ST_Contains(a.geom, b.geom) OR
+--         ST_Contains(b.geom, a.geom) OR
+--         ST_Overlaps(a.geom, b.geom)) AND
+--        (ST_Area(a.geom) < ST_Area(b.geom) OR
+--         (ST_Area(a.geom) = ST_Area(b.geom) AND
 --          a.id < b.id)))
 -- GROUP BY a.id
 -- HAVING ST_Area(ST_DifferenceAgg(a.geom, b.geom)) > 0.00001 AND NOT ST_IsEmpty(ST_DifferenceAgg(a.geom, b.geom));
@@ -1961,19 +1961,19 @@ $$ LANGUAGE sql IMMUTABLE;
 -- The HAVING clause of the query makes sure that very small and empty remains not included in the result.
 --
 --
--- In some cases you may want to use the polygons ids instead of the 
+-- In some cases you may want to use the polygons ids instead of the
 -- polygons areas to decide which one is removed from the other one.
--- You first have to ensure ids are unique for this to work. In that  
+-- You first have to ensure ids are unique for this to work. In that
 -- case you would simply replace:
 --
---     ST_Area(a.geom) < ST_Area(b.geom) OR 
+--     ST_Area(a.geom) < ST_Area(b.geom) OR
 --     (ST_Area(a.geom) = ST_Area(b.geom) AND a.id < b.id)
 --
 -- with:
 --
 --     a.id < b.id
 --
--- to cut all the polygons with greatest ids from the polygons with 
+-- to cut all the polygons with greatest ids from the polygons with
 -- smallest ids.
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
@@ -1981,8 +1981,8 @@ $$ LANGUAGE sql IMMUTABLE;
 -----------------------------------------------------------
 -- ST_DifferenceAgg aggregate state function
 CREATE OR REPLACE FUNCTION _ST_DifferenceAgg_StateFN(
-    geom1 geomval, 
-    geom2 geometry, 
+    geom1 geomval,
+    geom2 geometry,
     geom3 geometry
 )
 RETURNS geomval AS $$
@@ -1993,8 +1993,8 @@ RETURNS geomval AS $$
     BEGIN
         -- First pass: geom1 is null
         IF geom1 IS NULL AND NOT ST_IsEmpty(geom2) AND ST_Area(geom3) > 0.0000001 THEN
-            newgeom = CASE 
-                        WHEN ST_Equals(geom2, geom3) THEN (geom2, 1) 
+            newgeom = CASE
+                        WHEN ST_Equals(geom2, geom3) THEN (geom2, 1)
                         ELSE (ST_Difference(geom2, geom3), 0)
                       END;
         ELSIF NOT ST_IsEmpty((geom1).geom) AND ST_Area(geom3) > 0.0000001 THEN
@@ -2017,7 +2017,7 @@ RETURNS geomval AS $$
                     END;
                 END;
             END IF;
-            newgeom = CASE 
+            newgeom = CASE
                         WHEN equals AND (geom1).val = 0 THEN ((geom1).geom, 1)
                         ELSE (differ, (geom1).val)
                       END;
@@ -2039,8 +2039,8 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -----------------------------------------------------------
 -- ST_DifferenceAgg aggregate final function
 CREATE OR REPLACE FUNCTION _ST_DifferenceAgg_FinalFN(gv geomval)
-  RETURNS geometry AS $$ 
-    SELECT ($1).geom 
+  RETURNS geometry AS $$
+    SELECT ($1).geom
 $$ LANGUAGE sql VOLATILE STRICT;
 -----------------------------------------------------------
 -- ST_DifferenceAgg aggregate
@@ -2055,14 +2055,14 @@ CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry) (
 -- ST_TrimMulti
 --
 --   geom geometry - Multipolygon or geometry collection to trim.
---   minarea double precision - Minimal area of an inner polygon to be kept in 
+--   minarea double precision - Minimal area of an inner polygon to be kept in
 --                              the geometry.
 --
 -- RETURNS geometry
 --
--- Returns a multigeometry from which simple geometries having an area smaller 
--- than the tolerance parameter have been removed. This includes points and linestrings 
--- when a geometry collection is provided. When no tolerance is provided, minarea is 
+-- Returns a multigeometry from which simple geometries having an area smaller
+-- than the tolerance parameter have been removed. This includes points and linestrings
+-- when a geometry collection is provided. When no tolerance is provided, minarea is
 -- defaulted to 0.0 and this function is equivalent to ST_CollectionExtract(geom, 3).
 --
 -- This function is used by the ST_SplitAgg state function.
@@ -2077,13 +2077,13 @@ CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry) (
 -- 13/11/2013 added in v1.16
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_TrimMulti(
-    geom geometry, 
+    geom geometry,
     minarea double precision DEFAULT 0.0
 )
 RETURNS geometry AS $$
-    SELECT ST_Union(newgeom) 
+    SELECT ST_Union(newgeom)
     FROM (SELECT ST_CollectionExtract((ST_Dump($1)).geom, 3) newgeom
-         ) foo 
+         ) foo
     WHERE ST_Area(newgeom) > $2;
 $$ LANGUAGE sql IMMUTABLE;
 -------------------------------------------------------------------------------
@@ -2097,13 +2097,13 @@ $$ LANGUAGE sql IMMUTABLE;
 --
 -- RETURNS geometry[]
 --
--- Returns the first geometry as a set of geometries after being split by all 
+-- Returns the first geometry as a set of geometries after being split by all
 -- the second geometries being part of the aggregate.
 --
--- This function is used to remove overlaps in a table of polygons or to generate 
+-- This function is used to remove overlaps in a table of polygons or to generate
 -- the equivalent of a ArcGIS union (see http://trac.osgeo.org/postgis/wiki/UsersWikiExamplesOverlayTables).
--- As it does not involve the usion of all the polygons (or the extracted linestring) 
--- of the table, it works much better on very large tables than the solutions 
+-- As it does not involve the usion of all the polygons (or the extracted linestring)
+-- of the table, it works much better on very large tables than the solutions
 -- provided in the wiki.
 --
 --
@@ -2118,12 +2118,12 @@ $$ LANGUAGE sql IMMUTABLE;
 -- UNION ALL
 -- SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
 -- )
--- SELECT DISTINCT ON (geom) unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom 
--- FROM geomtable a, 
+-- SELECT DISTINCT ON (geom) unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom
+-- FROM geomtable a,
 --      geomtable b
--- WHERE ST_Equals(a.geom, b.geom) OR 
---       ST_Contains(a.geom, b.geom) OR 
---       ST_Contains(b.geom, a.geom) OR 
+-- WHERE ST_Equals(a.geom, b.geom) OR
+--       ST_Contains(a.geom, b.geom) OR
+--       ST_Contains(b.geom, a.geom) OR
 --       ST_Overlaps(a.geom, b.geom)
 -- GROUP BY a.geom;
 --
@@ -2139,11 +2139,11 @@ $$ LANGUAGE sql IMMUTABLE;
 -- SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
 -- )
 -- SELECT DISTINCT ON (geom) a.id, unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom
--- FROM geomtable a, 
+-- FROM geomtable a,
 --      geomtable b
--- WHERE ST_Equals(a.geom, b.geom) OR 
---       ST_Contains(a.geom, b.geom) OR 
---       ST_Contains(b.geom, a.geom) OR 
+-- WHERE ST_Equals(a.geom, b.geom) OR
+--       ST_Contains(a.geom, b.geom) OR
+--       ST_Contains(b.geom, a.geom) OR
 --       ST_Overlaps(a.geom, b.geom)
 -- GROUP BY a.id
 -- ORDER BY geom, max(ST_Area(a.geom)) DESC;
@@ -2153,7 +2153,7 @@ $$ LANGUAGE sql IMMUTABLE;
 -----------------------------------------------------------
 -- ST_SplitAgg aggregate state function
 CREATE OR REPLACE FUNCTION _ST_SplitAgg_StateFN(
-    geomarray geometry[], 
+    geomarray geometry[],
     geom1 geometry,
     geom2 geometry,
     tolerance double precision
@@ -2181,7 +2181,7 @@ RETURNS geometry[] AS $$
                     newgeomarray = array_append(newgeomarray, newgeom);
                 END IF;
             END LOOP;
-            
+
         -- 3) gv1 intersecting each geometry in the array
             FOREACH geom3 IN ARRAY geomarray LOOP
                 newgeom = ST_Intersection(geom3, geom2);
@@ -2202,7 +2202,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 ---------------------------------------
 -- ST_SplitAgg aggregate variant state function defaulting tolerance to 0.0
 CREATE OR REPLACE FUNCTION _ST_SplitAgg_StateFN(
-    geomarray geometry[], 
+    geomarray geometry[],
     geom1 geometry,
     geom2 geometry
 )
@@ -2228,7 +2228,7 @@ CREATE AGGREGATE ST_SplitAgg(geometry, geometry) (
 -------------------------------------------------------------------------------
 -- ST_ColumnIsUnique
 --
---   schemaname name - Name of the schema containing the table in which to check for 
+--   schemaname name - Name of the schema containing the table in which to check for
 --                     the unicity of the values of a column.
 --   tablename name  - Name of the table in which to check for the unicity of the
 --                     values of a column.
@@ -2243,9 +2243,9 @@ CREATE AGGREGATE ST_SplitAgg(geometry, geometry) (
 --
 -- Self contained and typical example:
 --
--- CREATE TABLE testunique AS 
+-- CREATE TABLE testunique AS
 -- SELECT * FROM (VALUES (1, 1), (2, 2), (3, 2)) AS t (id1, id2);
--- 
+--
 -- SELECT ST_ColumnIsUnique('public', 'testunique', 'id1')
 -- UNION ALL
 -- SELECT ST_ColumnIsUnique('public', 'testunique', 'id2')
@@ -2255,8 +2255,8 @@ CREATE AGGREGATE ST_SplitAgg(geometry, geometry) (
 -- 12/06/2017 added in v1.28
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_ColumnIsUnique(
-    schemaname name, 
-    tablename name, 
+    schemaname name,
+    tablename name,
     columnname name
 )
 RETURNS BOOLEAN AS $$
@@ -2278,7 +2278,7 @@ RETURNS BOOLEAN AS $$
             RAISE NOTICE 'ST_ColumnIsUnique(): Column ''%'' does not exist... Returning NULL', columnname;
             RETURN null;
         END IF;
-  
+
         query = 'SELECT FALSE FROM ' || fqtn || ' GROUP BY ' || columnname || ' HAVING count(' || columnname || ') > 1 LIMIT 1';
         EXECUTE QUERY query INTO isunique;
         IF isunique IS NULL THEN
@@ -2291,9 +2291,9 @@ $$ LANGUAGE plpgsql VOLATILE STRICT;
 -----------------------------------------------------------
 -- ST_ColumnIsUnique variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_ColumnIsUnique(
-    tablename name, 
+    tablename name,
     columnname name
-) 
+)
 RETURNS BOOLEAN AS $$
     SELECT ST_ColumnIsUnique('public', $1, $2)
 $$ LANGUAGE sql VOLATILE STRICT;
@@ -2310,9 +2310,9 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --                         for duplicate values, overlaps and other stats.
 --
 --   uidcolumn  - Name of unique identifier column to summarize. Will check for
---                duplicate values. This column is created if it does not exist 
---                and it is required to enable other tests and help identifying 
---                duplicate and overlapping geometries. Default to 'id' when not 
+--                duplicate values. This column is created if it does not exist
+--                and it is required to enable other tests and help identifying
+--                duplicate and overlapping geometries. Default to 'id' when not
 --                specified or equal to NULL.
 --
 --   nbinterval - Number of bin for the number of vertexes and areas histograms.
@@ -2322,11 +2322,11 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --                'S1' or 'IDDUP': Summary of duplicate IDs.
 --                'S2' or 'GDUP', 'GEODUP': Summary duplicate geometries.
 --                'S3' or 'OVL': Summary of overlapping geometries. Skipped by default.
---                'S4' or 'TYPES': Summary of the geometry types (number of NULL, 
---                                 INVALID, EMPTY, POINTS, LINESTRING, POLYGON, 
---                                 MULTIPOINT, MULTILINESTRING, MULTIPOLYGON, 
+--                'S4' or 'TYPES': Summary of the geometry types (number of NULL,
+--                                 INVALID, EMPTY, POINTS, LINESTRING, POLYGON,
+--                                 MULTIPOINT, MULTILINESTRING, MULTIPOLYGON,
 --                                 GEOMETRYCOLLECTION geometries).
---                'S5' or 'VERTX': Summary of geometries number of vertexes (min, max 
+--                'S5' or 'VERTX': Summary of geometries number of vertexes (min, max
 --                                 and mean number of vertexes).
 --                'S6' or 'VHISTO': Histogram of geometries number of vertexes.
 --                'S7' or 'AREAS', 'AREA': Summary of geometries areas (min, max, mean
@@ -2338,42 +2338,42 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --
 --                e.g. ARRAY['TYPES', 'S6'] will compute only those two summaries.
 --
---                Default to ARRAY['IDDUP', 'GDUP', 'TYPES', 'VERTX', 'VHISTO', 'AREAS', 'AHISTO'] 
---                skipping the overlap summary because it fails when encountering invalid 
+--                Default to ARRAY['IDDUP', 'GDUP', 'TYPES', 'VERTX', 'VHISTO', 'AREAS', 'AHISTO']
+--                skipping the overlap summary because it fails when encountering invalid
 --                geometries and prevent other summaries to complete.
 --
---   skipsummary - List of summaries to skip. Can be the same value as for the 
+--   skipsummary - List of summaries to skip. Can be the same value as for the
 --                 'dosummary' parameter. The list of summaries to skip has precedence
---                 over the dosummary list. i.e. if a summary is listed in part of both 
---                 parameters, it will not be performed. 
+--                 over the dosummary list. i.e. if a summary is listed in part of both
+--                 parameters, it will not be performed.
 --
---   whereclause - Simple WHERE clause to add to the summary queries in order to 
+--   whereclause - Simple WHERE clause to add to the summary queries in order to
 --                 limit the analysis to certain lines of the table.
 --
 --   RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometry, query text)
 --
--- Returns a table summarysing a geometry table. Computed summaries help finding anomalies 
+-- Returns a table summarysing a geometry table. Computed summaries help finding anomalies
 -- in geometry tables like duplicates, overlaps and very complex or very small geometries.
 --
 -- The return table contains 5 columns:
 --
---   'summary' is the number number of the summary so that it is possible to filter 
+--   'summary' is the number number of the summary so that it is possible to filter
 --             in or out lines associated with some summaries.
 --
---   'idsandtypes' contains the ids of duplicate or overlapping geometries or the 
---                 type of the metric being summarized (min, max, mean, lower and 
+--   'idsandtypes' contains the ids of duplicate or overlapping geometries or the
+--                 type of the metric being summarized (min, max, mean, lower and
 --                 upper bounds of the histogram interval).
 --
---   'nb' is the summary being computed. i.e. the number of duplicates, the 
---        overlapping area, the number of geometry of a certain type, the min, 
---        max or mean number of vertexes, the number of geometries in each histogram 
+--   'nb' is the summary being computed. i.e. the number of duplicates, the
+--        overlapping area, the number of geometry of a certain type, the min,
+--        max or mean number of vertexes, the number of geometries in each histogram
 --        interval.
 --
 --   'geom' is the duplicate or the overlapping part itself so you can display them directly
 --          in your favorite GIS.
 --
 --   'query' is the query you can use to generate the rows summarized on this line.
---        
+--
 --
 -- Self contained and typical example:
 --
@@ -2401,7 +2401,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -- SELECT 11 id1, 11 id2, NULL::geometry geom -- null geometry
 -- UNION ALL
 -- SELECT 11 id1, 12 id2, ST_GeomFromText('POLYGON((0 0, 1 1, 1 2, 1 1, 0 0))'); -- invalid polygon
--- 
+--
 -- CREATE TABLE test_geotable_summary AS
 -- SELECT * FROM ST_GeoTableSummary('public', 'test_geotable', 'geom', 'id1');
 --
@@ -2411,7 +2411,7 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -----------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION ST_GeoTableSummary(
-    schemaname name, 
+    schemaname name,
     tablename name,
     geomcolumnname name DEFAULT 'geom',
     uidcolumn name DEFAULT NULL,
@@ -2419,9 +2419,9 @@ CREATE OR REPLACE FUNCTION ST_GeoTableSummary(
     dosummary text[] DEFAULT ARRAY['IDDUP', 'GDUP', 'TYPES', 'VERTX', 'VHISTO', 'AREAS', 'AHISTO'],
     skipsummary text[] DEFAULT NULL,
     whereclause text DEFAULT NULL
-) 
-RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometry, query text) AS $$ 
-    DECLARE 
+)
+RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometry, query text) AS $$
+    DECLARE
         fqtn text;
         query text;
         newschemaname name;
@@ -2439,6 +2439,9 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
         colnamearr text[];
         colnamearrlength int := 0;
         colnameidx int := 0;
+        sum8nbintervals int;
+        minarea double precision := 0;
+        maxarea double precision := 0;
     BEGIN
         IF geomcolumnname IS NULL THEN
             geomcolumnname = 'geom';
@@ -2485,16 +2488,16 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                 END IF;
             END LOOP;
         END IF;
-        
+
         newuidcolumn = lower(uidcolumn);
         IF newuidcolumn IS NULL THEN
             newuidcolumn = 'id';
         END IF;
-        
+
         -- Summary #1: Check for duplicate IDs (IDDUP)
-        IF (dosummary IS NULL OR 'IDDUP' = ANY (dosummary) OR 'S1' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+        IF (dosummary IS NULL OR 'IDDUP' = ANY (dosummary) OR 'S1' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('IDDUP' = ANY (skipsummary) OR 'S1' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-            RETURN QUERY SELECT 'SUMMARY 1 - DUPLICATE IDs (IDDUP or S1)'::text, ('DUPLICATE IDs (' || newuidcolumn::text || ')')::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
+            RETURN QUERY SELECT 'SUMMARY 1 - DUPLICATE IDs (IDDUP or S1)'::text, ('DUPLICATE IDs (' || newuidcolumn::text || ')')::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
             RAISE NOTICE 'Summary 1 - Duplicate IDs (IDDUP or S1)...';
 
             IF ST_ColumnExists(newschemaname, tablename, newuidcolumn) THEN
@@ -2523,16 +2526,16 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                 RETURN QUERY SELECT '1'::text, '''' || newuidcolumn::text || ''' does not exists... Skipping Summary 1'::text, NULL::double precision, NULL::geometry, NULL::text;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 1 - DUPLICATE IDs (IDDUP or S1)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text; 
+            RETURN QUERY SELECT 'SUMMARY 1 - DUPLICATE IDs (IDDUP or S1)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
             RAISE NOTICE 'Summary 1 - Skipping Duplicate IDs (IDDUP or S1)...';
         END IF;
 
         -- Add a unique id column if it does not exists or if the one provided is not unique
-        IF (dosummary IS NULL OR 'GDUP' = ANY (dosummary) OR 'GEODUP' = ANY (dosummary) OR 'S2' = ANY (dosummary) OR 'OVL' = ANY (dosummary) OR 'S3' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+        IF (dosummary IS NULL OR 'GDUP' = ANY (dosummary) OR 'GEODUP' = ANY (dosummary) OR 'S2' = ANY (dosummary) OR 'OVL' = ANY (dosummary) OR 'S3' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('GDUP' = ANY (skipsummary) OR 'GEODUP' = ANY (skipsummary) OR 'S2' = ANY (skipsummary) OR 'OVL' = ANY (skipsummary) OR 'S3' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-            
+
             RAISE NOTICE 'Searching for the first column containing unique values...';
-            
+
             -- Construct the list of available column names (integer only)
             query = 'SELECT array_agg(column_name::text) FROM information_schema.columns WHERE table_schema = ''' || newschemaname || ''' AND table_name = ''' || tablename || ''' AND data_type = ''integer'';';
             EXECUTE query INTO colnamearr;
@@ -2541,8 +2544,8 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
             RAISE NOTICE '  Checking ''%''...', newuidcolumn;
 
             -- Search for a unique id. Search first for 'id', if no uidcolumn name is provided, or for the provided name, then the list of available column names
-            WHILE (ST_ColumnExists(newschemaname, tablename, newuidcolumn) OR (newuidcolumn = 'id' AND uidcolumn IS NULL)) AND 
-                  NOT provided_uid_isunique AND 
+            WHILE (ST_ColumnExists(newschemaname, tablename, newuidcolumn) OR (newuidcolumn = 'id' AND uidcolumn IS NULL)) AND
+                  NOT provided_uid_isunique AND
                   (ST_ColumnIsUnique(newschemaname, tablename, newuidcolumn) IS NULL OR NOT ST_ColumnIsUnique(newschemaname, tablename, newuidcolumn)) LOOP
                 IF uidcolumn IS NULL AND colnameidx < colnamearrlength THEN
                     colnameidx = colnameidx + 1;
@@ -2571,9 +2574,9 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
         END IF;
 
         -- Summary #2: Check for duplicate geometries (GDUP)
-        IF (dosummary IS NULL OR 'GDUP' = ANY (dosummary) OR 'GEODUP' = ANY (dosummary) OR 'S2' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+        IF (dosummary IS NULL OR 'GDUP' = ANY (dosummary) OR 'GEODUP' = ANY (dosummary) OR 'S2' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('GDUP' = ANY (skipsummary) OR 'GEODUP' = ANY (skipsummary) OR 'S2' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-                RETURN QUERY SELECT 'SUMMARY 2 - DUPLICATE GEOMETRIES (GDUP, GEODUP or S2)'::text, ('DUPLICATE GEOMETRIES IDS (' || newuidcolumn || ')')::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
+                RETURN QUERY SELECT 'SUMMARY 2 - DUPLICATE GEOMETRIES (GDUP, GEODUP or S2)'::text, ('DUPLICATE GEOMETRIES IDS (' || newuidcolumn || ')')::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
                 RAISE NOTICE 'Summary 2 - Duplicate geometries (GDUP, GEODUP or S2)...';
 
                 IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
@@ -2598,21 +2601,21 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                     RETURN QUERY SELECT '2'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 2'::text, NULL::double precision, NULL::geometry, NULL::text;
                 END IF;
             ELSE
-            RETURN QUERY SELECT 'SUMMARY 2 - DUPLICATE GEOMETRIES (GDUP, GEODUP or S2)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text; 
+            RETURN QUERY SELECT 'SUMMARY 2 - DUPLICATE GEOMETRIES (GDUP, GEODUP or S2)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
             RAISE NOTICE 'Summary 2 - Skipping Duplicate geometries (GDUP, GEODUP or S2)...';
         END IF;
-     
+
         -- Summary #3: Check for overlaps (OVL)
-        IF (dosummary IS NULL OR 'OVL' = ANY (dosummary) OR 'S3' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+        IF (dosummary IS NULL OR 'OVL' = ANY (dosummary) OR 'S3' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('OVL' = ANY (skipsummary) OR 'S3' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-            RETURN QUERY SELECT 'SUMMARY 3 - OVERLAPPING GEOMETRIES (OVL or S3)'::text, ('OVERLAPPING GEOMETRIES IDS (' || newuidcolumn || ')')::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
+            RETURN QUERY SELECT 'SUMMARY 3 - OVERLAPPING GEOMETRIES (OVL or S3)'::text, ('OVERLAPPING GEOMETRIES IDS (' || newuidcolumn || ')')::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
             RAISE NOTICE 'Summary 3 - Overlapping geometries (OVL or S3)...';
 
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                 -- Create a temporary unique index
                 IF NOT ST_HasBasicIndex(newschemaname, tablename, geomcolumnname) THEN
-                    RAISE NOTICE '            Creating an index on ''%''...', geomcolumnname;
-                    query = 'CREATE INDEX ON ' || fqtn || ' USING gist (' || geomcolumnname || ');';
+                    RAISE NOTICE '            Creating % index on ''%''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
+                    query = 'CREATE INDEX ON ' || fqtn || ' USING gist (' || geomcolumnname || ')' || whereclausewithwhere || ';';
                     EXECUTE query;
                 END IF;
 
@@ -2641,14 +2644,14 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                 RETURN QUERY SELECT '3'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 3'::text, NULL::double precision, NULL::geometry, NULL::text;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 3 - OVERLAPPING GEOMETRIES (OVL or S3)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text; 
+            RETURN QUERY SELECT 'SUMMARY 3 - OVERLAPPING GEOMETRIES (OVL or S3)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
             RAISE NOTICE 'Summary 3 - Skipping Overlapping geometries (OVL or S3)...';
         END IF;
 
         -- Summary #4: Check for number of NULL, INVALID, EMPTY, POINTS, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, MULTIPOLYGON, GEOMETRYCOLLECTION (TYPES)
-        IF (dosummary IS NULL OR 'TYPES' = ANY (dosummary) OR 'S4' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+        IF (dosummary IS NULL OR 'TYPES' = ANY (dosummary) OR 'S4' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('TYPES' = ANY (skipsummary) OR 'S4' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-            RETURN QUERY SELECT 'SUMMARY 4 - GEOMETRY TYPES (TYPES or S4)'::text, 'TYPES'::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
+            RETURN QUERY SELECT 'SUMMARY 4 - GEOMETRY TYPES (TYPES or S4)'::text, 'TYPES'::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
             RAISE NOTICE 'Summary 4 - Geometry types (TYPES or S4)...';
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                 query = 'SELECT 4::text, '
@@ -2676,23 +2679,23 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                 RETURN QUERY SELECT '4'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 4'::text, NULL::double precision, NULL::geometry, NULL::text;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 4 - GEOMETRY TYPES (TYPES or S4)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text; 
+            RETURN QUERY SELECT 'SUMMARY 4 - GEOMETRY TYPES (TYPES or S4)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
             RAISE NOTICE 'Summary 4 - Skipping Geometry types (TYPES or S4)...';
         END IF;
 
         -- Create an index on ST_NPoints(geom) if necessary so further queries are executed faster
         IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND
-           (dosummary IS NULL OR 'VERTX' = ANY (dosummary) OR 'S5' = ANY (dosummary) OR 'VHISTO' = ANY (dosummary) OR 'S6' = ANY (dosummary)) AND 
+           (dosummary IS NULL OR 'VERTX' = ANY (dosummary) OR 'S5' = ANY (dosummary) OR 'VHISTO' = ANY (dosummary) OR 'S6' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT (('VERTX' = ANY (skipsummary) OR 'S5' = ANY (skipsummary)) AND ('VHISTO' = ANY (skipsummary) OR 'S6' = ANY (skipsummary)))) THEN
-                RAISE NOTICE 'Creating an index on ''ST_NPoints(%)''...', geomcolumnname;
-            query = 'CREATE INDEX ON ' || fqtn || ' USING btree (ST_NPoints(' || geomcolumnname || '));';
+                RAISE NOTICE 'Creating % index on ''ST_NPoints(%)''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
+            query = 'CREATE INDEX ON ' || fqtn || ' USING btree (ST_NPoints(' || geomcolumnname || '))' || whereclausewithwhere || ';';
             EXECUTE query;
         END IF;
 
         -- Summary #5: Check for polygon complexity - min number of vertexes, max number of vertexes, mean number of vertexes (VERTX).
-        IF (dosummary IS NULL OR 'VERTX' = ANY (dosummary) OR 'S5' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+        IF (dosummary IS NULL OR 'VERTX' = ANY (dosummary) OR 'S5' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('VERTX' = ANY (skipsummary) OR 'S5' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-            RETURN QUERY SELECT 'SUMMARY 5 - VERTEX STATISTICS (VERTX or S5)'::text, 'STATISTIC'::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
+            RETURN QUERY SELECT 'SUMMARY 5 - VERTEX STATISTICS (VERTX or S5)'::text, 'STATISTIC'::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
             RAISE NOTICE 'Summary 5 - Vertex statistics (VERTX or S5)...';
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                 query = 'SELECT 5::text test, '
@@ -2702,46 +2705,46 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                      || 'FROM (SELECT ST_NPoints(' || geomcolumnname || ') nv '
                      || '      FROM ' || fqtn || whereclausewithwhere || ') foo;';
                 EXECUTE query INTO vertex_summary;
-                RETURN QUERY SELECT vertex_summary.test, 
-                                    'MIN number of vertexes'::text, 
-                                    vertex_summary.min::double precision, 
-                                    NULL::geometry, 
-                                    'SELECT * FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ') = ' || vertex_summary.min || ';'::text; 
-                RETURN QUERY SELECT 5::text, 
-                                    'MAX number of vertexes'::text, 
-                                    vertex_summary.max::double precision, 
-                                    NULL::geometry, 
-                                    'SELECT * FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ') = ' || vertex_summary.max || ';'::text; 
-                RETURN QUERY SELECT 5::text, 
-                                    'MEAN number of vertexes'::text, 
-                                    vertex_summary.avg::double precision, 
-                                    NULL::geometry, 
-                                    'query'::text; 
+                RETURN QUERY SELECT vertex_summary.test,
+                                    'MIN number of vertexes'::text,
+                                    vertex_summary.min::double precision,
+                                    NULL::geometry,
+                                    'SELECT * FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ') = ' || vertex_summary.min || ';'::text;
+                RETURN QUERY SELECT 5::text,
+                                    'MAX number of vertexes'::text,
+                                    vertex_summary.max::double precision,
+                                    NULL::geometry,
+                                    'SELECT * FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ') = ' || vertex_summary.max || ';'::text;
+                RETURN QUERY SELECT 5::text,
+                                    'MEAN number of vertexes'::text,
+                                    vertex_summary.avg::double precision,
+                                    NULL::geometry,
+                                    'query'::text;
             ELSE
                 RETURN QUERY SELECT '5'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 5'::text, NULL::double precision, NULL::geometry, NULL::text;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 5 - VERTEX STATISTICS (VERTX or S5)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text; 
+            RETURN QUERY SELECT 'SUMMARY 5 - VERTEX STATISTICS (VERTX or S5)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
             RAISE NOTICE 'Summary 5 - Skipping Vertex statistics (VERTX or S5)...';
         END IF;
 
         -- Summary #6: Build an histogram of the number of vertexes (VHISTO).
-        IF (dosummary IS NULL OR 'VHISTO' = ANY (dosummary) OR 'S6' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+        IF (dosummary IS NULL OR 'VHISTO' = ANY (dosummary) OR 'S6' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('VHISTO' = ANY (skipsummary) OR 'S6' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-            RETURN QUERY SELECT 'SUMMARY 6 - HISTOGRAM OF THE NUMBER OF VERTEXES (VHISTO or S6)'::text, 'NUMBER OF VERTEXES INTERVALS'::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
+            RETURN QUERY SELECT 'SUMMARY 6 - HISTOGRAM OF THE NUMBER OF VERTEXES (VHISTO or S6)'::text, 'NUMBER OF VERTEXES INTERVALS'::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
             RAISE NOTICE 'Summary 6 - Histogram of the number of vertexes (VHISTO or S6)...';
 
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
-                query = 'WITH npoints AS (SELECT coalesce(ST_NPoints(' || geomcolumnname || '), 0) np FROM ' || fqtn || whereclausewithwhere || '), 
-                              minmax AS (SELECT min(np) minnp, max(np) maxnp FROM npoints), 
-                              bins AS (SELECT np, minnp, maxnp, floor((np - minnp)*' || nbinterval || '::numeric/(maxnp - minnp + 1)) bin, (maxnp - minnp)/' || nbinterval || '.0 nbperbin FROM minmax, npoints), 
-                              histo AS (SELECT bin, count(*) cnt FROM bins, minmax GROUP BY bin) 
-                         SELECT 6::text, ''['' || round(minnp + serie * nbperbin)::text || '' - '' || round(minnp + (serie + 1) * nbperbin)::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '']'' ELSE ''['' END) interv, 
-                                coalesce(cnt, 0)::double precision cnt, 
-                                NULL::geometry, 
+                query = 'WITH npoints AS (SELECT coalesce(ST_NPoints(' || geomcolumnname || '), 0) np FROM ' || fqtn || whereclausewithwhere || '),
+                              minmax AS (SELECT min(np) minnp, max(np) maxnp FROM npoints),
+                              bins AS (SELECT np, minnp, maxnp, floor((np - minnp)*' || nbinterval || '::numeric/(maxnp - minnp + 1)) bin, (maxnp - minnp)/' || nbinterval || '.0 nbperbin FROM minmax, npoints),
+                              histo AS (SELECT bin, count(*) cnt FROM bins, minmax GROUP BY bin)
+                         SELECT 6::text, ''['' || round(minnp + serie * nbperbin)::text || '' - '' || round(minnp + (serie + 1) * nbperbin)::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '']'' ELSE ''['' END) interv,
+                                coalesce(cnt, 0)::double precision cnt,
+                                NULL::geometry,
                                 ''SELECT *, ST_NPoints(' || geomcolumnname || ') nbpoints FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ') >= '' || round(minnp + serie * nbperbin)::text || '' AND ST_NPoints(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''='' ELSE '''' END) || '' '' || round(minnp + (serie + 1) * nbperbin)::text || '' ORDER BY ST_NPoints(' || geomcolumnname || ') DESC;''::text
-                         FROM generate_series(0, ' || nbinterval || ' - 1) serie 
-                              LEFT OUTER JOIN histo ON (serie = histo.bin), 
+                         FROM generate_series(0, ' || nbinterval || ' - 1) serie
+                              LEFT OUTER JOIN histo ON (serie = histo.bin),
                               (SELECT * FROM bins LIMIT 1) foo
                          ORDER BY serie;';
                 RETURN QUERY EXECUTE query;
@@ -2749,23 +2752,23 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                 RETURN QUERY SELECT '6'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 6'::text, NULL::double precision, NULL::geometry, NULL::text;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 6 - HISTOGRAM OF THE NUMBER OF VERTEXES (VHISTO or S6)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text; 
+            RETURN QUERY SELECT 'SUMMARY 6 - HISTOGRAM OF THE NUMBER OF VERTEXES (VHISTO or S6)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
             RAISE NOTICE 'Summary 6 - Skipping Histogram of the number of vertexes (VHISTO or S6)...';
         END IF;
 
         -- Create an index on ST_Area(geom) if necessary so further queries are executed faster
         IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND
-           (dosummary IS NULL OR 'AREAS' = ANY (dosummary) OR 'AREA' = ANY (dosummary) OR 'S7' = ANY (dosummary) OR 'AHISTO' = ANY (dosummary) OR 'S8' = ANY (dosummary) OR 'SACOUNT' = ANY (dosummary) OR 'S9' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+           (dosummary IS NULL OR 'AREAS' = ANY (dosummary) OR 'AREA' = ANY (dosummary) OR 'S7' = ANY (dosummary) OR 'AHISTO' = ANY (dosummary) OR 'S8' = ANY (dosummary) OR 'SACOUNT' = ANY (dosummary) OR 'S9' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT (('AREAS' = ANY (skipsummary) OR 'AREA' = ANY (skipsummary) OR 'S7' = ANY (skipsummary)) AND ('AHISTO' = ANY (skipsummary) OR 'S8' = ANY (skipsummary)) AND ('SACOUNT' = ANY (skipsummary) OR 'S9' = ANY (skipsummary)) AND 'ALL' = ANY (skipsummary))) THEN
-                RAISE NOTICE 'Creating an index on ''ST_Area(%)''...', geomcolumnname;
-            query = 'CREATE INDEX ON ' || fqtn || ' USING btree (ST_Area(' || geomcolumnname || '));';
+                RAISE NOTICE 'Creating % index on ''ST_Area(%)''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
+            query = 'CREATE INDEX ON ' || fqtn || ' USING btree (ST_Area(' || geomcolumnname || '))' || whereclausewithwhere || ';';
             EXECUTE query;
         END IF;
 
         -- Summary #7: Check for polygon areas - min area, max area, mean area (AREAS)
-        IF (dosummary IS NULL OR 'AREAS' = ANY (dosummary) OR 'AREA' = ANY (dosummary) OR 'S7' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+        IF (dosummary IS NULL OR 'AREAS' = ANY (dosummary) OR 'AREA' = ANY (dosummary) OR 'S7' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('AREAS' = ANY (skipsummary) OR 'AREA' = ANY (skipsummary) OR 'S7' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-            RETURN QUERY SELECT 'SUMMARY 7 - GEOMETRY AREA STATISTICS (AREAS, AREA or S7)'::text, 'STATISTIC'::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
+            RETURN QUERY SELECT 'SUMMARY 7 - GEOMETRY AREA STATISTICS (AREAS, AREA or S7)'::text, 'STATISTIC'::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
             RAISE NOTICE 'Summary 7 - Geometry area statistics (AREAS, AREA or S7)...';
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                 query = 'SELECT 7::text test, '
@@ -2775,47 +2778,56 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                      || 'FROM (SELECT ST_Area(' || geomcolumnname || ') area '
                      || '      FROM ' || fqtn || whereclausewithwhere || ') foo;';
                 EXECUTE query INTO area_summary;
-                RETURN QUERY SELECT area_summary.test, 
-                                    'MIN area'::text, 
-                                    area_summary.min::double precision, 
-                                    NULL::geometry, 
-                                    'SELECT * FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') < ' || area_summary.min || ' + 0.000000001;'::text; 
-                RETURN QUERY SELECT area_summary.test, 
-                                    'MAX area'::text, 
-                                    area_summary.max::double precision, 
-                                    NULL::geometry, 
+                RETURN QUERY SELECT area_summary.test,
+                                    'MIN area'::text,
+                                    area_summary.min::double precision,
+                                    NULL::geometry,
+                                    'SELECT * FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') < ' || area_summary.min || ' + 0.000000001;'::text;
+                RETURN QUERY SELECT area_summary.test,
+                                    'MAX area'::text,
+                                    area_summary.max::double precision,
+                                    NULL::geometry,
                                     'SELECT * FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') > ' || area_summary.max || ' - 0.000000001 AND ST_Area(' || geomcolumnname || ') < ' || area_summary.max || ' + 0.000000001;'::text;
-                RETURN QUERY SELECT area_summary.test, 
-                                    'MEAN area'::text, 
-                                    area_summary.avg::double precision, 
-                                    NULL::geometry, 
+                RETURN QUERY SELECT area_summary.test,
+                                    'MEAN area'::text,
+                                    area_summary.avg::double precision,
+                                    NULL::geometry,
                                     'query'::text;
             ELSE
                 RETURN QUERY SELECT '7'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 7'::text, NULL::double precision, NULL::geometry, NULL::text;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 7 - GEOMETRY AREA STATISTICS (AREAS, AREA or S7)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text; 
+            RETURN QUERY SELECT 'SUMMARY 7 - GEOMETRY AREA STATISTICS (AREAS, AREA or S7)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
             RAISE NOTICE 'Summary 7 - Skipping Geometry area statistics (AREAS, AREA or S7)...';
         END IF;
 
         -- Summary #8: Build an histogram of the areas (AHISTO)
-        IF (dosummary IS NULL OR 'AHISTO' = ANY (dosummary) OR 'S8' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+        IF (dosummary IS NULL OR 'AHISTO' = ANY (dosummary) OR 'S8' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('AHISTO' = ANY (skipsummary) OR 'S8' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-            RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
+            RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
             RAISE NOTICE 'Summary 8 - Histogram of areas (AHISTO or S8)...';
 
+            sum8nbintervals = nbinterval;
+
+            -- Precompute the max and min
+            query = 'SELECT min(coalesce(ST_Area(' || geomcolumnname || '), 0)), max(coalesce(ST_Area(' || geomcolumnname || '), 0)) FROM ' || fqtn || whereclausewithwhere;
+            EXECUTE QUERY query INTO minarea, maxarea;
+            IF maxarea - minarea = 0 THEN
+                RAISE NOTICE 'Summary 8 - maximum area - minimum area = 0. Will create only 1 interval instead of %...', nbinterval;
+                sum8nbintervals = 1;
+            END IF;
+
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
-                query = 'WITH areas AS (SELECT coalesce(ST_Area(' || geomcolumnname || '), 0) area FROM ' || fqtn || whereclausewithwhere || '), 
-                              minmax AS (SELECT min(area) minarea, max(area) maxarea FROM areas), 
-                              bins AS (SELECT area, minarea, maxarea, floor((area - minarea)*' || nbinterval || '::numeric/(maxarea - minarea + 0.0000001)) bin, (maxarea - minarea)/' || nbinterval || '.0 binrange FROM minmax, areas), 
-                              histo AS (SELECT bin, count(*) cnt FROM bins, minmax GROUP BY bin) 
-                         SELECT 8::text, 
-                                ''['' || (minarea + serie * binrange)::text || '' - '' || (minarea + (serie + 1) * binrange)::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '']'' ELSE ''['' END) interv, 
-                                coalesce(cnt, 0)::double precision cnt, 
-                                NULL::geometry, 
-                                ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= '' || (CASE WHEN serie = 0 THEN ''('' ELSE '''' END) || (minarea + serie * binrange)::text || (CASE WHEN serie = 0 THEN '' - 0.0000001)'' ELSE '''' END) || '' AND ST_Area(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''= (0.0000001 + '' ELSE '' '' END) || (minarea + (serie + 1) * binrange)::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '')'' ELSE '''' END) || '' ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
-                         FROM generate_series(0, ' || nbinterval || ' - 1) serie 
-                              LEFT OUTER JOIN histo ON (serie = histo.bin), 
+                query = 'WITH areas AS (SELECT coalesce(ST_Area(' || geomcolumnname || '), 0) area FROM ' || fqtn || whereclausewithwhere || '),
+                              bins AS (SELECT area, least(floor((area - ' || minarea || ')*' || sum8nbintervals || '::numeric/(' || (CASE WHEN maxarea - minarea = 0 THEN maxarea + 0.000000001 ELSE maxarea END) - minarea || ')), ' || sum8nbintervals || ' - 1) bin, ' || (maxarea - minarea) || '/' || sum8nbintervals || '.0 binrange FROM areas),
+                              histo AS (SELECT bin, count(*) cnt FROM bins GROUP BY bin)
+                         SELECT 8::text,
+                                ''['' || (' || minarea || ' + serie * binrange)::float8::text || '' - '' || (CASE WHEN serie = ' || sum8nbintervals || ' - 1 THEN ' || maxarea || '::float8::text || '']'' ELSE (' || minarea || ' + (serie + 1) * binrange)::float8::text || ''['' END) interv,
+                                coalesce(cnt, 0)::double precision cnt,
+                                NULL::geometry,
+                                ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= '' || (' || minarea || ' + serie * binrange)::float8::text || '' AND ST_Area(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || sum8nbintervals || ' - 1 THEN ''= '' || ' || maxarea || '::float8::text ELSE '' '' || (' || minarea || ' + (serie + 1) * binrange)::float8::text END) || '' ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
+                         FROM generate_series(0, ' || sum8nbintervals || ' - 1) serie
+                              LEFT OUTER JOIN histo ON (serie = histo.bin),
                               (SELECT * FROM bins LIMIT 1) foo
                          ORDER BY serie;';
                 RETURN QUERY EXECUTE query;
@@ -2823,31 +2835,31 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                 RETURN QUERY SELECT '8'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 8'::text, NULL::double precision, NULL::geometry, NULL::text;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text; 
+            RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
             RAISE NOTICE 'Summary 8 - Histogram of areas (AHISTO or S8)...';
         END IF;
-    
+
         -- Summary #9: Build a list of the small areas (SACOUNT) < 0.1 units
-        IF (dosummary IS NULL OR 'SACOUNT' = ANY (dosummary) OR 'S9' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND 
+        IF (dosummary IS NULL OR 'SACOUNT' = ANY (dosummary) OR 'S9' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('SACOUNT' = ANY (skipsummary) OR 'S9' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-            RETURN QUERY SELECT 'SACOUNT 9 - COUNT OF SMALL AREAS (SACOUNT or S9)'::text, 'AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, 'QUERY'::text; 
+            RETURN QUERY SELECT 'SACOUNT 9 - COUNT OF SMALL AREAS (SACOUNT or S9)'::text, 'AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
             RAISE NOTICE 'Summary 9 - Count of small areas (SACOUNT or S9)...';
 
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
-                query = 'WITH areas AS (SELECT coalesce(ST_Area(' || geomcolumnname || '), 0) area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') < 0.1 ' || whereclause || '), 
-                              bins AS (SELECT area, 
-                                              CASE WHEN area = 0.0 THEN 0 
-                                                   WHEN area < 0.0000001 THEN 1 
-                                                   WHEN area < 0.000001 THEN 2 
-                                                   WHEN area < 0.00001 THEN 3 
-                                                   WHEN area < 0.0001 THEN 4 
-                                                   WHEN area < 0.001 THEN 5 
-                                                   WHEN area < 0.01 THEN 6 
-                                                   WHEN area < 0.1 THEN 7 
+                query = 'WITH areas AS (SELECT coalesce(ST_Area(' || geomcolumnname || '), 0) area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') < 0.1 ' || whereclause || '),
+                              bins AS (SELECT area,
+                                              CASE WHEN area = 0.0 THEN 0
+                                                   WHEN area < 0.0000001 THEN 1
+                                                   WHEN area < 0.000001 THEN 2
+                                                   WHEN area < 0.00001 THEN 3
+                                                   WHEN area < 0.0001 THEN 4
+                                                   WHEN area < 0.001 THEN 5
+                                                   WHEN area < 0.01 THEN 6
+                                                   WHEN area < 0.1 THEN 7
                                               END bin
-                                        FROM areas), 
-                              histo AS (SELECT bin, count(*) cnt FROM bins GROUP BY bin) 
-                         SELECT 9::text, 
+                                        FROM areas),
+                              histo AS (SELECT bin, count(*) cnt FROM bins GROUP BY bin)
+                         SELECT 9::text,
                                 CASE WHEN serie = 0 THEN ''[0]''
                                      WHEN serie = 1 THEN '']0 - 0.0000001[''
                                      WHEN serie = 2 THEN ''[0.0000001 - 0.000001[''
@@ -2856,9 +2868,9 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                                      WHEN serie = 5 THEN ''[0.0001 - 0.001[''
                                      WHEN serie = 6 THEN ''[0.001 - 0.01[''
                                      WHEN serie = 7 THEN ''[0.01 - 0.1[''
-                                 END interv, 
-                                coalesce(cnt, 0)::double precision cnt, 
-                                NULL::geometry, 
+                                 END interv,
+                                coalesce(cnt, 0)::double precision cnt,
+                                NULL::geometry,
                                 CASE WHEN serie = 0 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') = 0;''::text
                                      WHEN serie = 1 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') > 0 AND ST_Area(' || geomcolumnname || ') < 0.0000001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
                                      WHEN serie = 2 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.0000001 AND ST_Area(' || geomcolumnname || ') < 0.000001 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
@@ -2868,8 +2880,8 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                                      WHEN serie = 6 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.001 AND ST_Area(' || geomcolumnname || ') < 0.01 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
                                      WHEN serie = 7 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.01 AND ST_Area(' || geomcolumnname || ') < 0.1 ORDER BY ST_Area(' || geomcolumnname || ') DESC;''::text
                                 END
-                         FROM generate_series(0, 7) serie 
-                              LEFT OUTER JOIN histo ON (serie = histo.bin), 
+                         FROM generate_series(0, 7) serie
+                              LEFT OUTER JOIN histo ON (serie = histo.bin),
                               (SELECT * FROM bins LIMIT 1) foo
                          ORDER BY serie;';
                 RETURN QUERY EXECUTE query;
@@ -2877,18 +2889,18 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                 RETURN QUERY SELECT '9'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 9'::text, NULL::double precision, NULL::geometry, NULL::text;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 9 - COUNT OF AREAS (SACOUNT or S9)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text; 
+            RETURN QUERY SELECT 'SUMMARY 9 - COUNT OF AREAS (SACOUNT or S9)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
             RAISE NOTICE 'Summary 9 - Count of small areas (SACOUNT or S9)...';
         END IF;
 
-        RETURN; 
-    END; 
+        RETURN;
+    END;
 $$ LANGUAGE plpgsql VOLATILE;
 -----------------------------------------------------------
--- ST_GeoTableSummary variant accepting comma separated string instead of an array for 
+-- ST_GeoTableSummary variant accepting comma separated string instead of an array for
 -- the dosummary and skipsummary parameters
 CREATE OR REPLACE FUNCTION ST_GeoTableSummary(
-    schemaname name, 
+    schemaname name,
     tablename name,
     geomcolumnname name,
     uidcolumn name,
@@ -2896,8 +2908,8 @@ CREATE OR REPLACE FUNCTION ST_GeoTableSummary(
     dosummary text DEFAULT 'IDDUP, GDUP, TYPES, VERTX, VHISTO, AREAS, AHISTO',
     skipsummary text DEFAULT NULL,
     whereclause text DEFAULT NULL
-) 
-RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometry, query text) AS $$ 
+)
+RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometry, query text) AS $$
     SELECT ST_GeoTableSummary($1, $2, $3, $4, $5, regexp_split_to_array($6, E'\\s*\,\\s'), regexp_split_to_array($7, E'\\s*\,\\s'), $8)
 $$ LANGUAGE sql VOLATILE;
 -------------------------------------------------------------------------------
@@ -2917,11 +2929,11 @@ $$ LANGUAGE sql VOLATILE;
 --
 --   RETURNS TABLE (geom geometry, tid int8, x int, y int)
 --
--- Set function returnings the geometry splitted in multiple parts by a grid of the 
--- specified size and optionnaly shifted by the specified offset. Each part comes 
+-- Set function returnings the geometry splitted in multiple parts by a grid of the
+-- specified size and optionnaly shifted by the specified offset. Each part comes
 -- with a unique identifier for each cell of the grid it intersects with.
--- This unique identifier remains the same for any subsequent call to the function 
--- so that all geometry parts inside the same cell, from call to call get the same 
+-- This unique identifier remains the same for any subsequent call to the function
+-- so that all geometry parts inside the same cell, from call to call get the same
 -- uid.
 --
 -- This function is usefull to parallelize some queries.
@@ -2945,7 +2957,7 @@ $$ LANGUAGE sql VOLATILE;
 -- 19/06/2017 added in v1.29
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_SplitByGrid(
-    ingeom geometry, 
+    ingeom geometry,
     xgridsize double precision,
     ygridsize double precision DEFAULT NULL,
     xgridoffset double precision DEFAULT 0.0,
@@ -2986,7 +2998,7 @@ RETURNS TABLE (geom geometry, tid int8, x int, y int) AS $$
         yfloor = floor((ymin - ygridoffset) / ygridsize);
         yminrounded = yfloor * ygridsize + ygridoffset;
         ymaxrounded = ceil((ymax - ygridoffset) / ygridsize) * ygridsize + ygridoffset;
-        
+
         width = round((xmaxrounded - xminrounded) / xgridsize);
         height = round((ymaxrounded - yminrounded) / ygridsize);
 
@@ -2994,7 +3006,7 @@ RETURNS TABLE (geom geometry, tid int8, x int, y int) AS $$
             FOR y IN 1..height LOOP
                 env = ST_MakeEnvelope(xminrounded + (x - 1) * xgridsize, yminrounded + (y - 1) * ygridsize, xminrounded + x * xgridsize, yminrounded + y * ygridsize, ST_SRID(ingeom));
                 IF ST_Intersects(env, ingeom) THEN
-                     RETURN QUERY SELECT ST_Intersection(ingeom, env), ((xfloor::int8 + x) * 10000000 + (yfloor::int8 + y))::int8, xfloor + x, yfloor + y WHERE ST_GeometryType(ST_Intersection(ingeom, env)) = ST_GeometryType(ingeom); 
+                     RETURN QUERY SELECT ST_Intersection(ingeom, env), ((xfloor::int8 + x) * 10000000 + (yfloor::int8 + y))::int8, xfloor + x, yfloor + y WHERE ST_GeometryType(ST_Intersection(ingeom, env)) = ST_GeometryType(ingeom);
                 END IF;
             END LOOP;
         END LOOP;
@@ -3006,39 +3018,39 @@ $$ LANGUAGE plpgsql VOLATILE;
 -------------------------------------------------------------------------------
 -- ST_Histogram
 --
---   schemaname text  - Name of the schema containing the table for which to 
+--   schemaname text  - Name of the schema containing the table for which to
 --                      compute the histogram.
 --
---   tablename text   - Name of the table containing the column for which to 
+--   tablename text   - Name of the table containing the column for which to
 --                      compute the histogram.
 --
 --   columnname text  - Name of the column for which to compute the histogram.
 --
---   nbinterval int   - Number of bins for the histogram. Default to 10. Must 
+--   nbinterval int   - Number of bins for the histogram. Default to 10. Must
 --                      be > 0.
 --
 --   whereclause text - WHERE clause added to the query in order to filter
---                      the values taken into account when building the 
+--                      the values taken into account when building the
 --                      histogram.
 --
 --   RETURNS TABLE (intervals text, nb int, query text)
 --
--- Set function returnings a table representing an histogram of the values 
+-- Set function returnings a table representing an histogram of the values
 -- for the specifed column.
 --
 -- The return table contains 3 columns:
 --
---   'intervals' is a text column specifiing the lower and upper bounds of the 
---               intervals (or bins). Start with '[' when the lower bound is 
---               included in the interval and with ']' when the lowerbound is 
---               not included in the interval. Complementarily ends with ']' 
---               when the upper bound is included in the interval and with '[' 
+--   'intervals' is a text column specifiing the lower and upper bounds of the
+--               intervals (or bins). Start with '[' when the lower bound is
+--               included in the interval and with ']' when the lowerbound is
+--               not included in the interval. Complementarily ends with ']'
+--               when the upper bound is included in the interval and with '['
 --               when the upper bound is not included in the interval.
 --
---   'cnt' is a integer column specifying the number of occurrence of the value 
+--   'cnt' is a integer column specifying the number of occurrence of the value
 --         in this interval (or bin).
 --
---   'query' is the query you can use to generate the rows accounted for in this 
+--   'query' is the query you can use to generate the rows accounted for in this
 --           interval.
 --
 -- Self contained and typical example:
@@ -3053,14 +3065,14 @@ $$ LANGUAGE plpgsql VOLATILE;
 -- 22/06/2017 v1.31
 -----------------------------------------------------------
 CREATE OR REPLACE FUNCTION ST_Histogram(
-    schemaname text, 
+    schemaname text,
     tablename text,
     columnname text,
     nbinterval int DEFAULT 10,
     whereclause text DEFAULT NULL
-) 
-RETURNS TABLE (intervals text, nb int, query text) AS $$ 
-    DECLARE 
+)
+RETURNS TABLE (intervals text, nb int, query text) AS $$
+    DECLARE
     fqtn text;
     query text;
     newschemaname name;
@@ -3095,20 +3107,20 @@ RETURNS TABLE (intervals text, nb int, query text) AS $$
         query = 'SELECT min(' || columnname || '), max(' || columnname || ') FROM ' || fqtn || whereclausewithwhere;
         EXECUTE QUERY query INTO minval, maxval;
         IF maxval - minval = 0 THEN
-            RAISE NOTICE 'maximum valueb - minimum value = 0. Will create only 1 interval instead of %...', nbinterval;
+            RAISE NOTICE 'maximum value - minimum value = 0. Will create only 1 interval instead of %...', nbinterval;
             nbinterval = 1;
         END IF;
-       
+
         -- Build an histogram with the column values.
         IF ST_ColumnExists(newschemaname, tablename, columnname) THEN
-            query = 'WITH values AS (SELECT ' || columnname || ' val FROM ' || fqtn || whereclausewithwhere || '), 
-                          bins   AS (SELECT val, least(floor((val - ' || minval || ')*' || nbinterval || '::numeric/(' || (CASE WHEN maxval - minval = 0 THEN maxval + 0.000000001 ELSE maxval END) - minval || ')), ' || nbinterval || ' - 1) bin, ' || (maxval - minval) || '/' || nbinterval || '.0 nbperbin FROM values), 
-                          histo  AS (SELECT bin, count(*) cnt FROM bins GROUP BY bin) 
-                     SELECT ''['' || (' || minval || ' + serie * nbperbin)::float8::text || '' - '' || (' || minval || ' + (serie + 1) * nbperbin)::float8::text || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN '']'' ELSE ''['' END) interv, 
-                            coalesce(cnt, 0)::int cnt, 
-                            ''SELECT * FROM ' || fqtn || ' WHERE ' || columnname || ' >= ''|| (' || minval || ' + serie * nbperbin)::float8::text || '' AND ' || columnname || ' <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''= '' ELSE '' '' END) || (' || minval || ' + (serie + 1) * nbperbin)::float8::text || '' ORDER BY ' || columnname || ';''::text
-                     FROM generate_series(0, ' || nbinterval || ' - 1) serie 
-                          LEFT OUTER JOIN histo ON (serie = histo.bin), 
+            query = 'WITH values AS (SELECT ' || columnname || ' val FROM ' || fqtn || ' WHERE NOT ' || columnname || ' IS NULL ' || whereclause || '),
+                          bins   AS (SELECT val, least(floor((val - ' || minval || ')*' || nbinterval || '::numeric/(' || (CASE WHEN maxval - minval = 0 THEN maxval + 0.000000001 ELSE maxval END) - minval || ')), ' || nbinterval || ' - 1) bin, ' || (maxval - minval) || '/' || nbinterval || '.0 binrange FROM values),
+                          histo  AS (SELECT bin, count(*) cnt FROM bins GROUP BY bin)
+                     SELECT ''['' || (' || minval || ' + serie * binrange)::float8::text || '' - '' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ' || maxval || '::float8::text || '']'' ELSE (' || minval || ' + (serie + 1) * binrange)::float8::text || ''['' END) interv,
+                            coalesce(cnt, 0)::int cnt,
+                            ''SELECT * FROM ' || fqtn || ' WHERE ' || columnname || ' >= '' || (' || minval || ' + serie * binrange)::float8::text || '' AND ' || columnname || ' <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''= '' || ' || maxval || '::float8::text ELSE '' '' || (' || minval || ' + (serie + 1) * binrange)::float8::text END) || '' ORDER BY ' || columnname || ';''::text
+                     FROM generate_series(0, ' || nbinterval || ' - 1) serie
+                          LEFT OUTER JOIN histo ON (serie = histo.bin),
                           (SELECT * FROM bins LIMIT 1) foo
                      ORDER BY serie;';
             RETURN QUERY EXECUTE query;
@@ -3116,9 +3128,9 @@ RETURNS TABLE (intervals text, nb int, query text) AS $$
             RAISE NOTICE '''%'' does not exists. Returning nothing...',columnname::text;
             RETURN;
         END IF;
-    
-        RETURN; 
-    END; 
+
+        RETURN;
+    END;
 $$ LANGUAGE 'plpgsql' VOLATILE;
 
 -------------------------------------------------------------------------------
