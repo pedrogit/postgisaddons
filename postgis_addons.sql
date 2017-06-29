@@ -2842,7 +2842,7 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
         -- Summary #9: Build a list of the small areas (SACOUNT) < 0.1 units
         IF (dosummary IS NULL OR 'SACOUNT' = ANY (dosummary) OR 'S9' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
            (skipsummary IS NULL OR NOT ('SACOUNT' = ANY (skipsummary) OR 'S9' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-            RETURN QUERY SELECT 'SACOUNT 9 - COUNT OF SMALL AREAS (SACOUNT or S9)'::text, 'AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
+            RETURN QUERY SELECT 'SUMMARY 9 - COUNT OF SMALL AREAS (SACOUNT or S9)'::text, 'SMALL AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, 'QUERY'::text;
             RAISE NOTICE 'Summary 9 - Count of small areas (SACOUNT or S9)...';
 
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
@@ -3071,7 +3071,7 @@ CREATE OR REPLACE FUNCTION ST_Histogram(
     nbinterval int DEFAULT 10,
     whereclause text DEFAULT NULL
 )
-RETURNS TABLE (intervals text, nb int, query text) AS $$
+RETURNS TABLE (intervals text, cnt int, query text) AS $$
     DECLARE
     fqtn text;
     query text;
@@ -3094,7 +3094,7 @@ RETURNS TABLE (intervals text, nb int, query text) AS $$
             whereclause = '';
         ELSE
             whereclausewithwhere = ' WHERE ' || whereclause || ' ';
-            whereclause = ' AND (' || whereclause || ') ';
+            whereclause = ' AND (' || whereclause || ')';
         END IF;
         newschemaname := '';
         IF length(schemaname) > 0 THEN
@@ -3104,25 +3104,36 @@ RETURNS TABLE (intervals text, nb int, query text) AS $$
         END IF;
         fqtn := quote_ident(newschemaname) || '.' || quote_ident(tablename);
 
-        query = 'SELECT min(' || columnname || '), max(' || columnname || ') FROM ' || fqtn || whereclausewithwhere;
-        EXECUTE QUERY query INTO minval, maxval;
-        IF maxval - minval = 0 THEN
-            RAISE NOTICE 'maximum value - minimum value = 0. Will create only 1 interval instead of %...', nbinterval;
-            nbinterval = 1;
-        END IF;
-
         -- Build an histogram with the column values.
         IF ST_ColumnExists(newschemaname, tablename, columnname) THEN
-            query = 'WITH values AS (SELECT ' || columnname || ' val FROM ' || fqtn || ' WHERE NOT ' || columnname || ' IS NULL ' || whereclause || '),
-                          bins   AS (SELECT val, least(floor((val - ' || minval || ')*' || nbinterval || '::numeric/(' || (CASE WHEN maxval - minval = 0 THEN maxval + 0.000000001 ELSE maxval END) - minval || ')), ' || nbinterval || ' - 1) bin, ' || (maxval - minval) || '/' || nbinterval || '.0 binrange FROM values),
-                          histo  AS (SELECT bin, count(*) cnt FROM bins GROUP BY bin)
-                     SELECT ''['' || (' || minval || ' + serie * binrange)::float8::text || '' - '' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ' || maxval || '::float8::text || '']'' ELSE (' || minval || ' + (serie + 1) * binrange)::float8::text || ''['' END) interv,
-                            coalesce(cnt, 0)::int cnt,
-                            ''SELECT * FROM ' || fqtn || ' WHERE ' || columnname || ' >= '' || (' || minval || ' + serie * binrange)::float8::text || '' AND ' || columnname || ' <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''= '' || ' || maxval || '::float8::text ELSE '' '' || (' || minval || ' + (serie + 1) * binrange)::float8::text END) || '' ORDER BY ' || columnname || ';''::text
-                     FROM generate_series(0, ' || nbinterval || ' - 1) serie
-                          LEFT OUTER JOIN histo ON (serie = histo.bin),
-                          (SELECT * FROM bins LIMIT 1) foo
-                     ORDER BY serie;';
+
+            -- Precompute the min and max values so we can set the number of interval to 1 if they are equal
+            query = 'SELECT min(' || columnname || '), max(' || columnname || ') FROM ' || fqtn || whereclausewithwhere;
+            EXECUTE QUERY query INTO minval, maxval;
+            IF maxval IS NULL AND minval IS NULL THEN
+                query = 'WITH values AS (SELECT ' || columnname || ' val FROM ' || fqtn || whereclausewithwhere || '),
+                              histo  AS (SELECT count(*) cnt FROM values)
+                         SELECT ''NULL''::text interv,
+                                cnt::int,
+                                ''SELECT * FROM ' || fqtn || ' WHERE ' || columnname || ' IS NULL' || whereclause || ';''::text query
+                         FROM histo;';
+            ELSE
+                IF maxval - minval = 0 THEN
+                    RAISE NOTICE 'maximum value - minimum value = 0. Will create only 1 interval instead of %...', nbinterval;
+                    nbinterval = 1;
+                END IF;
+                -- Compute the histogram
+                query = 'WITH values AS (SELECT ' || columnname || ' val FROM ' || fqtn || whereclausewithwhere || '),
+                              bins   AS (SELECT val, CASE WHEN val IS NULL THEN -1 ELSE least(floor((val - ' || minval || ')*' || nbinterval || '::numeric/(' || (CASE WHEN maxval - minval = 0 THEN maxval + 0.000000001 ELSE maxval END) - minval || ')), ' || nbinterval || ' - 1) END bin, ' || (maxval - minval) || '/' || nbinterval || '.0 binrange FROM values),
+                              histo  AS (SELECT bin, count(*) cnt FROM bins GROUP BY bin)
+                         SELECT CASE WHEN serie = -1 THEN ''NULL''::text ELSE ''['' || (' || minval || ' + serie * binrange)::float8::text || '' - '' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ' || maxval || '::float8::text || '']'' ELSE (' || minval || ' + (serie + 1) * binrange)::float8::text || ''['' END) END intervals,
+                                coalesce(cnt, 0)::int cnt, -- ''toto''::text query
+                               (''SELECT * FROM ' || fqtn || ' WHERE ' || columnname || ''' || (CASE WHEN serie = -1 THEN '' IS NULL'' || ''' || whereclause || ''' ELSE ('' >= '' || (' || minval || ' + serie * binrange)::float8::text || '' AND ' || columnname || ' <'' || (CASE WHEN serie = ' || nbinterval || ' - 1 THEN ''= '' || ' || maxval || '::float8::text ELSE '' '' || (' || minval || ' + (serie + 1) * binrange)::float8::text END) || ''' || whereclause || ''' || '' ORDER BY ' || columnname || ''') END) || '';'')::text
+                         FROM generate_series(-1, ' || nbinterval || ' - 1) serie
+                              LEFT OUTER JOIN histo ON (serie = histo.bin),
+                              (SELECT * FROM bins LIMIT 1) foo
+                         ORDER BY serie;';
+            END IF;
             RETURN QUERY EXECUTE query;
         ELSE
             RAISE NOTICE '''%'' does not exists. Returning nothing...',columnname::text;
