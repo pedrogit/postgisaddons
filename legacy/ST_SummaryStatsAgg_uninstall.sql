@@ -1,6 +1,6 @@
 -------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Uninstall ST_SummaryStatsAgg()
--- Version 1.31 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.32 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under

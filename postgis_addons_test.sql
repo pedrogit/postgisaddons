@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.31 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.32 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -1349,26 +1349,28 @@ UNION ALL
 SELECT '17.10'::text number,
        'ST_GeoTableSummary'::text function_tested,
        'Vertex histogram results'::text description,
-       (array_agg(nb))[1] = 9 AND 
-       (array_agg(nb))[2] = 1 AND 
-       (array_agg(nb))[3] = 0 AND 
+       (array_agg(nb))[1] = 1 AND 
+       (array_agg(nb))[2] = 8 AND 
+       (array_agg(nb))[3] = 1 AND 
        (array_agg(nb))[4] = 0 AND 
        (array_agg(nb))[5] = 0 AND 
        (array_agg(nb))[6] = 0 AND 
        (array_agg(nb))[7] = 0 AND 
        (array_agg(nb))[8] = 0 AND 
        (array_agg(nb))[9] = 0 AND 
-       (array_agg(nb))[10] = 2 AND 
-       (array_agg(query))[1]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 0 AND ST_NPoints(geom) < 3 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[2]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 3 AND ST_NPoints(geom) < 7 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[3]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 7 AND ST_NPoints(geom) < 10 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[4]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 10 AND ST_NPoints(geom) < 13 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[5]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 13 AND ST_NPoints(geom) < 17 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[6]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 17 AND ST_NPoints(geom) < 20 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[7]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 20 AND ST_NPoints(geom) < 23 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[8]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 23 AND ST_NPoints(geom) < 26 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[9]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 26 AND ST_NPoints(geom) < 30 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[10]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 30 AND ST_NPoints(geom) <= 33 ORDER BY ST_NPoints(geom) DESC;' passed
+       (array_agg(nb))[10] = 0 AND 
+       (array_agg(nb))[11] = 2 AND 
+       (array_agg(query))[1]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) IS NULL;' AND 
+       (array_agg(query))[2]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 0 AND ST_NPoints(geom) < 3 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[3]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 3 AND ST_NPoints(geom) < 7 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[4]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 7 AND ST_NPoints(geom) < 10 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[5]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 10 AND ST_NPoints(geom) < 13 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[6]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 13 AND ST_NPoints(geom) < 17 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[7]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 17 AND ST_NPoints(geom) < 20 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[8]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 20 AND ST_NPoints(geom) < 23 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[9]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 23 AND ST_NPoints(geom) < 26 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[10]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 26 AND ST_NPoints(geom) < 30 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[11]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 30 AND ST_NPoints(geom) <= 33 ORDER BY ST_NPoints(geom) DESC;' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
 WHERE summary = '6'
 ---------------------------------------------------------
@@ -1389,18 +1391,19 @@ UNION ALL
 SELECT '17.12'::text number,
        'ST_GeoTableSummary'::text function_tested,
        'Area histogram results'::text description,
-       (array_agg(idsandtypes))[1] = '[0 - 0.312144515225805[' AND 
-       (array_agg(idsandtypes))[2] = '[0.312144515225805 - 0.62428903045161[' AND 
-       (array_agg(idsandtypes))[3] = '[0.62428903045161 - 0.936433545677415[' AND 
-       (array_agg(idsandtypes))[4] = '[0.936433545677415 - 1.24857806090322[' AND 
-       (array_agg(idsandtypes))[5] = '[1.24857806090322 - 1.56072257612903[' AND 
-       (array_agg(idsandtypes))[6] = '[1.56072257612903 - 1.87286709135483[' AND 
-       (array_agg(idsandtypes))[7] = '[1.87286709135483 - 2.18501160658063[' AND 
-       (array_agg(idsandtypes))[8] = '[2.18501160658063 - 2.49715612180644[' AND 
-       (array_agg(idsandtypes))[9] = '[2.49715612180644 - 2.80930063703225[' AND 
-       (array_agg(idsandtypes))[10] = '[2.80930063703225 - 3.12144515225805]' AND 
-       (array_agg(nb))[1] = 10 AND 
-       (array_agg(nb))[2] = 0 AND 
+       (array_agg(idsandtypes))[1] = 'NULL' AND 
+       (array_agg(idsandtypes))[2] = '[0 - 0.31214451522580527[' AND 
+       (array_agg(idsandtypes))[3] = '[0.31214451522580527 - 0.62428903045161055[' AND 
+       (array_agg(idsandtypes))[4] = '[0.62428903045161055 - 0.93643354567741588[' AND 
+       (array_agg(idsandtypes))[5] = '[0.93643354567741588 - 1.2485780609032211[' AND 
+       (array_agg(idsandtypes))[6] = '[1.2485780609032211 - 1.5607225761290264[' AND 
+       (array_agg(idsandtypes))[7] = '[1.5607225761290264 - 1.8728670913548318[' AND 
+       (array_agg(idsandtypes))[8] = '[1.8728670913548318 - 2.1850116065806371[' AND 
+       (array_agg(idsandtypes))[9] = '[2.1850116065806371 - 2.4971561218064422[' AND 
+       (array_agg(idsandtypes))[10] = '[2.4971561218064422 - 2.8093006370322477[' AND 
+       (array_agg(idsandtypes))[11] = '[2.8093006370322477 - 3.1214451522580529]' AND 
+       (array_agg(nb))[1] = 1 AND 
+       (array_agg(nb))[2] = 9 AND 
        (array_agg(nb))[3] = 0 AND 
        (array_agg(nb))[4] = 0 AND 
        (array_agg(nb))[5] = 0 AND 
@@ -1408,17 +1411,19 @@ SELECT '17.12'::text number,
        (array_agg(nb))[7] = 0 AND 
        (array_agg(nb))[8] = 0 AND 
        (array_agg(nb))[9] = 0 AND 
-       (array_agg(nb))[10] = 2 AND 
-       (array_agg(query))[1]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0 AND ST_Area(geom) < 0.312144515225805 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[2]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.312144515225805 AND ST_Area(geom) < 0.62428903045161 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[3]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.62428903045161 AND ST_Area(geom) < 0.936433545677415 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[4]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.936433545677415 AND ST_Area(geom) < 1.24857806090322 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[5]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.24857806090322 AND ST_Area(geom) < 1.56072257612903 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[6]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.56072257612903 AND ST_Area(geom) < 1.87286709135483 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[7]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.87286709135483 AND ST_Area(geom) < 2.18501160658063 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[8]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.18501160658063 AND ST_Area(geom) < 2.49715612180644 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[9]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.49715612180644 AND ST_Area(geom) < 2.80930063703225 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[10]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.80930063703225 AND ST_Area(geom) <= 3.12144515225805 ORDER BY ST_Area(geom) DESC;' passed
+       (array_agg(nb))[10] = 0 AND 
+       (array_agg(nb))[11] = 2 AND 
+       (array_agg(query))[1]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) IS NULL;' AND 
+       (array_agg(query))[2]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0 AND ST_Area(geom) < 0.31214451522580527 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[3]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.31214451522580527 AND ST_Area(geom) < 0.62428903045161055 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[4]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.62428903045161055 AND ST_Area(geom) < 0.93643354567741588 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[5]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.93643354567741588 AND ST_Area(geom) < 1.2485780609032211 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[6]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.2485780609032211 AND ST_Area(geom) < 1.5607225761290264 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[7]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.5607225761290264 AND ST_Area(geom) < 1.8728670913548318 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[8]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 1.8728670913548318 AND ST_Area(geom) < 2.1850116065806371 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[9]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.1850116065806371 AND ST_Area(geom) < 2.4971561218064422 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[10]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.4971561218064422 AND ST_Area(geom) < 2.8093006370322477 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[11]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.8093006370322477 AND ST_Area(geom) <= 3.1214451522580529 ORDER BY ST_Area(geom) DESC;' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
 WHERE summary = '8'
 ---------------------------------------------------------
@@ -1426,30 +1431,33 @@ UNION ALL
 SELECT '17.13'::text number,
        'ST_GeoTableSummary'::text function_tested,
        'Small area count results'::text description,
-       (array_agg(idsandtypes))[1] = '[0]' AND 
-       (array_agg(idsandtypes))[2] = ']0 - 0.0000001[' AND 
-       (array_agg(idsandtypes))[3] = '[0.0000001 - 0.000001[' AND 
-       (array_agg(idsandtypes))[4] = '[0.000001 - 0.00001[' AND 
-       (array_agg(idsandtypes))[5] = '[0.00001 - 0.0001[' AND 
-       (array_agg(idsandtypes))[6] = '[0.0001 - 0.001[' AND 
-       (array_agg(idsandtypes))[7] = '[0.001 - 0.01[' AND 
-       (array_agg(idsandtypes))[8] = '[0.01 - 0.1[' AND 
-       (array_agg(nb))[1] = 9 AND 
-       (array_agg(nb))[2] = 0 AND 
+       (array_agg(idsandtypes))[1] = 'NULL' AND 
+       (array_agg(idsandtypes))[2] = '[0]' AND 
+       (array_agg(idsandtypes))[3] = ']0 - 0.0000001[' AND 
+       (array_agg(idsandtypes))[4] = '[0.0000001 - 0.000001[' AND 
+       (array_agg(idsandtypes))[5] = '[0.000001 - 0.00001[' AND 
+       (array_agg(idsandtypes))[6] = '[0.00001 - 0.0001[' AND 
+       (array_agg(idsandtypes))[7] = '[0.0001 - 0.001[' AND 
+       (array_agg(idsandtypes))[8] = '[0.001 - 0.01[' AND 
+       (array_agg(idsandtypes))[9] = '[0.01 - 0.1[' AND 
+       (array_agg(nb))[1] = 1 AND 
+       (array_agg(nb))[2] = 9 AND 
        (array_agg(nb))[3] = 0 AND 
        (array_agg(nb))[4] = 0 AND 
        (array_agg(nb))[5] = 0 AND 
        (array_agg(nb))[6] = 0 AND 
        (array_agg(nb))[7] = 0 AND 
-       (array_agg(nb))[8] = 0 AND  
-       (array_agg(query))[1]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) = 0;' AND 
-       (array_agg(query))[2]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) > 0 AND ST_Area(geom) < 0.0000001 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[3]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.0000001 AND ST_Area(geom) < 0.000001 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[4]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.000001 AND ST_Area(geom) < 0.00001 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[5]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.00001 AND ST_Area(geom) < 0.0001 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[6]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.0001 AND ST_Area(geom) < 0.001 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[7]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.001 AND ST_Area(geom) < 0.01 ORDER BY ST_Area(geom) DESC;' AND 
-       (array_agg(query))[8]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.01 AND ST_Area(geom) < 0.1 ORDER BY ST_Area(geom) DESC;' passed
+       (array_agg(nb))[8] = 0 AND 
+       (array_agg(nb))[9] = 0 AND  
+       (array_agg(query))[1]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) IS NULL;' AND 
+       (array_agg(query))[2]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) = 0;' AND 
+       (array_agg(query))[3]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) > 0 AND ST_Area(geom) < 0.0000001 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[4]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.0000001 AND ST_Area(geom) < 0.000001 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[5]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.000001 AND ST_Area(geom) < 0.00001 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[6]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.00001 AND ST_Area(geom) < 0.0001 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[7]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.0001 AND ST_Area(geom) < 0.001 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[8]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.001 AND ST_Area(geom) < 0.01 ORDER BY ST_Area(geom) DESC;' AND 
+       (array_agg(query))[9]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.01 AND ST_Area(geom) < 0.1 ORDER BY ST_Area(geom) DESC;' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 'SACOUNT')
 WHERE summary = '9'
 ---------------------------------------------------------
@@ -1478,8 +1486,8 @@ UNION ALL
 SELECT '17.15'::text number,
        'ST_GeoTableSummary'::text function_tested,
        'Whereclause parameter'::text description,
-       sum(nb) = 27
-FROM (SELECT * FROM (SELECT (ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, null, null, 'id1 < 10')).*) foo WHERE summary = '4' OR summary = '6' OR summary = '8') foo
+       sum(nb) = 34
+FROM (SELECT * FROM (SELECT (ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 'all', 'ovl', 'id1 < 10')).*) foo WHERE summary = '4' OR summary = '6' OR summary = '8' OR summary = '9') foo
 
 ---------------------------------------------------------
 -- Test 18 - ST_SplitByGrid
@@ -1584,20 +1592,20 @@ SELECT '19.3'::text number,
        'ST_Histogram'::text function_tested,
        'Basic test with float values'::text description,
        (array_agg(intervals))[1] = 'NULL' AND 
-       (array_agg(intervals))[2] = '[0.0255749258212745 - 0.26533543120604[' AND 
-       (array_agg(intervals))[3] = '[0.26533543120604 - 0.505095936590806[' AND 
-       (array_agg(intervals))[4] = '[0.505095936590806 - 0.744856441975571[' AND 
-       (array_agg(intervals))[5] = '[0.744856441975571 - 0.984616947360337]' AND 
+       (array_agg(intervals))[2] = '[0.025574925821274519 - 0.26533543120604008[' AND 
+       (array_agg(intervals))[3] = '[0.26533543120604008 - 0.50509593659080565[' AND 
+       (array_agg(intervals))[4] = '[0.50509593659080565 - 0.74485644197557122[' AND 
+       (array_agg(intervals))[5] = '[0.74485644197557122 - 0.98461694736033678]' AND 
        (array_agg(cnt))[1] = 0 AND 
        (array_agg(cnt))[2] = 23 AND 
        (array_agg(cnt))[3] = 23 AND 
        (array_agg(cnt))[4] = 22 AND 
        (array_agg(cnt))[5] = 32 AND 
        (array_agg(query))[1]::text = 'SELECT * FROM public.test_histogram WHERE r1 IS NULL;' AND 
-       (array_agg(query))[2]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.0255749258212745 AND r1 < 0.26533543120604 ORDER BY r1;' AND 
-       (array_agg(query))[3]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.26533543120604 AND r1 < 0.505095936590806 ORDER BY r1;' AND 
-       (array_agg(query))[4]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.505095936590806 AND r1 < 0.744856441975571 ORDER BY r1;' AND 
-       (array_agg(query))[5]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.744856441975571 AND r1 <= 0.984616947360337 ORDER BY r1;' passed
+       (array_agg(query))[2]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.025574925821274519 AND r1 < 0.26533543120604008 ORDER BY r1;' AND 
+       (array_agg(query))[3]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.26533543120604008 AND r1 < 0.50509593659080565 ORDER BY r1;' AND 
+       (array_agg(query))[4]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.50509593659080565 AND r1 < 0.74485644197557122 ORDER BY r1;' AND 
+       (array_agg(query))[5]::text = 'SELECT * FROM public.test_histogram WHERE r1 >= 0.74485644197557122 AND r1 <= 0.98461694736033678 ORDER BY r1;' passed
 FROM ST_Histogram('public', 'test_histogram', 'r1', 4)
 ---------------------------------------------------------
 
@@ -1606,20 +1614,20 @@ SELECT '19.4'::text number,
        'ST_Histogram'::text function_tested,
        'Basic test with very small float values'::text description,
        (array_agg(intervals))[1] = 'NULL' AND 
-       (array_agg(intervals))[2] = '[2.55749258212745e-009 - 2.6533543120604e-008[' AND 
-       (array_agg(intervals))[3] = '[2.6533543120604e-008 - 5.05095936590806e-008[' AND 
-       (array_agg(intervals))[4] = '[5.05095936590806e-008 - 7.44856441975571e-008[' AND 
-       (array_agg(intervals))[5] = '[7.44856441975571e-008 - 9.84616947360337e-008]' AND 
+       (array_agg(intervals))[2] = '[2.5574925821274518e-009 - 2.6533543120604006e-008[' AND 
+       (array_agg(intervals))[3] = '[2.6533543120604006e-008 - 5.0509593659080564e-008[' AND 
+       (array_agg(intervals))[4] = '[5.0509593659080564e-008 - 7.4485644197557122e-008[' AND 
+       (array_agg(intervals))[5] = '[7.4485644197557122e-008 - 9.8461694736033674e-008]' AND 
        (array_agg(cnt))[1] = 0 AND 
        (array_agg(cnt))[2] = 23 AND 
        (array_agg(cnt))[3] = 23 AND 
        (array_agg(cnt))[4] = 22 AND 
        (array_agg(cnt))[5] = 32 AND 
        (array_agg(query))[1]::text = 'SELECT * FROM public.test_histogram WHERE r2 IS NULL;' AND 
-       (array_agg(query))[2]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 2.55749258212745e-009 AND r2 < 2.6533543120604e-008 ORDER BY r2;' AND 
-       (array_agg(query))[3]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 2.6533543120604e-008 AND r2 < 5.05095936590806e-008 ORDER BY r2;' AND 
-       (array_agg(query))[4]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 5.05095936590806e-008 AND r2 < 7.44856441975571e-008 ORDER BY r2;' AND 
-       (array_agg(query))[5]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 7.44856441975571e-008 AND r2 <= 9.84616947360337e-008 ORDER BY r2;' passed
+       (array_agg(query))[2]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 2.5574925821274518e-009 AND r2 < 2.6533543120604006e-008 ORDER BY r2;' AND 
+       (array_agg(query))[3]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 2.6533543120604006e-008 AND r2 < 5.0509593659080564e-008 ORDER BY r2;' AND 
+       (array_agg(query))[4]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 5.0509593659080564e-008 AND r2 < 7.4485644197557122e-008 ORDER BY r2;' AND 
+       (array_agg(query))[5]::text = 'SELECT * FROM public.test_histogram WHERE r2 >= 7.4485644197557122e-008 AND r2 <= 9.8461694736033674e-008 ORDER BY r2;' passed
 FROM ST_Histogram('public', 'test_histogram', 'r2', 4)
 ---------------------------------------------------------
 
