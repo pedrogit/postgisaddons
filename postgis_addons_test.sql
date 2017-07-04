@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.32 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.33 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -1341,7 +1341,7 @@ SELECT '17.9'::text number,
        (array_agg(nb))[3] = 7 AND 
        (array_agg(query))[1]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_NPoints(geom) = 0;' AND 
        (array_agg(query))[2]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_NPoints(geom) = 33;' AND 
-       (array_agg(query))[3]::text = 'query' passed
+       (array_agg(query))[3]::text = 'No usefull query' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
 WHERE summary = '5'
 ---------------------------------------------------------
@@ -1383,7 +1383,7 @@ SELECT '17.11'::text number,
        ((array_agg(nb))[3]*100000)::int = 56754 AND 
        (array_agg(query))[1]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_Area(geom) < 0 + 0.000000001;' AND 
        (array_agg(query))[2]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_Area(geom) > 3.12144515225805 - 0.000000001 AND ST_Area(geom) < 3.12144515225805 + 0.000000001;' AND 
-       (array_agg(query))[3]::text = 'query' passed
+       (array_agg(query))[3]::text = 'No usefull query' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
 WHERE summary = '7'
 ---------------------------------------------------------
