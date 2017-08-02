@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.33 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.34 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -1928,6 +1928,10 @@ $$ LANGUAGE sql IMMUTABLE;
 -- Returns the first geometry after having removed all the subsequent geometries in
 -- the aggregate. This function is used to remove overlaps in a table of polygons.
 --
+-- The function will not remove the first geom2 identical to geom1. This allows returning
+-- geom1 even when no other geometries overlap with it. Any other identical geom2 will 
+-- however be removed.
+--
 -- Refer to the self contained example below. Each geometry MUST have a unique ID
 -- and, if the table contains a huge number of geometries, it should be indexed.
 --
@@ -1935,7 +1939,7 @@ $$ LANGUAGE sql IMMUTABLE;
 -- the overlapping geometries having a bigger area. i.e larger polygons have priority:
 --
 -- WITH overlappingtable AS (
---   SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1))') geom
+--   SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1), (1.5 1.333, 2 1.333, 2 0.666, 1.5 0.666, 1.5 1.333))') geom
 --   UNION ALL
 --   SELECT 2 id, ST_GeomFromText('POLYGON((1 1, 3.8 2, 4 0, 1 1))')
 --   UNION ALL
@@ -1948,15 +1952,15 @@ $$ LANGUAGE sql IMMUTABLE;
 -- SELECT a.id, ST_DifferenceAgg(a.geom, b.geom) geom
 -- FROM overlappingtable a,
 --      overlappingtable b
--- WHERE a.id = b.id OR
---       ((ST_Contains(a.geom, b.geom) OR
+-- WHERE a.id = b.id OR -- Make sure to pass at least once the polygon with itself
+--       ((ST_Contains(a.geom, b.geom) OR -- Select all the containing, contained and overlapping polygons
 --         ST_Contains(b.geom, a.geom) OR
 --         ST_Overlaps(a.geom, b.geom)) AND
---        (ST_Area(a.geom) < ST_Area(b.geom) OR
---         (ST_Area(a.geom) = ST_Area(b.geom) AND
+--        (ST_Area(a.geom) < ST_Area(b.geom) OR -- Make sure only the smallest ones are removed from the biggest ones
+--         (ST_Area(a.geom) = ST_Area(b.geom) AND -- If areas are equal, arbitrarily remove one from the other but in a determined order so its not done twice.
 --          a.id < b.id)))
 -- GROUP BY a.id
--- HAVING ST_Area(ST_DifferenceAgg(a.geom, b.geom)) > 0.00001 AND NOT ST_IsEmpty(ST_DifferenceAgg(a.geom, b.geom));
+-- HAVING ST_Area(ST_DifferenceAgg(a.geom, b.geom)) > 0 AND NOT ST_IsEmpty(ST_DifferenceAgg(a.geom, b.geom));
 --
 -- The HAVING clause of the query makes sure that very small and empty remains not included in the result.
 --
@@ -1992,12 +1996,13 @@ RETURNS geomval AS $$
        equals boolean;
     BEGIN
         -- First pass: geom1 is null
-        IF geom1 IS NULL AND NOT ST_IsEmpty(geom2) AND ST_Area(geom3) > 0.0000001 THEN
+        IF geom1 IS NULL AND NOT ST_IsEmpty(geom2) AND ST_Area(geom3) > 0 THEN
             newgeom = CASE
                         WHEN ST_Equals(geom2, geom3) THEN (geom2, 1)
+                        WHEN ST_Area(ST_Intersection(geom2, geom3)) = 0 OR ST_IsEmpty(ST_Intersection(geom2, geom3)) THEN (geom2, 0)
                         ELSE (ST_Difference(geom2, geom3), 0)
                       END;
-        ELSIF NOT ST_IsEmpty((geom1).geom) AND ST_Area(geom3) > 0.0000001 THEN
+        ELSIF NOT ST_IsEmpty((geom1).geom) AND ST_Area(geom3) > 0 THEN
             equals = ST_Equals(geom2, geom3);
             IF NOT equals THEN
                 BEGIN
@@ -2005,10 +2010,12 @@ RETURNS geomval AS $$
                 EXCEPTION
                 WHEN OTHERS THEN
                     BEGIN
+                        RAISE NOTICE 'ST_DifferenceAgg(): Had to buffer geometries by 0.000001 to compute the difference...';
                         differ = ST_Difference(ST_Buffer((geom1).geom, 0.000001), ST_Buffer(geom3, 0.000001));
                     EXCEPTION
                     WHEN OTHERS THEN
                         BEGIN
+                            RAISE NOTICE 'ST_DifferenceAgg(): Had to buffer geometries by 0.00001 to compute the difference...';
                             differ = ST_Difference(ST_Buffer((geom1).geom, 0.00001), ST_Buffer(geom3, 0.00001));
                         EXCEPTION
                         WHEN OTHERS THEN
@@ -2019,6 +2026,7 @@ RETURNS geomval AS $$
             END IF;
             newgeom = CASE
                         WHEN equals AND (geom1).val = 0 THEN ((geom1).geom, 1)
+                        WHEN ST_Area(ST_Intersection((geom1).geom, geom3)) = 0 OR ST_IsEmpty(ST_Intersection((geom1).geom, geom3)) THEN ((geom1).geom, (geom1).val)
                         ELSE (differ, (geom1).val)
                       END;
         ELSE
@@ -2102,7 +2110,7 @@ $$ LANGUAGE sql IMMUTABLE;
 --
 -- This function is used to remove overlaps in a table of polygons or to generate
 -- the equivalent of a ArcGIS union (see http://trac.osgeo.org/postgis/wiki/UsersWikiExamplesOverlayTables).
--- As it does not involve the usion of all the polygons (or the extracted linestring)
+-- As it does not involve the union of all the polygons (or the extracted linestring)
 -- of the table, it works much better on very large tables than the solutions
 -- provided in the wiki.
 --
@@ -2364,15 +2372,15 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --                 type of the metric being summarized (min, max, mean, lower and
 --                 upper bounds of the histogram interval).
 --
---   'nb' is the summary being computed. i.e. the number of duplicates, the
---        overlapping area, the number of geometry of a certain type, the min,
---        max or mean number of vertexes, the number of geometries in each histogram
---        interval.
---
---   'geom' is the duplicate or the overlapping part itself so you can display them directly
---          in your favorite GIS.
+--   'countsandareas' is the summary being computed. i.e. the number of duplicates, the
+--                    overlapping area, the number of geometry of a certain type, the min,
+--                    max or mean number of vertexes, the number of geometries in each 
+--                    histogram interval.
 --
 --   'query' is the query you can use to generate the rows summarized on this line.
+--
+--   'geom' is the duplicate or the overlapping part itself so you can display them 
+--          directly in your favorite GIS.
 --
 --
 -- Self contained and typical example:
@@ -2416,11 +2424,11 @@ CREATE OR REPLACE FUNCTION ST_GeoTableSummary(
     geomcolumnname name DEFAULT 'geom',
     uidcolumn name DEFAULT NULL,
     nbinterval int DEFAULT 10,
-    dosummary text[] DEFAULT ARRAY['IDDUP', 'GDUP', 'TYPES', 'VERTX', 'VHISTO', 'AREAS', 'AHISTO'],
+    dosummary text[] DEFAULT NULL,
     skipsummary text[] DEFAULT NULL,
     whereclause text DEFAULT NULL
 )
-RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometry, query text) AS $$
+RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, query text, geom geometry) AS $$
     DECLARE
         fqtn text;
         query text;
@@ -2434,7 +2442,16 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
         createidx boolean := FALSE;
         uidcolumncnt int := 0;
         whereclausewithwhere text := '';
-        sval text[] = ARRAY['IDDUP', 'S1', 'GDUP', 'GEODUP', 'S2', 'OVL', 'S3', 'TYPES', 'S4', 'VERTX', 'S5', 'VHISTO', 'S6', 'AREAS', 'AREA', 'S7', 'AHISTO', 'S8', 'SACOUNT', 'S9', 'ALL'];
+        sval text[] = ARRAY['S1', 'IDDUP', 'S2', 'GDUP', 'GEODUP', 'S3', 'OVL', 'S4', 'TYPES', 'S5', 'VERTX', 'S6', 'VHISTO', 'S7', 'AREAS', 'AREA', 'S8', 'AHISTO', 'S9', 'SACOUNT', 'ALL'];
+        dos1 text[] = ARRAY['S1', 'IDDUP', 'ALL'];
+        dos2 text[] = ARRAY['S2', 'GDUP', 'GEODUP', 'ALL'];
+        dos3 text[] = ARRAY['S3', 'OVL', 'ALL'];
+        dos4 text[] = ARRAY['S4', 'TYPES', 'GTYPES', 'GEOTYPES', 'ALL'];
+        dos5 text[] = ARRAY['S5', 'VERTX', 'ALL'];
+        dos6 text[] = ARRAY['S6', 'VHISTO', 'ALL'];
+        dos7 text[] = ARRAY['S7', 'AREAS', 'AREA', 'ALL'];
+        dos8 text[] = ARRAY['S8', 'AHISTO', 'ALL'];
+        dos9 text[] = ARRAY['S9', 'SACOUNT', 'ALL'];
         provided_uid_isunique boolean = FALSE;
         colnamearr text[];
         colnamearrlength int := 0;
@@ -2445,6 +2462,7 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
         maxarea double precision := 0;
         minnp int := 0;
         maxnp int := 0;
+        bydefault text;
     BEGIN
         IF geomcolumnname IS NULL THEN
             geomcolumnname = 'geom';
@@ -2497,21 +2515,25 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
             newuidcolumn = 'id';
         END IF;
 
+        -----------------------------------------------
+        -- Display the number of rows selected
+        query = 'SELECT  ''NUMBER OF ROWS SELECTED''::text summary, ''''::text idsandtypes, count(*)::double precision countsandareas, ''query''::text, NULL::geometry geom  FROM ' || fqtn || whereclausewithwhere;
+        RETURN QUERY EXECUTE query;
+        -----------------------------------------------
         -- Summary #1: Check for duplicate IDs (IDDUP)
-        IF (dosummary IS NULL OR 'IDDUP' = ANY (dosummary) OR 'S1' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT ('IDDUP' = ANY (skipsummary) OR 'S1' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+        IF (dosummary IS NULL OR dosummary && dos1) AND (skipsummary IS NULL OR NOT (skipsummary && dos1)) THEN
             query = E'SELECT 1::text summary,\n'
                  || E'       ' || newuidcolumn || E'::text idsandtypes,\n'
                  || E'       count(*)::double precision cnt,\n'
-                 || E'       NULL::geometry geom,\n'
-                 || E'       ''SELECT * FROM ' || fqtn || ' WHERE ' || newuidcolumn || ' = '' || ' || newuidcolumn || E' || '';''::text query\n'
+                 || E'       ''SELECT * FROM ' || fqtn || ' WHERE ' || newuidcolumn || ' = '' || ' || newuidcolumn || E' || '';''::text query,\n'
+                 || E'       NULL::geometry geom\n'
                  || E'FROM ' || fqtn || E'\n'
                  || whereclausewithwhere || E'\n'
                  || E'GROUP BY ' || newuidcolumn || E'\n'
                  || E'HAVING count(*) > 1\n'
                  || E'ORDER BY cnt DESC;';
 
-            RETURN QUERY SELECT 'SUMMARY 1 - DUPLICATE IDs (IDDUP or S1)'::text, ('DUPLICATE IDs (' || newuidcolumn::text || ')')::text, NULL::double precision, NULL::geometry, query;
+            RETURN QUERY SELECT 'SUMMARY 1 - DUPLICATE IDs (IDDUP or S1)'::text, ('DUPLICATE IDs (' || newuidcolumn::text || ')')::text, NULL::double precision, query, NULL::geometry;
             RAISE NOTICE 'Summary 1 - Duplicate IDs (IDDUP or S1)...';
 
             IF ST_ColumnExists(newschemaname, tablename, newuidcolumn) THEN
@@ -2519,23 +2541,23 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                 IF newuidcolumntype != 'geometry' AND newuidcolumntype != 'raster' THEN
                     RETURN QUERY EXECUTE query;
                     IF NOT FOUND THEN
-                        RETURN QUERY SELECT '1'::text, 'No duplicate IDs...'::text, NULL::double precision, NULL::geometry, NULL::text;
+                        RETURN QUERY SELECT '1'::text, 'No duplicate IDs...'::text, NULL::double precision, NULL::text, NULL::geometry;
                         provided_uid_isunique = TRUE;
                     END IF;
                 ELSE
-                    RETURN QUERY SELECT '1'::text, '''' || newuidcolumn::text || ''' is not of type numeric or text... Skipping Summary 1'::text, NULL::double precision, NULL::geometry, NULL::text;
+                    RETURN QUERY SELECT '1'::text, '''' || newuidcolumn::text || ''' is not of type numeric or text... Skipping Summary 1'::text, NULL::double precision, NULL::text, NULL::geometry;
                 END IF;
             ELSE
-                RETURN QUERY SELECT '1'::text, '''' || newuidcolumn::text || ''' does not exists... Skipping Summary 1'::text, NULL::double precision, NULL::geometry, NULL::text;
+                RETURN QUERY SELECT '1'::text, '''' || newuidcolumn::text || ''' does not exists... Skipping Summary 1'::text, NULL::double precision, NULL::text, NULL::geometry;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 1 - DUPLICATE IDs (IDDUP or S1)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
+            RETURN QUERY SELECT 'SUMMARY 1 - DUPLICATE IDs (IDDUP or S1)'::text, 'SKIPPED'::text, NULL::double precision, NULL::text, NULL::geometry;
             RAISE NOTICE 'Summary 1 - Skipping Duplicate IDs (IDDUP or S1)...';
         END IF;
 
+        -----------------------------------------------
         -- Add a unique id column if it does not exists or if the one provided is not unique
-        IF (dosummary IS NULL OR 'GDUP' = ANY (dosummary) OR 'GEODUP' = ANY (dosummary) OR 'S2' = ANY (dosummary) OR 'OVL' = ANY (dosummary) OR 'S3' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT ('GDUP' = ANY (skipsummary) OR 'GEODUP' = ANY (skipsummary) OR 'S2' = ANY (skipsummary) OR 'OVL' = ANY (skipsummary) OR 'S3' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+        IF (dosummary IS NULL OR dosummary && dos2 OR dosummary && dos3) AND (skipsummary IS NULL OR NOT (skipsummary && dos2 OR skipsummary && dos3)) THEN
 
             RAISE NOTICE 'Searching for the first column containing unique values...';
 
@@ -2569,21 +2591,37 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
 
             IF NOT ST_ColumnExists(newschemaname, tablename, newuidcolumn) THEN
                 RAISE NOTICE '  Adding new unique column ''%''...', newuidcolumn;
+                
+                --EXECUTE 'DROP SEQUENCE IF EXISTS ' || quote_ident(newschemaname || '_' || tablename || '_seq');
+                --EXECUTE 'CREATE SEQUENCE ' || quote_ident(newschemaname || '_' || tablename || '_seq');
+                
+                -- Add the new column and update it with nextval('sequence')
+                --EXECUTE 'ALTER TABLE ' || fqtn || ' ADD COLUMN ' || newuidcolumn || ' INTEGER';
+                --EXECUTE 'UPDATE ' || fqtn || ' SET ' || newuidcolumn || ' = nextval(''' || newschemaname || '_' || tablename || '_seq' || ''')';
+                
+                --EXECUTE 'CREATE INDEX ON ' || fqtn || ' USING btree(' || newuidcolumn || ');';
+                
                 query = 'SELECT ST_AddUniqueID(''' || newschemaname || ''', ''' || tablename || ''', ''' || newuidcolumn || ''', null, true);';
                 EXECUTE query;
             ELSE
                RAISE NOTICE '  Column ''%'' exists and is unique...', newuidcolumn;
             END IF;
+            
+            -- Create a temporary unique index
+            IF NOT ST_HasBasicIndex(newschemaname, tablename, newuidcolumn) THEN
+                RAISE NOTICE '  Creating % index on ''%''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), newuidcolumn;
+                EXECUTE 'CREATE INDEX ON ' || fqtn || ' USING btree (' || newuidcolumn || ')' || whereclausewithwhere || ';';
+            END IF;
         END IF;
 
-        -- Summary #2: Check for duplicate geometries (GDUP)
-        IF (dosummary IS NULL OR 'GDUP' = ANY (dosummary) OR 'GEODUP' = ANY (dosummary) OR 'S2' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT ('GDUP' = ANY (skipsummary) OR 'GEODUP' = ANY (skipsummary) OR 'S2' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+        -----------------------------------------------
+        -- Summary #2: Check for duplicate geometries (GDUP, GEODUP)
+        IF (dosummary IS NULL OR dosummary && dos2) AND (skipsummary IS NULL OR NOT (skipsummary && dos2)) THEN
                 query = E'SELECT 2::text summary,\n'
                      || E'       id idsandtypes,\n'
                      || E'       cnt::double precision cnt,\n'
-                     || E'       geom,\n'
-                     || E'       (''SELECT * FROM ' || fqtn || ' WHERE ' || newuidcolumn || E' = ANY(ARRAY['' || id || '']);'')::text query\n'
+                     || E'       (''SELECT * FROM ' || fqtn || ' WHERE ' || newuidcolumn || E' = ANY(ARRAY['' || id || '']);'')::text query,\n'
+                     || E'       geom\n'
                      || E'FROM (SELECT string_agg(' || newuidcolumn || '::text, '', ''::text ORDER BY ' || newuidcolumn || E') id,\n'
                      || E'             count(*) cnt,\n'
                      || E'             ' ||              geomcolumnname || E' geom\n'
@@ -2593,44 +2631,47 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                      || E'WHERE cnt > 1\n'
                      || E'ORDER BY cnt DESC;';
 
-                RETURN QUERY SELECT 'SUMMARY 2 - DUPLICATE GEOMETRIES (GDUP, GEODUP or S2)'::text, ('DUPLICATE GEOMETRIES IDS (' || newuidcolumn || ')')::text, NULL::double precision, NULL::geometry, query;
+                RETURN QUERY SELECT 'SUMMARY 2 - DUPLICATE GEOMETRIES (GDUP, GEODUP or S2)'::text, ('DUPLICATE GEOMETRIES IDS (' || newuidcolumn || ')')::text, NULL::double precision, query, NULL::geometry;
                 RAISE NOTICE 'Summary 2 - Duplicate geometries (GDUP, GEODUP or S2)...';
 
                 IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                     RETURN QUERY EXECUTE query;
                     IF NOT FOUND THEN
-                        RETURN QUERY SELECT '2'::text, 'No duplicate geometries...'::text, NULL::double precision, NULL::geometry, NULL::text;
+                        RETURN QUERY SELECT '2'::text, 'No duplicate geometries...'::text, NULL::double precision, NULL::text, NULL::geometry;
                     END IF;
                 ELSE
-                    RETURN QUERY SELECT '2'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 2'::text, NULL::double precision, NULL::geometry, NULL::text;
+                    RETURN QUERY SELECT '2'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 2'::text, NULL::double precision, NULL::text, NULL::geometry;
                 END IF;
             ELSE
-            RETURN QUERY SELECT 'SUMMARY 2 - DUPLICATE GEOMETRIES (GDUP, GEODUP or S2)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
+            RETURN QUERY SELECT 'SUMMARY 2 - DUPLICATE GEOMETRIES (GDUP, GEODUP or S2)'::text, 'SKIPPED'::text, NULL::double precision, NULL::text, NULL::geometry;
             RAISE NOTICE 'Summary 2 - Skipping Duplicate geometries (GDUP, GEODUP or S2)...';
         END IF;
 
-        -- Summary #3: Check for overlaps (OVL)
-        IF (dosummary IS NULL OR 'OVL' = ANY (dosummary) OR 'S3' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT ('OVL' = ANY (skipsummary) OR 'S3' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+        -----------------------------------------------
+        -- Summary #3: Check for overlaps (OVL) - Skipped by default
+        IF (dosummary && dos3) AND (skipsummary IS NULL OR NOT (skipsummary && dos3)) THEN
             query = E'SELECT 3::text summary,\n'
                  || E'       a.' || newuidcolumn || '::text || '', '' || b.' || newuidcolumn || E'::text idsandtypes,\n'
                  || E'       ST_Area(ST_Intersection(a.' || geomcolumnname || ', b.' || geomcolumnname || E')) cnt,\n'
-                 || E'       ST_Intersection(a.' || geomcolumnname || ', b.' || geomcolumnname || E') geom,\n'
-                 || E'       ''SELECT * FROM ' || fqtn || ' WHERE ' || newuidcolumn || ' = ANY(ARRAY['' || a.' || newuidcolumn || ' || '', '' || b.' || newuidcolumn || E' || '']);''::text query\n'
-                 || E'FROM (SELECT * FROM ' || fqtn || whereclausewithwhere || ') a, ' || fqtn || E' b\n'
-                 || E'WHERE a.' || newuidcolumn || ' < b.' || newuidcolumn || ' AND '
-                 || E'(ST_Overlaps(a.' || geomcolumnname || ', b.' || geomcolumnname || E') OR\n'
-                 || E' ST_Contains(a.' || geomcolumnname || ', b.' || geomcolumnname || E') OR\n'
-                 || E' ST_Contains(b.' || geomcolumnname || ', a.' || geomcolumnname || E'))\n'
+                 || E'       ''SELECT * FROM ' || fqtn || ' WHERE ' || newuidcolumn || ' = ANY(ARRAY['' || a.' || newuidcolumn || ' || '', '' || b.' || newuidcolumn || E' || '']);''::text query,\n'
+                 || E'       ST_CollectionExtract(ST_Intersection(a.' || geomcolumnname || ', b.' || geomcolumnname || E'), 3) geom\n'
+                 || E'FROM (SELECT * FROM ' || fqtn || whereclausewithwhere || E') a,\n'
+                 || E'     ' || fqtn || E' b\n'
+                 || E'WHERE a.' || newuidcolumn || ' < b.' || newuidcolumn || E' AND\n'
+                 || E'      (ST_Overlaps(a.' || geomcolumnname || ', b.' || geomcolumnname || E') OR\n'
+                 || E'       ST_Contains(a.' || geomcolumnname || ', b.' || geomcolumnname || E') OR\n'
+                 || E'       ST_Contains(b.' || geomcolumnname || ', a.' || geomcolumnname || E')) AND\n'
+                 || E'       ST_Area(ST_Intersection(a.' || geomcolumnname || ', b.' || geomcolumnname || E')) > 0 AND\n'
+                 || E'       NOT ST_IsEmpty(ST_Difference(a.' || geomcolumnname || ', b.' || geomcolumnname || E'))\n'
                  || E'ORDER BY ST_Area(ST_Intersection(a.' || geomcolumnname || ', b.' || geomcolumnname || ')) DESC;';
 
-            RETURN QUERY SELECT 'SUMMARY 3 - OVERLAPPING GEOMETRIES (OVL or S3)'::text, ('OVERLAPPING GEOMETRIES IDS (' || newuidcolumn || ')')::text, NULL::double precision, NULL::geometry, query;
+            RETURN QUERY SELECT 'SUMMARY 3 - OVERLAPPING GEOMETRIES (OVL or S3)'::text, ('OVERLAPPING GEOMETRIES IDS (' || newuidcolumn || ')')::text, NULL::double precision, query, NULL::geometry;
             RAISE NOTICE 'Summary 3 - Overlapping geometries (OVL or S3)...';
 
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                 -- Create a temporary unique index
                 IF NOT ST_HasBasicIndex(newschemaname, tablename, geomcolumnname) THEN
-                    RAISE NOTICE '            Creating % index on ''%''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
+                    RAISE NOTICE '            Creating % spatial index on ''%''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
                     EXECUTE 'CREATE INDEX ON ' || fqtn || ' USING gist (' || geomcolumnname || ')' || whereclausewithwhere || ';';
                 END IF;
 
@@ -2638,23 +2679,28 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                 BEGIN
                     RETURN QUERY EXECUTE query;
                     IF NOT FOUND THEN
-                        RETURN QUERY SELECT '3'::text, 'No overlapping geometries...'::text, NULL::double precision, NULL::geometry, NULL::text;
+                        RETURN QUERY SELECT '3'::text, 'No overlapping geometries...'::text, NULL::double precision, NULL::text, NULL::geometry;
                     END IF;
                 EXCEPTION
                 WHEN OTHERS THEN
-                    RETURN QUERY SELECT '3'::text, 'ERROR: Consider fixing invalid geometries before testing for overlaps...'::text, NULL::double precision, NULL::geometry, NULL::text;
+                    RETURN QUERY SELECT '3'::text, 'ERROR: Consider fixing invalid geometries before testing for overlaps...'::text, NULL::double precision, NULL::text, NULL::geometry;
                 END;
             ELSE
-                RETURN QUERY SELECT '3'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 3'::text, NULL::double precision, NULL::geometry, NULL::text;
+                RETURN QUERY SELECT '3'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 3'::text, NULL::double precision, NULL::text, NULL::geometry;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 3 - OVERLAPPING GEOMETRIES (OVL or S3)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
+            bydefault = '';
+            IF dosummary IS NULL AND (skipsummary IS NULL OR NOT (skipsummary && dos3)) THEN
+               bydefault = ' BY DEFAULT';
+            END IF;
+
+            RETURN QUERY SELECT 'SUMMARY 3 - OVERLAPPING GEOMETRIES (OVL or S3)'::text, ('SKIPPED' || bydefault)::text, NULL::double precision, NULL::text, NULL::geometry;
             RAISE NOTICE 'Summary 3 - Skipping Overlapping geometries (OVL or S3)...';
         END IF;
 
+        -----------------------------------------------
         -- Summary #4: Check for number of NULL, INVALID, EMPTY, POINTS, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, MULTIPOLYGON, GEOMETRYCOLLECTION (TYPES)
-        IF (dosummary IS NULL OR 'TYPES' = ANY (dosummary) OR 'S4' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT ('TYPES' = ANY (skipsummary) OR 'S4' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+        IF (dosummary IS NULL OR dosummary && dos4) AND (skipsummary IS NULL OR NOT (skipsummary && dos4)) THEN
             query = E'SELECT 4::text summary,\n'
                  || E'       CASE WHEN ST_GeometryType(' || geomcolumnname || E') IS NULL THEN ''NULL''\n'
                  || E'            WHEN ST_IsEmpty(' || geomcolumnname || ') THEN ''EMPTY '' || ST_GeometryType(' || geomcolumnname || E')\n'
@@ -2662,7 +2708,6 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                  || E'            ELSE ST_GeometryType(' || geomcolumnname || E')\n'
                  || E'       END idsandtypes,\n'
                  || E'       count(*)::double precision cnt,\n'
-                 || E'       NULL::geometry geom,\n'
                  || E'       CASE WHEN ST_GeometryType(' || geomcolumnname || E') IS NULL\n'
                  || E'                 THEN ''SELECT * FROM ' || fqtn || ' WHERE ' || geomcolumnname || ' IS NULL' || whereclause || E';''\n'
                  || E'            WHEN ST_IsEmpty(' || geomcolumnname || E')\n'
@@ -2670,75 +2715,78 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                  || E'            WHEN NOT ST_IsValid(' || geomcolumnname || E')\n'
                  || E'                 THEN ''SELECT * FROM ' || fqtn || ' WHERE NOT ST_IsValid(' || geomcolumnname || ') AND ST_GeometryType(' || geomcolumnname || ') = '''''' || ST_GeometryType(' || geomcolumnname || ') || ''''''' || whereclause || E';''\n'
                  || E'            ELSE ''SELECT * FROM ' || fqtn || ' WHERE ST_IsValid(' || geomcolumnname || ') AND NOT ST_IsEmpty(' || geomcolumnname || ') AND ST_GeometryType(' || geomcolumnname || ') = '''''' || ST_GeometryType(' || geomcolumnname || ') || ''''''' || whereclause || E';''\n'
-                 || E'       END::text query\n'
+                 || E'       END::text query,\n'
+                 || E'       NULL::geometry geom\n'
                  || E'FROM ' || fqtn || E'\n'
                  || whereclausewithwhere || E'\n'
                  || E'GROUP BY ST_IsValid(' || geomcolumnname || '), ST_IsEmpty(' || geomcolumnname || '), ST_GeometryType(' || geomcolumnname || E')\n'
                  || E'ORDER BY ST_GeometryType(' || geomcolumnname || ') DESC, NOT ST_IsValid(' || geomcolumnname || '), ST_IsEmpty(' || geomcolumnname || ');';
 
-            RETURN QUERY SELECT 'SUMMARY 4 - GEOMETRY TYPES (TYPES or S4)'::text, 'TYPES'::text, NULL::double precision, NULL::geometry, query;
+            RETURN QUERY SELECT 'SUMMARY 4 - GEOMETRY TYPES (TYPES or S4)'::text, 'TYPES'::text, NULL::double precision, query, NULL::geometry;
             RAISE NOTICE 'Summary 4 - Geometry types (TYPES or S4)...';
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                 RETURN QUERY EXECUTE query;
+                IF NOT FOUND THEN
+                    RETURN QUERY SELECT '4'::text, 'No row selected...'::text, NULL::double precision, NULL::text, NULL::geometry;
+                END IF;
             ELSE
-                RETURN QUERY SELECT '4'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 4'::text, NULL::double precision, NULL::geometry, NULL::text;
+                RETURN QUERY SELECT '4'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 4'::text, NULL::double precision, NULL::text, NULL::geometry;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 4 - GEOMETRY TYPES (TYPES or S4)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
+            RETURN QUERY SELECT 'SUMMARY 4 - GEOMETRY TYPES (TYPES or S4)'::text, 'SKIPPED'::text, NULL::double precision, NULL::text, NULL::geometry;
             RAISE NOTICE 'Summary 4 - Skipping Geometry types (TYPES or S4)...';
         END IF;
 
+        -----------------------------------------------
         -- Create an index on ST_NPoints(geom) if necessary so further queries are executed faster
         IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND
-           (dosummary IS NULL OR 'VERTX' = ANY (dosummary) OR 'S5' = ANY (dosummary) OR 'VHISTO' = ANY (dosummary) OR 'S6' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT (('VERTX' = ANY (skipsummary) OR 'S5' = ANY (skipsummary)) AND ('VHISTO' = ANY (skipsummary) OR 'S6' = ANY (skipsummary)))) THEN
+           (dosummary IS NULL OR dosummary && dos5 OR dosummary && dos6) AND (skipsummary IS NULL OR NOT (skipsummary && dos5 OR skipsummary && dos6)) THEN
                 RAISE NOTICE 'Creating % index on ''ST_NPoints(%)''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
             query = 'CREATE INDEX ON ' || fqtn || ' USING btree (ST_NPoints(' || geomcolumnname || '))' || whereclausewithwhere || ';';
             EXECUTE query;
         END IF;
 
+        -----------------------------------------------
         -- Summary #5: Check for polygon complexity - min number of vertexes, max number of vertexes, mean number of vertexes (VERTX).
-        IF (dosummary IS NULL OR 'VERTX' = ANY (dosummary) OR 'S5' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT ('VERTX' = ANY (skipsummary) OR 'S5' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
-
+        IF (dosummary IS NULL OR dosummary && dos5) AND (skipsummary IS NULL OR NOT (skipsummary && dos5)) THEN
             query = E'WITH points AS (SELECT ST_NPoints(' || geomcolumnname || ') nv FROM ' || fqtn || whereclausewithwhere || E'),\n'
                  || E'     agg    AS (SELECT min(nv) min, max(nv) max, avg(nv) avg FROM points)\n'
                  || E'SELECT 5::text summary,\n'
                  || E'       ''MIN number of vertexes''::text idsandtypes,\n'
                  || E'       min::double precision cnt,\n'
-                 || E'       NULL::geometry geom,\n'
-                 || E'       (''SELECT * FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ') = '' || min::text || ''' || whereclause || E';'')::text query\n'
+                 || E'       (''SELECT * FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ') = '' || min::text || ''' || whereclause || E';'')::text query,\n'
+                 || E'       NULL::geometry geom\n'
                  || E'FROM agg\n'
                  || E'UNION ALL\n'
                  || E'SELECT 5::text summary,\n'
                  || E'       ''MAX number of vertexes''::text idsandtypes,\n'
                  || E'       max::double precision cnt,\n'
-                 || E'       NULL::geometry geom,\n'
-                 || E'       (''SELECT * FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ') = '' || max::text || ''' || whereclause || E';'')::text query\n'
+                 || E'       (''SELECT * FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ') = '' || max::text || ''' || whereclause || E';'')::text query,\n'
+                 || E'       NULL::geometry geom\n'
                  || E'FROM agg\n'
                  || E'UNION ALL\n'
                  || E'SELECT 5::text summary,\n'
                  || E'       ''MEAN number of vertexes''::text idsandtypes,\n'
                  || E'       avg::double precision cnt,\n'
-                 || E'       NULL::geometry geom,\n'
-                 || E'       (''No usefull query'')::text query\n'
+                 || E'       (''No usefull query'')::text query,\n'
+                 || E'       NULL::geometry geom\n'
                  || E'FROM agg;';
 
-            RETURN QUERY SELECT 'SUMMARY 5 - VERTEX STATISTICS (VERTX or S5)'::text, 'STATISTIC'::text, NULL::double precision, NULL::geometry, query;
+            RETURN QUERY SELECT 'SUMMARY 5 - VERTEX STATISTICS (VERTX or S5)'::text, 'STATISTIC'::text, NULL::double precision, query, NULL::geometry;
             RAISE NOTICE 'Summary 5 - Vertex statistics (VERTX or S5)...';
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                 RETURN QUERY EXECUTE query;
             ELSE
-                RETURN QUERY SELECT '5'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 5'::text, NULL::double precision, NULL::geometry, NULL::text;
+                RETURN QUERY SELECT '5'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 5'::text, NULL::double precision, NULL::text, NULL::geometry;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 5 - VERTEX STATISTICS (VERTX or S5)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
+            RETURN QUERY SELECT 'SUMMARY 5 - VERTEX STATISTICS (VERTX or S5)'::text, 'SKIPPED'::text, NULL::double precision, NULL::text, NULL::geometry;
             RAISE NOTICE 'Summary 5 - Skipping Vertex statistics (VERTX or S5)...';
         END IF;
 
+        -----------------------------------------------
         -- Summary #6: Build an histogram of the number of vertexes (VHISTO).
-        IF (dosummary IS NULL OR 'VHISTO' = ANY (dosummary) OR 'S6' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT ('VHISTO' = ANY (skipsummary) OR 'S6' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+        IF (dosummary IS NULL OR dosummary && dos6) AND (skipsummary IS NULL OR NOT (skipsummary && dos6)) THEN
             RAISE NOTICE 'Summary 6 - Histogram of the number of vertexes (VHISTO or S6)...';
 
             sum6nbinterval = nbinterval;
@@ -2754,8 +2802,8 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                          || E'SELECT 6::text summary,\n'
                          || E'       ''NULL''::text idsandtypes,\n'
                          || E'       cnt::double precision cnt,\n'
-                         || E'       NULL::geometry geom,\n'
-                         || E'       ''SELECT *, ST_NPoints(' || geomcolumnname || ') nbpoints FROM ' || fqtn || ' WHERE ' || geomcolumnname || ' IS NULL' || whereclause || ';''::text query\n'
+                         || E'       ''SELECT *, ST_NPoints(' || geomcolumnname || ') nbpoints FROM ' || fqtn || ' WHERE ' || geomcolumnname || ' IS NULL' || whereclause || E';''::text query,\n'
+                         || E'       NULL::geometry geom\n'
                          || E'FROM histo;';
                 ELSE
                     IF maxnp - minnp = 0 THEN
@@ -2773,74 +2821,74 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                          || E'SELECT 6::text summary,\n'
                          || E'       CASE WHEN serie = -1 THEN ''NULL''::text ELSE ''['' || round(' || minnp || ' + serie * binrange)::text || '' - '' || (CASE WHEN serie = ' || sum6nbinterval || ' - 1 THEN round(' || maxnp || ')::text || '']'' ELSE round(' || minnp || E' + (serie + 1) * binrange)::text || ''['' END) END idsandtypes,\n'
                          || E'       coalesce(cnt, 0)::double precision cnt,\n'
-                         || E'       NULL::geometry geom,\n'
-                         || E'      (''SELECT *, ST_NPoints(' || geomcolumnname || ') nbpoints FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ')'' || (CASE WHEN serie = -1 THEN '' IS NULL'' || ''' || whereclause || ''' ELSE ('' >= '' || round(' || minnp || ' + serie * binrange)::text || '' AND ST_NPoints(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || sum6nbinterval || ' - 1 THEN ''= '' || ' || maxnp || '::float8::text ELSE '' '' || round(' || minnp || ' + (serie + 1) * binrange)::text END) || ''' || whereclause || ''' || '' ORDER BY ST_NPoints(' || geomcolumnname || E') DESC'') END) || '';'')::text query\n'
+                         || E'      (''SELECT *, ST_NPoints(' || geomcolumnname || ') nbpoints FROM ' || fqtn || ' WHERE ST_NPoints(' || geomcolumnname || ')'' || (CASE WHEN serie = -1 THEN '' IS NULL'' || ''' || whereclause || ''' ELSE ('' >= '' || round(' || minnp || ' + serie * binrange)::text || '' AND ST_NPoints(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || sum6nbinterval || ' - 1 THEN ''= '' || ' || maxnp || '::float8::text ELSE '' '' || round(' || minnp || ' + (serie + 1) * binrange)::text END) || ''' || whereclause || ''' || '' ORDER BY ST_NPoints(' || geomcolumnname || E') DESC'') END) || '';'')::text query,\n'
+                         || E'       NULL::geometry geom\n'
                          || E'FROM generate_series(-1, ' || sum6nbinterval || E' - 1) serie\n'
                          || E'     LEFT OUTER JOIN histo ON (serie = histo.bin),\n'
                          || E'    (SELECT * FROM bins LIMIT 1) foo\n'
                          || E'ORDER BY serie;';
                 END IF;
-                RETURN QUERY SELECT 'SUMMARY 6 - HISTOGRAM OF THE NUMBER OF VERTEXES (VHISTO or S6)'::text, 'NUMBER OF VERTEXES INTERVALS'::text, NULL::double precision, NULL::geometry, query;
+                RETURN QUERY SELECT 'SUMMARY 6 - HISTOGRAM OF THE NUMBER OF VERTEXES (VHISTO or S6)'::text, 'NUMBER OF VERTEXES INTERVALS'::text, NULL::double precision, query, NULL::geometry;
                 RETURN QUERY EXECUTE query;
             ELSE
-                RETURN QUERY SELECT 'SUMMARY 6 - HISTOGRAM OF THE NUMBER OF VERTEXES (VHISTO or S6)'::text, 'NUMBER OF VERTEXES INTERVALS'::text, NULL::double precision, NULL::geometry, ''::text;
-                RETURN QUERY SELECT '6'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 6'::text, NULL::double precision, NULL::geometry, NULL::text;
+                RETURN QUERY SELECT 'SUMMARY 6 - HISTOGRAM OF THE NUMBER OF VERTEXES (VHISTO or S6)'::text, 'NUMBER OF VERTEXES INTERVALS'::text, NULL::double precision, ''::text, NULL::geometry;
+                RETURN QUERY SELECT '6'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 6'::text, NULL::double precision, NULL::text, NULL::geometry;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 6 - HISTOGRAM OF THE NUMBER OF VERTEXES (VHISTO or S6)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
+            RETURN QUERY SELECT 'SUMMARY 6 - HISTOGRAM OF THE NUMBER OF VERTEXES (VHISTO or S6)'::text, 'SKIPPED'::text, NULL::double precision, NULL::text, NULL::geometry;
             RAISE NOTICE 'Summary 6 - Skipping Histogram of the number of vertexes (VHISTO or S6)...';
         END IF;
 
+        -----------------------------------------------
         -- Create an index on ST_Area(geom) if necessary so further queries are executed faster
         IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND
-           (dosummary IS NULL OR 'AREAS' = ANY (dosummary) OR 'AREA' = ANY (dosummary) OR 'S7' = ANY (dosummary) OR 'AHISTO' = ANY (dosummary) OR 'S8' = ANY (dosummary) OR 'SACOUNT' = ANY (dosummary) OR 'S9' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT (('AREAS' = ANY (skipsummary) OR 'AREA' = ANY (skipsummary) OR 'S7' = ANY (skipsummary)) AND ('AHISTO' = ANY (skipsummary) OR 'S8' = ANY (skipsummary)) AND ('SACOUNT' = ANY (skipsummary) OR 'S9' = ANY (skipsummary)) AND 'ALL' = ANY (skipsummary))) THEN
+           (dosummary IS NULL OR dosummary && dos7 OR dosummary && dos8 OR dosummary && dos9) AND (skipsummary IS NULL OR NOT (skipsummary && dos7 OR skipsummary && dos8 OR skipsummary && dos9)) THEN
                 RAISE NOTICE 'Creating % index on ''ST_Area(%)''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
             query = 'CREATE INDEX ON ' || fqtn || ' USING btree (ST_Area(' || geomcolumnname || '))' || whereclausewithwhere || ';';
             EXECUTE query;
         END IF;
 
+        -----------------------------------------------
         -- Summary #7: Check for polygon areas - min area, max area, mean area (AREAS)
-        IF (dosummary IS NULL OR 'AREAS' = ANY (dosummary) OR 'AREA' = ANY (dosummary) OR 'S7' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT ('AREAS' = ANY (skipsummary) OR 'AREA' = ANY (skipsummary) OR 'S7' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+        IF (dosummary IS NULL OR dosummary && dos7) AND (skipsummary IS NULL OR NOT (skipsummary && dos7)) THEN
             query = E'WITH areas AS (SELECT ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || whereclausewithwhere || E'),\n'
                  || E'     agg    AS (SELECT min(area) min, max(area) max, avg(area) avg FROM areas)\n'
                  || E'SELECT 7::text summary,\n'
                  || E'       ''MIN area''::text idsandtypes,\n'
                  || E'       min::double precision cnt,\n'
-                 || E'       NULL::geometry geom,\n'
-                 || E'       (''SELECT * FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') < '' || min::text || '' + 0.000000001' || whereclause || E';'')::text query\n'
+                 || E'       (''SELECT * FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') < '' || min::text || '' + 0.000000001' || whereclause || E';'')::text query,\n'
+                 || E'       NULL::geometry geom\n'
                  || E'FROM agg\n'
                  || E'UNION ALL\n'
                  || E'SELECT 7::text summary,\n'
                  || E'       ''MAX area''::text idsandtypes,\n'
                  || E'       max::double precision cnt,\n'
-                 || E'       NULL::geometry geom,\n'
-                 || E'       (''SELECT * FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') > '' || max::text || '' - 0.000000001 AND ST_Area(' || geomcolumnname || ') < '' || max::text || '' + 0.000000001' || whereclause || E';'')::text query\n'
+                 || E'       (''SELECT * FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') > '' || max::text || '' - 0.000000001 AND ST_Area(' || geomcolumnname || ') < '' || max::text || '' + 0.000000001' || whereclause || E';'')::text query,\n'
+                 || E'       NULL::geometry geom\n'
                  || E'FROM agg\n'
                  || E'UNION ALL\n'
                  || E'SELECT 7::text summary,\n'
                  || E'       ''MEAN area''::text idsandtypes,\n'
                  || E'       avg::double precision cnt,\n'
-                 || E'       NULL::geometry geom,\n'
-                 || E'       (''No usefull query'')::text query\n'
+                 || E'       (''No usefull query'')::text query,\n'
+                 || E'       NULL::geometry geom\n'
                  || E'FROM agg';
 
-            RETURN QUERY SELECT 'SUMMARY 7 - GEOMETRY AREA STATISTICS (AREAS, AREA or S7)'::text, 'STATISTIC'::text, NULL::double precision, NULL::geometry, query;
+            RETURN QUERY SELECT 'SUMMARY 7 - GEOMETRY AREA STATISTICS (AREAS, AREA or S7)'::text, 'STATISTIC'::text, NULL::double precision, query, NULL::geometry;
             RAISE NOTICE 'Summary 7 - Geometry area statistics (AREAS, AREA or S7)...';
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                 RETURN QUERY EXECUTE query;
             ELSE
-                RETURN QUERY SELECT '7'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 7'::text, NULL::double precision, NULL::geometry, NULL::text;
+                RETURN QUERY SELECT '7'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 7'::text, NULL::double precision, NULL::text, NULL::geometry;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 7 - GEOMETRY AREA STATISTICS (AREAS, AREA or S7)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
+            RETURN QUERY SELECT 'SUMMARY 7 - GEOMETRY AREA STATISTICS (AREAS, AREA or S7)'::text, 'SKIPPED'::text, NULL::double precision, NULL::text, NULL::geometry;
             RAISE NOTICE 'Summary 7 - Skipping Geometry area statistics (AREAS, AREA or S7)...';
         END IF;
 
+        -----------------------------------------------
         -- Summary #8: Build an histogram of the areas (AHISTO)
-        IF (dosummary IS NULL OR 'AHISTO' = ANY (dosummary) OR 'S8' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT ('AHISTO' = ANY (skipsummary) OR 'S8' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+        IF (dosummary IS NULL OR dosummary && dos8) AND (skipsummary IS NULL OR NOT (skipsummary && dos8)) THEN
             RAISE NOTICE 'Summary 8 - Histogram of areas (AHISTO or S8)...';
 
             sum8nbinterval = nbinterval;
@@ -2855,11 +2903,11 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                          || E'SELECT 8::text summary,\n'
                          || E'      ''NULL''::text idsandtypes,\n'
                          || E'      cnt::double precision cnt,\n'
-                         || E'      NULL::geometry,\n'
-                         || E'      ''SELECT *, ST_Area(' || geomcolumnname || ') FROM ' || fqtn || ' WHERE ' || geomcolumnname || ' IS NULL' || whereclause || E';''::text query\n'
+                         || E'      ''SELECT *, ST_Area(' || geomcolumnname || ') FROM ' || fqtn || ' WHERE ' || geomcolumnname || ' IS NULL' || whereclause || E';''::text query,\n'
+                         || E'      NULL::geometry\n'
                          || E'FROM histo;';
 
-                    RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, query;
+                    RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'AREAS INTERVALS'::text, NULL::double precision, query, NULL::geometry;
                     RETURN QUERY EXECUTE query;
                 ELSE
                     IF maxarea - minarea = 0 THEN
@@ -2877,29 +2925,29 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                          || E'SELECT 8::text summary,\n'
                          || E'      CASE WHEN serie = -1 THEN ''NULL''::text ELSE ''['' || (' || minarea || ' + serie * binrange)::float8::text || '' - '' || (CASE WHEN serie = ' || sum8nbinterval || ' - 1 THEN ' || maxarea || '::float8::text || '']'' ELSE (' || minarea || E' + (serie + 1) * binrange)::float8::text || ''['' END) END idsandtypes,\n'
                          || E'      coalesce(cnt, 0)::double precision cnt,\n'
-                         || E'      NULL::geometry geom,\n'
-                         || E'      (''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ')'' || (CASE WHEN serie = -1 THEN '' IS NULL'' || ''' || whereclause || ''' ELSE ('' >= '' || (' || minarea || ' + serie * binrange)::float8::text || '' AND ST_Area(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || sum8nbinterval || ' - 1 THEN ''= '' || ' || maxarea || '::float8::text ELSE '' '' || (' || minarea || ' + (serie + 1) * binrange)::float8::text END) || ''' || whereclause || ''' || '' ORDER BY ST_Area(' || geomcolumnname || E') DESC'') END) || '';'')::text query\n'
+                         || E'      (''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ')'' || (CASE WHEN serie = -1 THEN '' IS NULL'' || ''' || whereclause || ''' ELSE ('' >= '' || (' || minarea || ' + serie * binrange)::float8::text || '' AND ST_Area(' || geomcolumnname || ') <'' || (CASE WHEN serie = ' || sum8nbinterval || ' - 1 THEN ''= '' || ' || maxarea || '::float8::text ELSE '' '' || (' || minarea || ' + (serie + 1) * binrange)::float8::text END) || ''' || whereclause || ''' || '' ORDER BY ST_Area(' || geomcolumnname || E') DESC'') END) || '';'')::text query,\n'
+                         || E'      NULL::geometry geom\n'
                          || E'FROM generate_series(-1, ' || sum8nbinterval || E' - 1) serie\n'
                          || E'    LEFT OUTER JOIN histo ON (serie = histo.bin),\n'
                          || E'    (SELECT * FROM bins LIMIT 1) foo\n'
                          || E'ORDER BY serie;';
 
-                    RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, E'SET extra_float_digits = 3;\n' || query;
+                    RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'AREAS INTERVALS'::text, NULL::double precision, E'SET extra_float_digits = 3;\n' || query, NULL::geometry;
                     RETURN QUERY EXECUTE query;
                     RESET extra_float_digits;
                 END IF;
             ELSE
-                RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, ''::text;
-                RETURN QUERY SELECT '8'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 8'::text, NULL::double precision, NULL::geometry, NULL::text;
+                RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'AREAS INTERVALS'::text, NULL::double precision, ''::text, NULL::geometry;
+                RETURN QUERY SELECT '8'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 8'::text, NULL::double precision, NULL::text, NULL::geometry;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
+            RETURN QUERY SELECT 'SUMMARY 8 - HISTOGRAM OF AREAS (AHISTO or S8)'::text, 'SKIPPED'::text, NULL::double precision, NULL::text, NULL::geometry;
             RAISE NOTICE 'Summary 8 - Histogram of areas (AHISTO or S8)...';
         END IF;
 
-        -- Summary #9: Build a list of the small areas (SACOUNT) < 0.1 units
-        IF (dosummary IS NULL OR 'SACOUNT' = ANY (dosummary) OR 'S9' = ANY (dosummary) OR 'ALL' = ANY (dosummary)) AND
-           (skipsummary IS NULL OR NOT ('SACOUNT' = ANY (skipsummary) OR 'S9' = ANY (skipsummary) OR 'ALL' = ANY (skipsummary))) THEN
+        -----------------------------------------------
+        -- Summary #9: Build a list of the small areas (SACOUNT) < 0.1 units. Skipped by default
+        IF (dosummary && dos9) AND (skipsummary IS NULL OR NOT (skipsummary && dos9)) THEN
             query = E'WITH areas AS (SELECT ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE (ST_Area(' || geomcolumnname || ') IS NULL OR ST_Area(' || geomcolumnname || ') < 0.1) ' || whereclause || E'),\n'
                  || E'     bins  AS (SELECT area,\n'
                  || E'                      CASE WHEN area IS NULL THEN -1\n'
@@ -2926,7 +2974,6 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                  || E'            WHEN serie = 7 THEN ''[0.01 - 0.1[''\n'
                  || E'       END idsandtypes,\n'
                  || E'       coalesce(cnt, 0)::double precision cnt,\n'
-                 || E'       NULL::geometry geom,\n'
                  || E'       CASE WHEN serie = -1 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') IS NULL' || whereclause || E';''::text\n'
                  || E'            WHEN serie = 0 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') = 0' || whereclause || E';''::text\n'
                  || E'            WHEN serie = 1 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') > 0 AND ST_Area(' || geomcolumnname || ') < 0.0000001' || whereclause || ' ORDER BY ST_Area(' || geomcolumnname || E') DESC;''::text\n'
@@ -2936,22 +2983,30 @@ RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometr
                  || E'            WHEN serie = 5 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.0001 AND ST_Area(' || geomcolumnname || ') < 0.001' || whereclause || ' ORDER BY ST_Area(' || geomcolumnname || E') DESC;''::text\n'
                  || E'            WHEN serie = 6 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.001 AND ST_Area(' || geomcolumnname || ') < 0.01' || whereclause || ' ORDER BY ST_Area(' || geomcolumnname || E') DESC;''::text\n'
                  || E'            WHEN serie = 7 THEN ''SELECT *, ST_Area(' || geomcolumnname || ') area FROM ' || fqtn || ' WHERE ST_Area(' || geomcolumnname || ') >= 0.01 AND ST_Area(' || geomcolumnname || ') < 0.1' || whereclause || ' ORDER BY ST_Area(' || geomcolumnname || E') DESC;''::text\n'
-                 || E'       END query\n'
+                 || E'       END query,\n'
+                 || E'       NULL::geometry geom\n'
                  || E'FROM generate_series(-1, 7) serie\n'
                  || E'     LEFT OUTER JOIN histo ON (serie = histo.bin),\n'
                  || E'     (SELECT * FROM bins LIMIT 1) foo\n'
                  || E'ORDER BY serie;';
 
-            RETURN QUERY SELECT 'SUMMARY 9 - COUNT OF SMALL AREAS (SACOUNT or S9)'::text, 'SMALL AREAS INTERVALS'::text, NULL::double precision, NULL::geometry, query;
+            RETURN QUERY SELECT 'SUMMARY 9 - COUNT OF SMALL AREAS (SACOUNT or S9)'::text, 'SMALL AREAS INTERVALS'::text, NULL::double precision, query, NULL::geometry;
             RAISE NOTICE 'Summary 9 - Count of small areas (SACOUNT or S9)...';
 
             IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) THEN
                 RETURN QUERY EXECUTE query;
+                IF NOT FOUND THEN
+                    RETURN QUERY SELECT '9'::text, 'No geometry smaller than 0.1...'::text, NULL::double precision, NULL::text, NULL::geometry;
+                END IF;
             ELSE
-                RETURN QUERY SELECT '9'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 9'::text, NULL::double precision, NULL::geometry, NULL::text;
+                RETURN QUERY SELECT '9'::text, '''' || geomcolumnname::text || ''' does not exists... Skipping Summary 9'::text, NULL::double precision, NULL::text, NULL::geometry;
             END IF;
         ELSE
-            RETURN QUERY SELECT 'SUMMARY 9 - COUNT OF AREAS (SACOUNT or S9)'::text, 'SKIPPED'::text, NULL::double precision, NULL::geometry, NULL::text;
+            bydefault = '';
+            IF dosummary IS NULL AND (skipsummary IS NULL OR NOT (skipsummary && dos9)) THEN
+               bydefault = ' BY DEFAULT';
+            END IF;
+            RETURN QUERY SELECT 'SUMMARY 9 - COUNT OF AREAS (SACOUNT or S9)'::text, ('SKIPPED' || bydefault)::text, NULL::double precision, NULL::text, NULL::geometry;
             RAISE NOTICE 'Summary 9 - Count of small areas (SACOUNT or S9)...';
         END IF;
 
@@ -2967,11 +3022,11 @@ CREATE OR REPLACE FUNCTION ST_GeoTableSummary(
     geomcolumnname name,
     uidcolumn name,
     nbinterval int,
-    dosummary text DEFAULT 'IDDUP, GDUP, TYPES, VERTX, VHISTO, AREAS, AHISTO',
+    dosummary text DEFAULT NULL,
     skipsummary text DEFAULT NULL,
     whereclause text DEFAULT NULL
 )
-RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometry, query text) AS $$
+RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, query text, geom geometry) AS $$
     SELECT ST_GeoTableSummary($1, $2, $3, $4, $5, regexp_split_to_array($6, E'\\s*\,\\s'), regexp_split_to_array($7, E'\\s*\,\\s'), $8)
 $$ LANGUAGE sql VOLATILE;
 -------------------------------------------------------------------------------
@@ -3068,8 +3123,10 @@ RETURNS TABLE (geom geometry, tid int8, x int, y int) AS $$
             FOR y IN 1..height LOOP
                 env = ST_MakeEnvelope(xminrounded + (x - 1) * xgridsize, yminrounded + (y - 1) * ygridsize, xminrounded + x * xgridsize, yminrounded + y * ygridsize, ST_SRID(ingeom));
                 IF ST_Intersects(env, ingeom) THEN
-                     RETURN QUERY SELECT ST_Intersection(ingeom, env), ((xfloor::int8 + x) * 10000000 + (yfloor::int8 + y))::int8, xfloor + x, yfloor + y WHERE ST_GeometryType(ST_Intersection(ingeom, env)) = ST_GeometryType(ingeom);
-                END IF;
+                     RETURN QUERY SELECT ST_Intersection(ingeom, env), ((xfloor::int8 + x) * 10000000 + (yfloor::int8 + y))::int8, xfloor + x, yfloor + y 
+                            WHERE ST_Dimension(ST_Intersection(ingeom, env)) = ST_Dimension(ingeom) OR 
+                                  ST_GeometryType(ST_Intersection(ingeom, env)) = ST_GeometryType(ingeom);
+                 END IF;
             END LOOP;
         END LOOP;
     RETURN;
