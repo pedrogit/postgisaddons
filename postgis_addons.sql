@@ -107,7 +107,7 @@
 --                      or when wanting to remove holes from the resulting union.
 --
 --   ST_NBiggestExteriorRings - Returns the n biggest exterior rings of the provided
---                              geometry based on their area or thir number of vertex.
+--                              geometry based on their area or their number of vertex.
 --
 --   ST_BufferedSmooth - Returns a smoothed version of the geometry. The smoothing is
 --                       done by making a buffer around the geometry and removing it
@@ -675,7 +675,7 @@ $$ LANGUAGE sql VOLATILE;
 --        (aws).mean,
 --        (aws).max,
 --        (aws).min
--- FROM (SELECT ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws, id
+-- FROM (SELECT id, ST_AreaWeightedSummaryStats((geom, val)::geomval) as aws
 --       FROM (SELECT ST_GeomFromEWKT('POLYGON((0 0,0 10, 10 10, 10 0, 0 0))') as geom, 'a' as id, 100 as val
 --             UNION ALL
 --             SELECT ST_GeomFromEWKT('POLYGON((12 0,12 1, 13 1, 13 0, 12 0))') as geom, 'a' as id, 1 as val
@@ -697,7 +697,7 @@ $$ LANGUAGE sql VOLATILE;
 --        (aws).geom,
 --        (aws).totalarea,
 --        (aws).weightedmean,
--- FROM (SELECT ST_AreaWeightedSummaryStats(gv) aws
+-- FROM (SELECT id, ST_AreaWeightedSummaryStats(gv) aws
 --       FROM (SELECT ST_Intersection(rt.rast, gt.geom) gv
 --             FROM rasttable rt, geomtable gt
 --             WHERE ST_Intersects(rt.rast, gt.geom)
@@ -1042,12 +1042,12 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 -- UNION ALL
 -- SELECT 'h'::text, 8, ST_GeomFromText('POINT(8 0.5)')
 -- UNION ALL
--- SELECT 'i'::text, 9, ST_GeomFromText('MULTIPOINT(6 0.5, 7 0.6)')
+-- SELECT 'i'::text, 9, ST_GeomFromText('MULTIPOINT(6 0.5, 7 0.6)');
 --
 -- We then extract the values to a raster:
 --
--- SELECT ST_ExtractToRaster(rast, 'public', 'test_extracttoraster', 'geom', 'val', 'AREA_WEIGHTED_MEAN_OF_VALUES') rast
--- FROM ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF') rast
+-- SELECT ST_ExtractToRaster(rast, 'public', 'st_extracttoraster_example', 'geom', 'val', 'AREA_WEIGHTED_MEAN_OF_VALUES') rast
+-- FROM ST_AddBand(ST_MakeEmptyRaster(2, 2, 0.0, 2.0, 5.0, -1.0, 0, 0, 0), '32BF') rast;
 --
 --
 -- Typical example
@@ -1059,7 +1059,7 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --
 -- SELECT ST_ExtractToRaster(
 --          ST_AddBand(
---            ST_MakeEmptyRaster(rast), '32BF'), 'public', 'geomtable', 'geom', 'val', 'AREA_WEIGHTED_MEAN_OF_VALUES') rast
+--            ST_MakeEmptyRaster(rast), '32BF'), 'public', 'geomtable', 'geom', 'val', 'AREA_WEIGHTED_MEAN_OF_VALUES') rast;
 -- FROM refrastertable;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
@@ -1558,7 +1558,7 @@ $$ LANGUAGE sql;
 --  - Takes the names of a schema, a table and a raster column instead of rasters
 --    themselves. That means the function works on a whole table and can not be used
 --    on a selection or a group of rasters (unless you build a view on the table and
---    you pass the name of the view in place of the name of the table).
+--    you pass the name of the view instead of the name of the table).
 --
 --  - Works with unaligned rasters. The extent of the resulting raster is computed
 --    from the global extent of the table and the pixel size is the minimum of all
@@ -1896,8 +1896,13 @@ $$ LANGUAGE plpgsql;
 --
 -- Self contained example:
 --
--- SELECT ST_BufferedSmooth(ST_GeomFromText('POLYGON((-2 1, -5 5, -1 2, 0 5, 1 2,
--- 5 5, 2 1, 5 0, 2 -1, 5 -5, 1 -2, 0 -5, -1 -2, -5 -5, -2 -1, -5 0, -2 1))'), 1)
+-- SELECT ST_GeomFromText('POLYGON((-0.5 1, -5 5, 0 2, -4 5, 
+-- 5 5, 4.5 1, 5 0, 4 -1, 5 -5, 1 -3.5, 0 -5, -1 -3, -5 -5, -1 -1, -5 0, -0.5 1), 
+-- (2 -2, 2 -1, 3 -1, 3 -2, 2 -2), (1 1, 1 3.5, 3.5 3.5, 3.5 1, 1 1))')
+-- UNION ALL
+-- SELECT ST_BufferedSmooth(ST_GeomFromText('POLYGON((-0.5 1, -5 5, 0 2, -4 5, 
+-- 5 5, 4.5 1, 5 0, 4 -1, 5 -5, 1 -3.5, 0 -5, -1 -3, -5 -5, -1 -1, -5 0, -0.5 1), 
+-- (2 -2, 2 -1, 3 -1, 3 -2, 2 -2), (1 1, 1 3.5, 3.5 3.5, 3.5 1, 1 1))'), 1)
 --
 -- Typical example:
 --
@@ -1956,8 +1961,8 @@ $$ LANGUAGE sql IMMUTABLE;
 --       ((ST_Contains(a.geom, b.geom) OR -- Select all the containing, contained and overlapping polygons
 --         ST_Contains(b.geom, a.geom) OR
 --         ST_Overlaps(a.geom, b.geom)) AND
---        (ST_Area(a.geom) < ST_Area(b.geom) OR -- Make sure only the smallest ones are removed from the biggest ones
---         (ST_Area(a.geom) = ST_Area(b.geom) AND -- If areas are equal, arbitrarily remove one from the other but in a determined order so its not done twice.
+--        (ST_Area(a.geom) < ST_Area(b.geom) OR -- Make sure bigger polygons are removed from smaller ones
+--         (ST_Area(a.geom) = ST_Area(b.geom) AND -- If areas are equal, arbitrarily remove one from the other but in a determined order so it's not done twice.
 --          a.id < b.id)))
 -- GROUP BY a.id
 -- HAVING ST_Area(ST_DifferenceAgg(a.geom, b.geom)) > 0 AND NOT ST_IsEmpty(ST_DifferenceAgg(a.geom, b.geom));
@@ -2068,10 +2073,10 @@ CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry) (
 --
 -- RETURNS geometry
 --
--- Returns a multigeometry from which simple geometries having an area smaller
+-- Returns a multipolygon from which simple parts having an area smaller
 -- than the tolerance parameter have been removed. This includes points and linestrings
--- when a geometry collection is provided. When no tolerance is provided, minarea is
--- defaulted to 0.0 and this function is equivalent to ST_CollectionExtract(geom, 3).
+-- when a geometry collection is provided. When no tolerance is provided, minarea 
+-- default to 0.0 and this function becomes equivalent to ST_CollectionExtract(geom, 3).
 --
 -- This function is used by the ST_SplitAgg state function.
 --
@@ -2118,13 +2123,13 @@ $$ LANGUAGE sql IMMUTABLE;
 -- Self contained and typical example:
 --
 -- WITH geomtable AS (
--- SELECT 1 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
--- UNION ALL
--- SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
--- UNION ALL
--- SELECT 3 id, ST_GeomFromText('POLYGON((1.5 0.8, 1.5 1.2, 2.5 1.2, 2.5 0.8, 1.5 0.8))') geom
--- UNION ALL
--- SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
+--   SELECT 1 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
+--   UNION ALL
+--   SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
+--   UNION ALL
+--   SELECT 3 id, ST_GeomFromText('POLYGON((1.5 0.8, 1.5 1.2, 2.5 1.2, 2.5 0.8, 1.5 0.8))') geom
+--   UNION ALL
+--   SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
 -- )
 -- SELECT DISTINCT ON (geom) unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom
 -- FROM geomtable a,
@@ -2138,13 +2143,13 @@ $$ LANGUAGE sql IMMUTABLE;
 -- The second example shows how to assign to each polygon the id of the biggest polygon:
 --
 -- WITH geomtable AS (
--- SELECT 1 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
--- UNION ALL
--- SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
--- UNION ALL
--- SELECT 3 id, ST_GeomFromText('POLYGON((1.5 0.8, 1.5 1.2, 2.5 1.2, 2.5 0.8, 1.5 0.8))') geom
--- UNION ALL
--- SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
+--   SELECT 1 id, ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0), (0.2 0.5, 0.2 1.5, 0.8 1.5, 0.8 0.5, 0.2 0.5))') geom
+--   UNION ALL
+--   SELECT 2 id, ST_GeomFromText('POLYGON((1 0.2, 1 1, 3 1, 3 0.2, 1 0.2))') geom
+--   UNION ALL
+--   SELECT 3 id, ST_GeomFromText('POLYGON((1.5 0.8, 1.5 1.2, 2.5 1.2, 2.5 0.8, 1.5 0.8))') geom
+--   UNION ALL
+--   SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
 -- )
 -- SELECT DISTINCT ON (geom) a.id, unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom
 -- FROM geomtable a,
@@ -2528,7 +2533,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
                  || E'       ''SELECT * FROM ' || fqtn || ' WHERE ' || newuidcolumn || ' = '' || ' || newuidcolumn || E' || '';''::text query,\n'
                  || E'       NULL::geometry geom\n'
                  || E'FROM ' || fqtn || E'\n'
-                 || whereclausewithwhere || E'\n'
+                 || ltrim(whereclausewithwhere) || CASE WHEN whereclausewithwhere = '' THEN '' ELSE E'\n' END
                  || E'GROUP BY ' || newuidcolumn || E'\n'
                  || E'HAVING count(*) > 1\n'
                  || E'ORDER BY cnt DESC;';
@@ -2626,7 +2631,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
                      || E'             count(*) cnt,\n'
                      || E'             ' ||              geomcolumnname || E' geom\n'
                      || E'      FROM ' || fqtn || E'\n'
-                     || E'    ' || whereclausewithwhere || E'\n'
+                     || E'    ' || ltrim(whereclausewithwhere) || CASE WHEN whereclausewithwhere = '' THEN '' ELSE E'\n' END
                      || E'      GROUP BY ' || geomcolumnname || E') foo\n'
                      || E'WHERE cnt > 1\n'
                      || E'ORDER BY cnt DESC;';
@@ -2718,7 +2723,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
                  || E'       END::text query,\n'
                  || E'       NULL::geometry geom\n'
                  || E'FROM ' || fqtn || E'\n'
-                 || whereclausewithwhere || E'\n'
+                 || ltrim(whereclausewithwhere) || CASE WHEN whereclausewithwhere = '' THEN '' ELSE E'\n' END
                  || E'GROUP BY ST_IsValid(' || geomcolumnname || '), ST_IsEmpty(' || geomcolumnname || '), ST_GeometryType(' || geomcolumnname || E')\n'
                  || E'ORDER BY ST_GeometryType(' || geomcolumnname || ') DESC, NOT ST_IsValid(' || geomcolumnname || '), ST_IsEmpty(' || geomcolumnname || ');';
 
