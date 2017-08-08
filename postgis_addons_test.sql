@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.34 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.35 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -8,12 +8,12 @@
 --
 -- Copyright (C) 2013-2017 Pierre Racine <pierre.racine@sbf.ulaval.ca>.
 --
--- This test file return a table of two columns: 
+-- This test file return a table of four columns: 
 --
--- - the 1st column is the number of the test (e.g. 2.3) 
--- - the 2nd column is the name of the function being tested
--- - the 3rd column is the description of the test
--- - the 4th column is the result of the test: 
+-- - the 1st column (number) is the number of the test (e.g. 2.3) 
+-- - the 2nd column (function_tested) is the name of the function being tested
+-- - the 3rd column (description) is the description of the test
+-- - the 4th column (passed) is the result of the test: 
 --
 --   - true  if the test passed
 --   - false if the test did not pass
@@ -76,7 +76,7 @@ SELECT 3 id1, 3 id2, ST_MakePoint(0,0) geom -- duplicate point
 UNION ALL
 SELECT 4 id1, 4 id2, ST_MakePoint(0,1) geom -- other point
 UNION ALL
-SELECT 5 id1, 5 id2, ST_Buffer(ST_MakePoint(0,0), 1) geom -- first polygon
+SELECT 5 id1, 5 id2, ST_Difference(ST_Buffer(ST_MakePoint(0,0), 1), ST_Buffer(ST_MakePoint(0,-0.5), 0.1)) geom -- first polygon
 UNION ALL
 SELECT 6 id1, 6 id2, ST_Buffer(ST_MakePoint(0,1), 1) geom -- second polygon
 UNION ALL
@@ -124,7 +124,7 @@ SELECT 'ST_DifferenceAgg'::text,             13,          3         UNION ALL
 SELECT 'ST_TrimMulti'::text,                 14,          4         UNION ALL
 SELECT 'ST_SplitAgg'::text,                  15,          5         UNION ALL
 SELECT 'ST_HasBasicIndex'::text,             16,          4         UNION ALL
-SELECT 'ST_GeoTableSummary'::text,           17,         16         UNION ALL
+SELECT 'ST_GeoTableSummary'::text,           17,         17         UNION ALL
 SELECT 'ST_SplitByGrid'::text,               18,          1         UNION ALL
 SELECT 'ST_Histogram'::text,                 19,          9
 ),
@@ -1284,7 +1284,7 @@ UNION ALL
 SELECT '17.7'::text number,
        'ST_GeoTableSummary'::text function_tested,
        'Overlapping geometries results'::text description,
-       idsandtypes = 'ERROR: Consider fixing invalid geometries before testing for overlaps...' passed
+       idsandtypes = 'ERROR: Consider fixing invalid geometries and convert ST_GeometryCollection before testing for overlaps...' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, ARRAY['OVL'])
 WHERE summary = '3'
 ---------------------------------------------------------
@@ -1309,49 +1309,49 @@ SELECT '17.8'::text number,
        (array_agg(query))[7]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_IsValid(geom) AND NOT ST_IsEmpty(geom) AND ST_GeometryType(geom) = ''ST_LineString'';' AND 
        (array_agg(query))[8]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_IsEmpty(geom) AND ST_GeometryType(geom) = ''ST_GeometryCollection'';' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
-WHERE summary = '4'
+WHERE summary = '5'
 ---------------------------------------------------------
 UNION ALL
 SELECT '17.9'::text number,
        'ST_GeoTableSummary'::text function_tested,
        'Vertex statistics results'::text description,
        (array_agg(countsandareas))[1] = 0 AND 
-       (array_agg(countsandareas))[2] = 33 AND 
-       (array_agg(countsandareas))[3] = 7 AND 
+       (array_agg(countsandareas))[2] = 66 AND 
+       (array_agg(countsandareas))[3] = 10 AND 
        (array_agg(query))[1]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_NPoints(geom) = 0;' AND 
-       (array_agg(query))[2]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_NPoints(geom) = 33;' AND 
+       (array_agg(query))[2]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_NPoints(geom) = 66;' AND 
        (array_agg(query))[3]::text = 'No usefull query' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
-WHERE summary = '5'
+WHERE summary = '6'
 ---------------------------------------------------------
 UNION ALL
 SELECT '17.10'::text number,
        'ST_GeoTableSummary'::text function_tested,
        'Vertex histogram results'::text description,
        (array_agg(countsandareas))[1] = 1 AND 
-       (array_agg(countsandareas))[2] = 8 AND 
-       (array_agg(countsandareas))[3] = 1 AND 
+       (array_agg(countsandareas))[2] = 9 AND 
+       (array_agg(countsandareas))[3] = 0 AND 
        (array_agg(countsandareas))[4] = 0 AND 
        (array_agg(countsandareas))[5] = 0 AND 
        (array_agg(countsandareas))[6] = 0 AND 
-       (array_agg(countsandareas))[7] = 0 AND 
+       (array_agg(countsandareas))[7] = 1 AND 
        (array_agg(countsandareas))[8] = 0 AND 
        (array_agg(countsandareas))[9] = 0 AND 
        (array_agg(countsandareas))[10] = 0 AND 
-       (array_agg(countsandareas))[11] = 2 AND 
+       (array_agg(countsandareas))[11] = 1 AND 
        (array_agg(query))[1]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) IS NULL;' AND 
-       (array_agg(query))[2]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 0 AND ST_NPoints(geom) < 3 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[3]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 3 AND ST_NPoints(geom) < 7 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[4]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 7 AND ST_NPoints(geom) < 10 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[5]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 10 AND ST_NPoints(geom) < 13 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[6]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 13 AND ST_NPoints(geom) < 17 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[7]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 17 AND ST_NPoints(geom) < 20 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[8]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 20 AND ST_NPoints(geom) < 23 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[9]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 23 AND ST_NPoints(geom) < 26 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[10]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 26 AND ST_NPoints(geom) < 30 ORDER BY ST_NPoints(geom) DESC;' AND 
-       (array_agg(query))[11]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 30 AND ST_NPoints(geom) <= 33 ORDER BY ST_NPoints(geom) DESC;' passed
+       (array_agg(query))[2]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 0 AND ST_NPoints(geom) < 7 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[3]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 7 AND ST_NPoints(geom) < 13 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[4]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 13 AND ST_NPoints(geom) < 20 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[5]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 20 AND ST_NPoints(geom) < 26 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[6]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 26 AND ST_NPoints(geom) < 33 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[7]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 33 AND ST_NPoints(geom) < 40 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[8]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 40 AND ST_NPoints(geom) < 46 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[9]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 46 AND ST_NPoints(geom) < 53 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[10]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 53 AND ST_NPoints(geom) < 59 ORDER BY ST_NPoints(geom) DESC;' AND 
+       (array_agg(query))[11]::text = 'SELECT *, ST_NPoints(geom) nbpoints FROM public.test_geotablesummary WHERE ST_NPoints(geom) >= 59 AND ST_NPoints(geom) <= 66 ORDER BY ST_NPoints(geom) DESC;' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
-WHERE summary = '6'
+WHERE summary = '7'
 ---------------------------------------------------------
 UNION ALL
 SELECT '17.11'::text number,
@@ -1359,12 +1359,12 @@ SELECT '17.11'::text number,
        'Area statistics results'::text description,
        (array_agg(countsandareas))[1] = 0 AND 
        ((array_agg(countsandareas))[2]*100000)::int = 312145 AND 
-       ((array_agg(countsandareas))[3]*100000)::int = 56754 AND 
+       ((array_agg(countsandareas))[3]*100000)::int = 56470 AND 
        (array_agg(query))[1]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_Area(geom) < 0 + 0.000000001;' AND 
        (array_agg(query))[2]::text = 'SELECT * FROM public.test_geotablesummary WHERE ST_Area(geom) > 3.12144515225805 - 0.000000001 AND ST_Area(geom) < 3.12144515225805 + 0.000000001;' AND 
        (array_agg(query))[3]::text = 'No usefull query' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
-WHERE summary = '7'
+WHERE summary = '8'
 ---------------------------------------------------------
 UNION ALL
 SELECT '17.12'::text number,
@@ -1404,7 +1404,7 @@ SELECT '17.12'::text number,
        (array_agg(query))[10]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.4971561218064422 AND ST_Area(geom) < 2.8093006370322477 ORDER BY ST_Area(geom) DESC;' AND 
        (array_agg(query))[11]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 2.8093006370322477 AND ST_Area(geom) <= 3.1214451522580529 ORDER BY ST_Area(geom) DESC;' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
-WHERE summary = '8'
+WHERE summary = '9'
 ---------------------------------------------------------
 UNION ALL
 SELECT '17.13'::text number,
@@ -1438,7 +1438,7 @@ SELECT '17.13'::text number,
        (array_agg(query))[8]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.001 AND ST_Area(geom) < 0.01 ORDER BY ST_Area(geom) DESC;' AND 
        (array_agg(query))[9]::text = 'SELECT *, ST_Area(geom) area FROM public.test_geotablesummary WHERE ST_Area(geom) >= 0.01 AND ST_Area(geom) < 0.1 ORDER BY ST_Area(geom) DESC;' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 'SACOUNT')
-WHERE summary = '9'
+WHERE summary = '10'
 ---------------------------------------------------------
 UNION ALL
 SELECT '17.14'::text number,
@@ -1449,17 +1449,19 @@ SELECT '17.14'::text number,
        (array_agg(idsandtypes))[3] != 'SKIPPED' AND 
        (array_agg(idsandtypes))[6] = 'SKIPPED' AND 
        (array_agg(idsandtypes))[7] = 'SKIPPED' AND 
-       (array_agg(idsandtypes))[8] = 'STATISTIC' AND 
-       (array_agg(idsandtypes))[9] = 'MIN number of vertexes' AND 
-       (array_agg(idsandtypes))[10] = 'MAX number of vertexes' AND 
-       (array_agg(idsandtypes))[11] = 'MEAN number of vertexes' AND 
-       (array_agg(idsandtypes))[12] = 'SKIPPED' AND 
-       (array_agg(idsandtypes))[13] = 'STATISTIC' AND 
-       (array_agg(idsandtypes))[14] = 'MIN area' AND 
-       (array_agg(idsandtypes))[15] = 'MAX area' AND 
-       (array_agg(idsandtypes))[16] = 'MEAN area' AND 
-       (array_agg(idsandtypes))[17] = 'SKIPPED'
-FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 's1, GDUP, VERTX, s7', 's1')
+       (array_agg(idsandtypes))[8] = 'SKIPPED' AND 
+       (array_agg(idsandtypes))[9] = 'STATISTIC' AND 
+       (array_agg(idsandtypes))[10] = 'MIN number of vertexes' AND 
+       (array_agg(idsandtypes))[11] = 'MAX number of vertexes' AND 
+       (array_agg(idsandtypes))[12] = 'MEAN number of vertexes' AND 
+       (array_agg(idsandtypes))[13] = 'SKIPPED' AND 
+       (array_agg(idsandtypes))[14] = 'STATISTIC' AND 
+       (array_agg(idsandtypes))[15] = 'MIN area' AND 
+       (array_agg(idsandtypes))[16] = 'MAX area' AND 
+       (array_agg(idsandtypes))[17] = 'MEAN area' AND 
+       (array_agg(idsandtypes))[18] = 'SKIPPED' AND 
+       (array_agg(idsandtypes))[19] = 'SKIPPED'
+FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 's1, GDUP, VERTX, s8', 's1')
 
 ---------------------------------------------------------------------------------------------------------
 UNION ALL
@@ -1467,7 +1469,7 @@ SELECT '17.15'::text number,
        'ST_GeoTableSummary'::text function_tested,
        'Whereclause parameter'::text description,
        sum(countsandareas) = 34
-FROM (SELECT * FROM (SELECT (ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 'all', 'ovl', 'id1 < 10')).*) foo WHERE summary = '4' OR summary = '6' OR summary = '8' OR summary = '9') foo
+FROM (SELECT * FROM (SELECT (ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 'all', 'ovl', 'id1 < 10')).*) foo WHERE summary = '5' OR summary = '7' OR summary = '9' OR summary = '10') foo
 
 ---------------------------------------------------------------------------------------------------------
 UNION ALL
@@ -1477,6 +1479,14 @@ SELECT '17.16'::text number,
        sum(countsandareas) = 0
 FROM (SELECT * FROM (SELECT (ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', null, null, 'all', null, 'id1 > 100')).*) foo) foo
 
+---------------------------------------------------------
+UNION ALL
+SELECT '17.17'::text number,
+       'ST_GeoTableSummary'::text function_tested,
+       'gaps summary results'::text description,
+       idsandtypes = '1' passed
+FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, ARRAY['GAPS'])
+WHERE summary = '4'
 ---------------------------------------------------------
 -- Test 18 - ST_SplitByGrid
 ---------------------------------------------------------
