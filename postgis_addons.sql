@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.35 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.36 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -172,7 +172,7 @@ RETURNS raster AS $$
         bandarray int[];
     BEGIN
         IF rast IS NULL THEN
-            RETURN null;
+            RETURN NULL;
         END IF;
         IF band IS NULL OR band < 1 OR band > numband THEN
             RETURN rast;
@@ -297,7 +297,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 --                   or a multipolygon.
 --   nb int        - Number of random points to create.
 --   seed numeric  - Value between -1.0 and 1.0, inclusive, setting the seek if repeatable
---                   results are desired. Default to null.
+--                   results are desired. Default to NULL.
 --
 --   RETURNS set of points
 --
@@ -339,7 +339,7 @@ RETURNS SETOF geometry AS $$
         -- Make sure the geometry is some kind of polygon
         IF (gtype IS NULL OR (gtype != 'ST_Polygon') AND (gtype != 'ST_MultiPolygon')) THEN
             RAISE NOTICE 'Attempting to get random points in a non polygon geometry';
-            RETURN NEXT null;
+            RETURN NEXT NULL;
             RETURN;
         END IF;
 
@@ -422,10 +422,11 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --                     the existance of an index.
 --   tablename name  - Name of the table for which to check for the existance of an index.
 --   columnname name - Name of the column to check for the existence of an index.
+--   idxstring       - Search for indexes containing idxstring in their names. Default to NULL.
 --
 --   RETURNS boolean
 --
--- Returns true if a table column has at least one index defined
+-- Returns true if a table column has an index defined.
 -----------------------------------------------------------
 -- Self contained example:
 --
@@ -437,7 +438,8 @@ $$ LANGUAGE sql VOLATILE STRICT;
 CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
     schemaname name,
     tablename name,
-    columnname name
+    columnname name,
+    idxstring text 
 )
 RETURNS boolean AS $$
     DECLARE
@@ -445,21 +447,36 @@ RETURNS boolean AS $$
         coltype text;
         hasindex boolean := FALSE;
     BEGIN
-        -- Determine the type of the column
-        query := 'SELECT typname
-                  FROM pg_namespace
-                  LEFT JOIN pg_class ON (pg_namespace.oid = pg_class.relnamespace)
-                  LEFT JOIN pg_attribute ON (pg_attribute.attrelid = pg_class.oid)
-                  LEFT JOIN pg_type ON (pg_type.oid = pg_attribute.atttypid)
+        IF schemaname IS NULL OR schemaname = '' OR tablename IS NULL OR tablename = '' THEN
+            RETURN NULL;
+        END IF;
+        -- Check if schemaname is not actually a table name and idxstring actually a column name.
+        -- That's the only way to support a three parameter variant taking 'public' as a default schemaname
+        IF ST_ColumnExists(tablename, columnname, idxstring) THEN
+            tablename = columnname;
+            columnname = idxstring;
+            idxstring = NULL;
+        END IF;
+        IF (columnname IS NULL OR columnname = '') AND (idxstring IS NULL OR idxstring = '') THEN
+            RETURN NULL;
+        END IF;
+        IF NOT columnname IS NULL AND columnname != '' AND ST_ColumnExists(schemaname, tablename, columnname) THEN
+	    -- Determine the type of the column
+	    query := 'SELECT typname
+	    	      FROM pg_namespace
+                      LEFT JOIN pg_class ON (pg_namespace.oid = pg_class.relnamespace)
+                      LEFT JOIN pg_attribute ON (pg_attribute.attrelid = pg_class.oid)
+                      LEFT JOIN pg_type ON (pg_type.oid = pg_attribute.atttypid)
                   WHERE lower(nspname) = lower(''' || schemaname || ''') AND lower(relname) = lower(''' || tablename || ''') AND lower(attname) = lower(''' || columnname || ''');';
-        EXECUTE QUERY query INTO coltype;
-        IF coltype IS NULL THEN
-            --RAISE EXCEPTION 'column not found';
+	    EXECUTE QUERY query INTO coltype;
+        END IF;
+
+        IF coltype IS NULL AND (idxstring IS NULL OR idxstring = '') THEN
             RETURN NULL;
         ELSIF coltype = 'raster' THEN
             -- When column type is RASTER we ignore the column name and
             -- only check if the type of the index is gist since it is a functional
-            -- index and we can not check on which column it is applied
+            -- index and it would be hard to check on which column it is applied
             query := 'SELECT TRUE
                       FROM pg_index
                       LEFT OUTER JOIN pg_class relclass ON (relclass.oid = pg_index.indrelid)
@@ -467,20 +484,30 @@ RETURNS boolean AS $$
                       LEFT OUTER JOIN pg_class idxclass ON (idxclass.oid = pg_index.indexrelid)
                       LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam)
                       WHERE relclass.relkind = ''r'' AND amname = ''gist''
-                      AND lower(nspname) = lower(''' || schemaname || ''') AND lower(relclass.relname) = lower(''' || tablename || ''');';
+                      AND lower(nspname) = lower(''' || schemaname || ''') AND lower(relclass.relname) = lower(''' || tablename || ''')';
+            IF NOT idxstring IS NULL THEN
+                query := query || ' AND lower(idxclass.relname) LIKE lower(''%' || idxstring || '%'');';
+            END IF;
             EXECUTE QUERY query INTO hasindex;
         ELSE
-           -- Otherwise we check for an index on the right column
-           query := 'SELECT TRUE
-                     FROM pg_index
-                     LEFT OUTER JOIN pg_class relclass ON (relclass.oid = pg_index.indrelid)
-                     LEFT OUTER JOIN pg_namespace ON (pg_namespace.oid = relclass.relnamespace)
-                     LEFT OUTER JOIN pg_class idxclass ON (idxclass.oid = pg_index.indexrelid)
-                     --LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam)
-                     LEFT OUTER JOIN pg_attribute ON (pg_attribute.attrelid = relclass.oid AND indkey[0] = attnum)
-                     WHERE relclass.relkind = ''r'' AND indkey[0] != 0
-                     AND lower(nspname) = lower(''' || schemaname || ''') AND lower(relclass.relname) = lower(''' || tablename || ''') AND lower(attname) = lower(''' || columnname || ''');';
-           EXECUTE QUERY query INTO hasindex;
+            -- Otherwise we check for an index on the right column
+            query := 'SELECT TRUE
+                      FROM pg_index
+                      LEFT OUTER JOIN pg_class relclass ON (relclass.oid = pg_index.indrelid)
+                      LEFT OUTER JOIN pg_namespace ON (pg_namespace.oid = relclass.relnamespace)
+                      LEFT OUTER JOIN pg_class idxclass ON (idxclass.oid = pg_index.indexrelid)
+                      --LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam)
+                      LEFT OUTER JOIN pg_attribute ON (pg_attribute.attrelid = relclass.oid AND indkey[0] = attnum)
+                      WHERE relclass.relkind = ''r'' 
+                      AND lower(nspname) = lower(''' || schemaname || ''') AND lower(relclass.relname) = lower(''' || tablename || ''')';
+            IF NOT idxstring IS NULL THEN
+                query := query || ' AND lower(idxclass.relname) LIKE lower(''%' || idxstring || '%'')';
+            END IF;
+            IF NOT columnname IS NULL THEN
+                query := query || ' AND indkey[0] != 0 AND lower(attname) = lower(''' || columnname || ''')';
+            END IF;
+ --RAISE NOTICE 'query = %', query;
+            EXECUTE QUERY query INTO hasindex;
         END IF;
         IF hasindex IS NULL THEN
             hasindex = FALSE;
@@ -493,10 +520,20 @@ $$ LANGUAGE plpgsql VOLATILE;
 -- ST_HasBasicIndex variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
     tablename name,
+    columnname name,
+    idxstring text
+)
+RETURNS BOOLEAN AS $$
+    SELECT ST_HasBasicIndex('public', $1, $2, $3)
+$$ LANGUAGE sql VOLATILE;
+-----------------------------------------------------------
+-- ST_HasBasicIndex variant defaulting to the 'public' schemaname
+CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
+    tablename name,
     columnname name
 )
 RETURNS BOOLEAN AS $$
-    SELECT ST_HasBasicIndex('public', $1, $2)
+    SELECT ST_HasBasicIndex('public', $1, $2, NULL)
 $$ LANGUAGE sql VOLATILE;
 -----------------------------------------------------------
 
@@ -769,7 +806,7 @@ RETURNS agg_areaweightedstatsstate  AS $$
         -- Skip anything that is not a polygon
         IF newgeom IS NULL OR ST_IsEmpty(newgeom) OR geomtype = 'POINT' OR geomtype = 'LINESTRING' OR geomtype = 'MULTIPOINT' OR geomtype = 'MULTILINESTRING' THEN
             ret := aws;
-        -- At the first iteration the state parameter is always null
+        -- At the first iteration the state parameter is always NULL
         ELSEIF $1 IS NULL THEN
             ret := (1,                                 -- count
                     ARRAY[($2).val],                   -- distinctvalues
@@ -938,8 +975,8 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --   schemaname text         - Name of the schema containing the table from which to extract values.
 --   tablename text          - Name of the table from which to extract values from.
 --   geomrastcolumnname text - Name of the column containing the geometry or the raster to use when extracting values.
---   valuecolumnname text    - Name of the column containing the value to use when extracting values. Should be null
---                             when extracting from a raster coverage and can be null for certain methods not implying
+--   valuecolumnname text    - Name of the column containing the value to use when extracting values. Should be NULL
+--                             when extracting from a raster coverage and can be NULL for certain methods not implying
 --                             geometries values.
 --   method text             - Name of the method of value extraction. Default to 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'.
 --
@@ -967,7 +1004,7 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --     STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID and
 --     RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID
 --     are for the ST_GlobalRasterUnion() function. When those methods are used,
---     geomrastcolumnname should be a column of type raster and valuecolumnname should be null.
+--     geomrastcolumnname should be a column of type raster and valuecolumnname should be NULL.
 --
 -- Values extracted for the whole square pixel:
 --
@@ -1015,7 +1052,7 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --     AREA_WEIGHTED_MEAN_OF_RASTER_VALUES and
 --     AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2
 --     are for the ST_GlobalRasterUnion() function. When those methods are used,
---     geomrastcolumnname should be a column of type raster and valuecolumnname should be null.
+--     geomrastcolumnname should be a column of type raster and valuecolumnname should be NULL.
 --
 -- Many more methods can be added over time. An almost exhaustive list of possible method can be find
 -- at objective FV.27 in this page: http://trac.osgeo.org/postgis/wiki/WKTRaster/SpecificationWorking03
@@ -1468,10 +1505,10 @@ RETURNS raster AS $$
                                       $2,
                                       ''' || fct2call || '(double precision[], integer[], text[])''::regprocedure,
                                       ST_BandPixelType($1, $2),
-                                      null,
-                                      null,
-                                      null,
-                                      null,
+                                      NULL,
+                                      NULL,
+                                      NULL,
+                                      NULL,
                                       ST_Width($1)::text,
                                       ST_Height($1)::text,
                                       ST_UpperLeftX($1)::text,
@@ -1508,7 +1545,7 @@ RETURNS raster AS $$
 $$ LANGUAGE sql;
 
 ---------------------------------------------------------------------
--- ST_ExtractToRaster variant defaulting valuecolumnname to null
+-- ST_ExtractToRaster variant defaulting valuecolumnname to NULL
 CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
     rast raster,
     band integer,
@@ -1518,11 +1555,11 @@ CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
     method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
 )
 RETURNS raster AS $$
-    SELECT ST_ExtractToRaster($1, $2, $3, $4, $5, null, $6)
+    SELECT ST_ExtractToRaster($1, $2, $3, $4, $5, NULL, $6)
 $$ LANGUAGE sql;
 
 ---------------------------------------------------------------------
--- ST_ExtractToRaster variant defaulting band number to 1 and valuecolumnname to null
+-- ST_ExtractToRaster variant defaulting band number to 1 and valuecolumnname to NULL
 CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
     rast raster,
     schemaname name,
@@ -1531,7 +1568,7 @@ CREATE OR REPLACE FUNCTION ST_ExtractToRaster(
     method text DEFAULT 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'
 )
 RETURNS raster AS $$
-    SELECT ST_ExtractToRaster($1, 1, $2, $3, $4, null, $5)
+    SELECT ST_ExtractToRaster($1, 1, $2, $3, $4, NULL, $5)
 $$ LANGUAGE sql;
 
 -------------------------------------------------------------------------------
@@ -1575,11 +1612,11 @@ $$ LANGUAGE sql;
 --    require internal memory copy of progressively bigger and bigger raster
 --    pieces.
 --
--- When pixeltype is null, it is assumed to be identical for all rasters. If not,
+-- When pixeltype is NULL, it is assumed to be identical for all rasters. If not,
 -- the maximum of all pixel type stings is used. In some cases, this might not
 -- make sense at all... e.g. Most rasters are 32BUI, one is 8BUI and 8BUI is used.
 --
--- When nodataval is null, nodata value is assumed to be identical for all rasters.
+-- When nodataval is NULL, nodata value is assumed to be identical for all rasters.
 -- If not, the minimum of all raster nodata value is used.
 --
 -- For now, those methods are implemented:
@@ -1668,8 +1705,8 @@ CREATE OR REPLACE FUNCTION ST_GlobalRasterUnion(
     tablename name,
     rastercolumnname name,
     method text DEFAULT 'FIRST_RASTER_VALUE_AT_PIXEL_CENTROID',
-    pixeltype text DEFAULT null,
-    nodataval double precision DEFAULT null
+    pixeltype text DEFAULT NULL,
+    nodataval double precision DEFAULT NULL
 )
 RETURNS raster AS $$
     DECLARE
@@ -1698,10 +1735,10 @@ RETURNS raster AS $$
                                       1,
                                       ''' || fct2call || '(double precision[], integer[], text[])''::regprocedure,
                                       ST_BandPixelType(rast, 1),
-                                      null,
-                                      null,
-                                      null,
-                                      null,
+                                      NULL,
+                                      NULL,
+                                      NULL,
+                                      NULL,
                                       ST_Width(rast)::text,
                                       ST_Height(rast)::text,
                                       ST_UpperLeftX(rast)::text,
@@ -1714,7 +1751,7 @@ RETURNS raster AS $$
                                       quote_literal(schemaname) || ', ' ||
                                       quote_literal(tablename) || ', ' ||
                                       quote_literal(rastercolumnname) || ',
-                                      null' || ', ' ||
+                                      NULL' || ', ' ||
                                       quote_literal(upper(method)) || '
                                      ) rast
                  FROM (SELECT ST_AsRaster(ST_Union(rast::geometry),
@@ -1790,7 +1827,7 @@ CREATE OR REPLACE FUNCTION _ST_BufferedUnion_StateFN(
 )
 RETURNS geomval AS $$
     SELECT CASE WHEN $1 IS NULL AND $2 IS NULL THEN
-                    null
+                    NULL
                 WHEN $1 IS NULL THEN
                     (ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre'),
                      CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END
@@ -2000,7 +2037,7 @@ RETURNS geomval AS $$
        differ geometry;
        equals boolean;
     BEGIN
-        -- First pass: geom1 is null
+        -- First pass: geom1 is NULL
         IF geom1 IS NULL AND NOT ST_IsEmpty(geom2) AND ST_Area(geom3) > 0 THEN
             newgeom = CASE
                         WHEN ST_Equals(geom2, geom3) THEN (geom2, 1)
@@ -2131,14 +2168,14 @@ $$ LANGUAGE sql IMMUTABLE;
 --   UNION ALL
 --   SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
 -- )
--- SELECT DISTINCT ON (geom) unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom
+-- SELECT DISTINCT ON (ST_AsEWKB(geom)) unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom
 -- FROM geomtable a,
 --      geomtable b
 -- WHERE ST_Equals(a.geom, b.geom) OR
 --       ST_Contains(a.geom, b.geom) OR
 --       ST_Contains(b.geom, a.geom) OR
 --       ST_Overlaps(a.geom, b.geom)
--- GROUP BY a.geom;
+-- GROUP BY ST_AsEWKB(a.geom);
 --
 -- The second example shows how to assign to each polygon the id of the biggest polygon:
 --
@@ -2178,7 +2215,7 @@ RETURNS geometry[] AS $$
         newgeom geometry;
         geomunion geometry;
     BEGIN
-        -- First pass: geomarray is null
+        -- First pass: geomarray is NULL
        IF geomarray IS NULL THEN
             geomarray = array_append(newgeomarray, geom1);
         END IF;
@@ -2289,7 +2326,7 @@ RETURNS BOOLEAN AS $$
 
         IF NOT ST_ColumnExists(newschemaname, tablename, columnname) THEN
             RAISE NOTICE 'ST_ColumnIsUnique(): Column ''%'' does not exist... Returning NULL', columnname;
-            RETURN null;
+            RETURN NULL;
         END IF;
 
         query = 'SELECT FALSE FROM ' || fqtn || ' GROUP BY ' || columnname || ' HAVING count(' || columnname || ') > 1 LIMIT 1';
@@ -2455,7 +2492,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
         dos3 text[] = ARRAY['S3', 'OVL', 'ALL'];
         dos4 text[] = ARRAY['S4', 'GAPS', 'ALL'];
         dos5 text[] = ARRAY['S5', 'TYPES', 'GTYPES', 'GEOTYPES', 'ALL'];
-        dos6 text[] = ARRAY['S6', 'VERTX', 'ALL'];
+        dos6 text[] = ARRAY['S6', 'VERTX', 'NPOINTS', 'ALL'];
         dos7 text[] = ARRAY['S7', 'VHISTO', 'ALL'];
         dos8 text[] = ARRAY['S8', 'AREAS', 'AREA', 'ALL'];
         dos9 text[] = ARRAY['S9', 'AHISTO', 'ALL'];
@@ -2565,7 +2602,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
 
         -----------------------------------------------
         -- Add a unique id column if it does not exists or if the one provided is not unique
-        IF (dosummary IS NULL OR dosummary && dos2 OR dosummary && dos3 OR dosummary && dos4) AND (skipsummary IS NULL OR NOT (skipsummary && dos2 OR skipsummary && dos3 OR skipsummary && dos4)) THEN
+        IF (dosummary IS NULL OR dosummary && dos2 OR dosummary && dos3 OR dosummary && dos4) AND (skipsummary IS NULL OR NOT (skipsummary && dos2 AND skipsummary && dos3 AND skipsummary && dos4)) THEN
 
             RAISE NOTICE 'Searching for the first column containing unique values...';
 
@@ -2609,7 +2646,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
                 
                 --EXECUTE 'CREATE INDEX ON ' || fqtn || ' USING btree(' || newuidcolumn || ');';
                 
-                query = 'SELECT ST_AddUniqueID(''' || newschemaname || ''', ''' || tablename || ''', ''' || newuidcolumn || ''', null, true);';
+                query = 'SELECT ST_AddUniqueID(''' || newschemaname || ''', ''' || tablename || ''', ''' || newuidcolumn || ''', NULL, true);';
                 EXECUTE query;
             ELSE
                RAISE NOTICE '  Column ''%'' exists and is unique...', newuidcolumn;
@@ -2632,10 +2669,10 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
                      || E'       geom\n'
                      || E'FROM (SELECT string_agg(' || newuidcolumn || '::text, '', ''::text ORDER BY ' || newuidcolumn || E') id,\n'
                      || E'             count(*) cnt,\n'
-                     || E'             ' ||              geomcolumnname || E' geom\n'
+                     || E'             ST_AsEWKB(' ||              geomcolumnname || E')::geometry geom\n'
                      || E'      FROM ' || fqtn || E'\n'
                      || E'    ' || ltrim(whereclausewithwhere) || CASE WHEN whereclausewithwhere = '' THEN '' ELSE E'\n' END
-                     || E'      GROUP BY ' || geomcolumnname || E') foo\n'
+                     || E'      GROUP BY ST_AsEWKB(' || geomcolumnname || E')) foo\n'
                      || E'WHERE cnt > 1\n'
                      || E'ORDER BY cnt DESC;';
 
@@ -2669,8 +2706,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
                  || E'      (ST_Overlaps(a.' || geomcolumnname || ', b.' || geomcolumnname || E') OR\n'
                  || E'       ST_Contains(a.' || geomcolumnname || ', b.' || geomcolumnname || E') OR\n'
                  || E'       ST_Contains(b.' || geomcolumnname || ', a.' || geomcolumnname || E')) AND\n'
-                 || E'       ST_Area(ST_Intersection(a.' || geomcolumnname || ', b.' || geomcolumnname || E')) > 0 AND\n'
-                 || E'       NOT ST_IsEmpty(ST_Difference(a.' || geomcolumnname || ', b.' || geomcolumnname || E'))\n'
+                 || E'       ST_Area(ST_Intersection(a.' || geomcolumnname || ', b.' || geomcolumnname || E')) > 0\n'
                  || E'ORDER BY ST_Area(ST_Intersection(a.' || geomcolumnname || ', b.' || geomcolumnname || ')) DESC;';
 
             RETURN QUERY SELECT 'SUMMARY 3 - OVERLAPPING GEOMETRIES (OVL or S3)'::text, ('OVERLAPPING GEOMETRIES IDS (' || newuidcolumn || ')')::text, NULL::double precision, query, NULL::geometry;
@@ -2714,9 +2750,10 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
                  || E'       ST_Area(' || geomcolumnname || E') countsandareas,\n'
                  || E'       ''SELECT * FROM ' || fqtn || E' WHERE ' || newuidcolumn || E' = ANY(ARRAY['' || (SELECT string_agg(a.' || newuidcolumn || E'::text, '', '') FROM ' || fqtn || E' a WHERE ST_Intersects(ST_Buffer(foo.' || geomcolumnname || E', 0.000001), a.' || geomcolumnname || E')) || '']);''::text query,\n'
                  || E'       ' || geomcolumnname || E' geom\n'
-                 || E'FROM (SELECT (ST_Dump(ST_Difference(ST_Buffer(ST_SetSRID(ST_Extent(' || geomcolumnname || E')::geometry, min(ST_SRID(' || geomcolumnname || E'))), 0.01), ST_Union(' || geomcolumnname || E')))).*\n'
+                 || E'FROM (SELECT ST_Buffer(ST_SetSRID(ST_Extent(' || geomcolumnname || E')::geometry, min(ST_SRID(' || geomcolumnname || E'))), 0.01) buffer,\n'
+                 || E'             (ST_Dump(ST_Difference(ST_Buffer(ST_SetSRID(ST_Extent(' || geomcolumnname || E')::geometry, min(ST_SRID(' || geomcolumnname || E'))), 0.01), ST_Union(' || geomcolumnname || E')))).*\n'
                  || E'      FROM ' || fqtn || whereclausewithwhere || E') foo\n'
-                 || E'WHERE path[1] != 1\n'
+                 || E'WHERE NOT ST_Intersects(geom, ST_ExteriorRing(buffer)) AND ST_Area(geom) > 0\n'
                  || E'ORDER BY countsandareas DESC;';
         
             RETURN QUERY SELECT 'SUMMARY 4 - GAPS (GAPS or S4)'::text, ('GAPS IDS (generated on the fly)')::text, NULL::double precision, query, NULL::geometry;
@@ -2787,10 +2824,11 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
 
         -----------------------------------------------
         -- Create an index on ST_NPoints(geom) if necessary so further queries are executed faster
-        IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND
-           (dosummary IS NULL OR dosummary && dos6 OR dosummary && dos7) AND (skipsummary IS NULL OR NOT (skipsummary && dos6 OR skipsummary && dos7)) THEN
-                RAISE NOTICE 'Creating % index on ''ST_NPoints(%)''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
-            query = 'CREATE INDEX ON ' || fqtn || ' USING btree (ST_NPoints(' || geomcolumnname || '))' || whereclausewithwhere || ';';
+        IF (dosummary IS NULL OR dosummary && dos6 OR dosummary && dos7) AND (skipsummary IS NULL OR NOT (skipsummary && dos6 AND skipsummary && dos7)) AND
+           ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND
+           NOT ST_HasBasicIndex(newschemaname, tablename, NULL, 'st_npoints'::text) THEN
+            RAISE NOTICE 'Creating % index on ''ST_NPoints(%)''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
+            query = 'CREATE INDEX ' || left(tablename || '_' || geomcolumnname, 48) || '_st_npoints_idx ON ' || fqtn || ' USING btree (ST_NPoints(' || geomcolumnname || '))' || whereclausewithwhere || ';';
             EXECUTE query;
         END IF;
 
@@ -2889,10 +2927,11 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
 
         -----------------------------------------------
         -- Create an index on ST_Area(geom) if necessary so further queries are executed faster
-        IF ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND
-           (dosummary IS NULL OR dosummary && dos8 OR dosummary && dos9 OR dosummary && dos10) AND (skipsummary IS NULL OR NOT (skipsummary && dos8 OR skipsummary && dos9 OR skipsummary && dos10)) THEN
-                RAISE NOTICE 'Creating % index on ''ST_Area(%)''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
-            query = 'CREATE INDEX ON ' || fqtn || ' USING btree (ST_Area(' || geomcolumnname || '))' || whereclausewithwhere || ';';
+        IF (dosummary IS NULL OR dosummary && dos8 OR dosummary && dos9 OR dosummary && dos10) AND (skipsummary IS NULL OR NOT (skipsummary && dos8 AND skipsummary && dos9 AND skipsummary && dos10)) AND
+           ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND 
+           NOT ST_HasBasicIndex(newschemaname, tablename, NULL, 'st_area'::text) THEN
+            RAISE NOTICE 'Creating % index on ''ST_Area(%)''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
+            query = 'CREATE INDEX ' || left(tablename || '_' || geomcolumnname, 51) || '_st_area_idx ON ' || fqtn || ' USING btree (ST_Area(' || geomcolumnname || '))' || whereclausewithwhere || ';';
             EXECUTE query;
         END IF;
 
@@ -2990,7 +3029,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
             END IF;
         ELSE
             RETURN QUERY SELECT 'SUMMARY 9 - HISTOGRAM OF AREAS (AHISTO or S9)'::text, 'SKIPPED'::text, NULL::double precision, NULL::text, NULL::geometry;
-            RAISE NOTICE 'Summary 9 - Histogram of areas (AHISTO or S9)...';
+            RAISE NOTICE 'Summary 9 - Skipping Histogram of areas (AHISTO or S9)...';
         END IF;
 
         -----------------------------------------------
@@ -3055,7 +3094,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
                bydefault = ' BY DEFAULT';
             END IF;
             RETURN QUERY SELECT 'SUMMARY 10 - COUNT OF AREAS (SACOUNT or S10)'::text, ('SKIPPED' || bydefault)::text, NULL::double precision, NULL::text, NULL::geometry;
-            RAISE NOTICE 'Summary 10 - Count of small areas (SACOUNT or S10)...';
+            RAISE NOTICE 'Summary 10 - Skipping Count of small areas (SACOUNT or S10)...';
         END IF;
 
         RETURN;
@@ -3092,14 +3131,15 @@ $$ LANGUAGE sql VOLATILE;
 --
 --   ygridoffset double precision  - Vertical grid offset.
 --
---   RETURNS TABLE (geom geometry, tid int8, x int, y int)
+--   RETURNS TABLE (geom geometry, tid int8, x int, y int, tgeom geometry)
 --
 -- Set function returnings the geometry splitted in multiple parts by a grid of the
 -- specified size and optionnaly shifted by the specified offset. Each part comes
--- with a unique identifier for each cell of the grid it intersects with.
--- This unique identifier remains the same for any subsequent call to the function
--- so that all geometry parts inside the same cell, from call to call get the same
--- uid.
+-- with a unique identifier for each cell of the grid it intersects with, the x and 
+-- y coordinate of the cell and a geometry representin the cell itself.
+-- The unique identifier returned remains the same for any subsequent call to the 
+-- function so that all geometry parts inside the same cell, from call to call get 
+-- the same uid.
 --
 -- This function is usefull to parallelize some queries.
 --
@@ -3128,7 +3168,7 @@ CREATE OR REPLACE FUNCTION ST_SplitByGrid(
     xgridoffset double precision DEFAULT 0.0,
     ygridoffset double precision DEFAULT 0.0
 )
-RETURNS TABLE (geom geometry, tid int8, x int, y int) AS $$
+RETURNS TABLE (geom geometry, tid int8, x int, y int, tgeom geometry) AS $$
     DECLARE
         width int;
         height int;
@@ -3171,7 +3211,7 @@ RETURNS TABLE (geom geometry, tid int8, x int, y int) AS $$
             FOR y IN 1..height LOOP
                 env = ST_MakeEnvelope(xminrounded + (x - 1) * xgridsize, yminrounded + (y - 1) * ygridsize, xminrounded + x * xgridsize, yminrounded + y * ygridsize, ST_SRID(ingeom));
                 IF ST_Intersects(env, ingeom) THEN
-                     RETURN QUERY SELECT ST_Intersection(ingeom, env), ((xfloor::int8 + x) * 10000000 + (yfloor::int8 + y))::int8, xfloor + x, yfloor + y 
+                     RETURN QUERY SELECT ST_Intersection(ingeom, env), ((xfloor::int8 + x) * 10000000 + (yfloor::int8 + y))::int8, xfloor + x, yfloor + y, env
                             WHERE ST_Dimension(ST_Intersection(ingeom, env)) = ST_Dimension(ingeom) OR 
                                   ST_GeometryType(ST_Intersection(ingeom, env)) = ST_GeometryType(ingeom);
                  END IF;

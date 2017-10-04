@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Uninstallation file
--- Version 1.35 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.36 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -59,8 +59,8 @@ DROP AGGREGATE IF EXISTS ST_SplitAgg(geometry, geometry);
 DROP FUNCTION IF EXISTS _ST_SplitAgg_StateFN(geometry[], geometry, geometry);
 DROP FUNCTION IF EXISTS _ST_SplitAgg_StateFN(geometry[], geometry, geometry, double precision);
 
-DROP FUNCTION IF EXISTS ST_HasBasicIndex(name, name, name);
-DROP FUNCTION IF EXISTS ST_HasBasicIndex(name, name);
+DROP FUNCTION IF EXISTS ST_HasBasicIndex(name, name, name, text);
+DROP FUNCTION IF EXISTS ST_HasBasicIndex(name, name, text);
 
 DROP FUNCTION IF EXISTS ST_ColumnIsUnique(name, name, name);
 DROP FUNCTION IF EXISTS ST_ColumnIsUnique(name, name);

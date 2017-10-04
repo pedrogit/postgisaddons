@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.35 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.36 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -15,8 +15,8 @@
 -- - the 3rd column (description) is the description of the test
 -- - the 4th column (passed) is the result of the test: 
 --
---   - true  if the test passed
---   - false if the test did not pass
+--   - TRUE  if the test passed
+--   - FALSE if the test did not pass
 --
 -- Simply execute the text in as a SQL file to chech if every test pass.
 --
@@ -123,7 +123,7 @@ SELECT 'ST_BufferedSmooth'::text,            12,          1         UNION ALL
 SELECT 'ST_DifferenceAgg'::text,             13,          3         UNION ALL
 SELECT 'ST_TrimMulti'::text,                 14,          4         UNION ALL
 SELECT 'ST_SplitAgg'::text,                  15,          5         UNION ALL
-SELECT 'ST_HasBasicIndex'::text,             16,          4         UNION ALL
+SELECT 'ST_HasBasicIndex'::text,             16,         10         UNION ALL
 SELECT 'ST_GeoTableSummary'::text,           17,         17         UNION ALL
 SELECT 'ST_SplitByGrid'::text,               18,          1         UNION ALL
 SELECT 'ST_Histogram'::text,                 19,          9
@@ -271,7 +271,7 @@ SELECT '2.6'::text number,
        'Decrementing X'::text description,
        (ST_DumpValues(
            ST_CreateIndexRaster(
-               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 0, false))).valarray = 
+               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 0, FALSE))).valarray = 
        '{{12,8,4,0},{13,9,5,1},{14,10,6,2},{15,11,7,3}}' passed
 ---------------------------------------------------------
 UNION ALL
@@ -280,7 +280,7 @@ SELECT '2.7'::text number,
        'Decrementing X and Y'::text description,
        (ST_DumpValues(
            ST_CreateIndexRaster(
-               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 0, false, false))).valarray = 
+               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 0, FALSE, FALSE))).valarray = 
        '{{15,11,7,3},{14,10,6,2},{13,9,5,1},{12,8,4,0}}' passed
 ---------------------------------------------------------
 UNION ALL
@@ -289,7 +289,7 @@ SELECT '2.8'::text number,
        'Rows increment first'::text description,
        (ST_DumpValues(
            ST_CreateIndexRaster(
-               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 0, true, true, false))).valarray = 
+               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 0, TRUE, TRUE, FALSE))).valarray = 
        '{{0,1,2,3},{4,5,6,7},{8,9,10,11},{12,13,14,15}}' passed
 ---------------------------------------------------------
 UNION ALL
@@ -298,7 +298,7 @@ SELECT '2.9'::text number,
        'Rows increment first and row-prime scan order'::text description,
        (ST_DumpValues(
            ST_CreateIndexRaster(
-               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 0, true, true, false, false))).valarray = 
+               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 0, TRUE, TRUE, FALSE, FALSE))).valarray = 
        '{{0,1,2,3},{7,6,5,4},{8,9,10,11},{15,14,13,12}}' passed
 ---------------------------------------------------------
 UNION ALL
@@ -307,7 +307,7 @@ SELECT '2.10'::text number,
        'Rows incremant by 2 and cols by 10'::text description,
        (ST_DumpValues(
            ST_CreateIndexRaster(
-               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 0, true, true, true, true, 10, 2))).valarray = 
+               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 0, TRUE, TRUE, TRUE, TRUE, 10, 2))).valarray = 
        '{{0,10,20,30},{2,12,22,32},{4,14,24,34},{6,16,26,36}}' passed
 ---------------------------------------------------------
 UNION ALL
@@ -316,7 +316,7 @@ SELECT '2.11'::text number,
        'Start at 3, decrement with y, row-prime scan order, increment by 100 and 2'::text description,
        (ST_DumpValues(
            ST_CreateIndexRaster(
-               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 3, true, false, true, false, 100, 2))).valarray = 
+               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BUI', 3, TRUE, FALSE, TRUE, FALSE, 100, 2))).valarray = 
        '{{9,103,209,255},{7,105,207,255},{5,107,205,255},{3,109,203,255}}' passed
 ---------------------------------------------------------
 UNION ALL
@@ -325,7 +325,7 @@ SELECT '2.12'::text number,
        'Start at -10, decrement with x, columns increment first, increment by 2 and 20'::text description,
        (ST_DumpValues(
            ST_CreateIndexRaster(
-               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BSI', -10, false, true, false, true, 2, 20))).valarray = 
+               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BSI', -10, FALSE, TRUE, FALSE, TRUE, 2, 20))).valarray = 
        '{{-4,-6,-8,-10},{16,14,12,10},{36,34,32,30},{56,54,52,50}}' passed
 ---------------------------------------------------------
 UNION ALL
@@ -334,14 +334,14 @@ SELECT '2.13'::text number,
        'Start at -10, decrement with x and y, columns increment first, row-prime scan order, increment by 2 and 20'::text description,
        (ST_DumpValues(
            ST_CreateIndexRaster(
-               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BSI', -10, false, false, false, false, 2, 20))).valarray = 
+               ST_MakeEmptyRaster(4, 4, 0, 0, 1, 1, 0, 0), '8BSI', -10, FALSE, FALSE, FALSE, FALSE, 2, 20))).valarray = 
        '{{50,52,54,56},{36,34,32,30},{10,12,14,16},{-4,-6,-8,-10}}' passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '2.14'::text number,
        'ST_CreateIndexRaster'::text function_tested,
        'Null raster'::text description,
-       ST_CreateIndexRaster(null, '8BSI', -10, false, false, false, false, 2, 20) IS NULL  passed
+       ST_CreateIndexRaster(null, '8BSI', -10, FALSE, FALSE, FALSE, FALSE, 2, 20) IS NULL  passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '2.15'::text number,
@@ -349,7 +349,7 @@ SELECT '2.15'::text number,
        'Empty raster'::text description,
        ST_IsEmpty(ST_CreateIndexRaster(
                 ST_MakeEmptyRaster(0, 4, 0, 0, 1, 1, 0, 0), 
-                '8BSI', -10, false, false, false, false, 2, 20)) passed
+                '8BSI', -10, FALSE, FALSE, FALSE, FALSE, 2, 20)) passed
 
 ---------------------------------------------------------
 -- Test 3 - ST_RandomPoints
@@ -415,13 +415,13 @@ UNION ALL
 SELECT '5.2'::text number,
        'ST_AddUniqueID'::text function_tested,
        'Replacement of existing column2'::text description,
-       ST_AddUniqueID('public', 'test_adduniqueid', 'column2', true) passed
+       ST_AddUniqueID('public', 'test_adduniqueid', 'column2', TRUE) passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '5.3'::text number,
        'ST_AddUniqueID'::text function_tested,
        'Default to public schema'::text description,
-       ST_AddUniqueID('public', 'test_adduniqueid', 'column2', true) passed
+       ST_AddUniqueID('public', 'test_adduniqueid', 'column2', TRUE) passed
 ---------------------------------------------------------
 UNION ALL
 SELECT '5.4'::text number,
@@ -1219,7 +1219,42 @@ SELECT '16.4'::text number,
        'ST_HasBasicIndex'::text function_tested,
        'Mixed cases'::text description,
        ST_HasBasicIndex('Test_AddUniqueID', 'Column2') passed
-       
+---------------------------------------------------------
+UNION ALL
+SELECT '16.5'::text number,
+       'ST_HasBasicIndex'::text function_tested,
+       'Test for substring'::text description,
+       ST_HasBasicIndex('public', 'test_adduniqueid', NULL, 'add') passed
+---------------------------------------------------------
+UNION ALL
+SELECT '16.6'::text number,
+       'ST_HasBasicIndex'::text function_tested,
+       'Test for substring, default to public'::text description,
+       ST_HasBasicIndex('test_adduniqueid', NULL, 'add') passed
+---------------------------------------------------------
+UNION ALL
+SELECT '16.7'::text number,
+       'ST_HasBasicIndex'::text function_tested,
+       'Test for substring, default to public'::text description,
+       NOT ST_HasBasicIndex('test_adduniqueid', NULL, 'xxx') passed
+---------------------------------------------------------
+UNION ALL
+SELECT '16.8'::text number,
+       'ST_HasBasicIndex'::text function_tested,
+       'Test for substring and column name, default to public'::text description,
+       ST_HasBasicIndex('test_adduniqueid', 'Column2', 'add') passed
+---------------------------------------------------------
+UNION ALL
+SELECT '16.9'::text number,
+       'ST_HasBasicIndex'::text function_tested,
+       'Test for substring and column name, default to public'::text description,
+       NOT ST_HasBasicIndex('test_adduniqueid', 'Column2', 'xxx') passed
+---------------------------------------------------------
+UNION ALL
+SELECT '16.10'::text number,
+       'ST_HasBasicIndex'::text function_tested,
+       'Test not existing column name returning NULL'::text description,
+       ST_HasBasicIndex('test_adduniqueid', 'xxx') IS NULL passed
 ---------------------------------------------------------
 -- Test 17 - ST_GeoTableSummary
 ---------------------------------------------------------
@@ -1270,13 +1305,9 @@ SELECT '17.6'::text number,
        'ST_GeoTableSummary'::text function_tested,
        'Duplicate geometries results'::text description,
        (array_agg(idsandtypes ORDER BY idsandtypes))[1] = '1, 2, 3' AND 
-       (array_agg(idsandtypes ORDER BY idsandtypes))[2] = '8, 9, 10' AND
        (array_agg(countsandareas ORDER BY idsandtypes))[1] = 3 AND 
-       (array_agg(countsandareas ORDER BY idsandtypes))[2] = 3 AND
        (array_agg(geom ORDER BY idsandtypes))[1]::text  = '010100000000000000000000000000000000000000' AND 
-       ((array_agg(geom ORDER BY idsandtypes))[2]::text  = '0101000000000000000000F87F000000000000F87F' OR (array_agg(geom ORDER BY idsandtypes))[2]::text = '010300000000000000') AND
-       (array_agg(query ORDER BY idsandtypes))[1]::text = 'SELECT * FROM public.test_geotablesummary WHERE id = ANY(ARRAY[1, 2, 3]);' AND 
-       (array_agg(query ORDER BY idsandtypes))[2]::text = 'SELECT * FROM public.test_geotablesummary WHERE id = ANY(ARRAY[8, 9, 10]);' passed
+       (array_agg(query ORDER BY idsandtypes))[1]::text = 'SELECT * FROM public.test_geotablesummary WHERE id = ANY(ARRAY[1, 2, 3]);' passed
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id')
 WHERE summary = '2' 
 ---------------------------------------------------------
@@ -1447,20 +1478,20 @@ SELECT '17.14'::text number,
        (array_agg(idsandtypes))[1] = '' AND 
        (array_agg(idsandtypes))[2] = 'SKIPPED' AND 
        (array_agg(idsandtypes))[3] != 'SKIPPED' AND 
+       (array_agg(idsandtypes))[5] = 'SKIPPED' AND 
        (array_agg(idsandtypes))[6] = 'SKIPPED' AND 
        (array_agg(idsandtypes))[7] = 'SKIPPED' AND 
-       (array_agg(idsandtypes))[8] = 'SKIPPED' AND 
-       (array_agg(idsandtypes))[9] = 'STATISTIC' AND 
-       (array_agg(idsandtypes))[10] = 'MIN number of vertexes' AND 
-       (array_agg(idsandtypes))[11] = 'MAX number of vertexes' AND 
-       (array_agg(idsandtypes))[12] = 'MEAN number of vertexes' AND 
-       (array_agg(idsandtypes))[13] = 'SKIPPED' AND 
-       (array_agg(idsandtypes))[14] = 'STATISTIC' AND 
-       (array_agg(idsandtypes))[15] = 'MIN area' AND 
-       (array_agg(idsandtypes))[16] = 'MAX area' AND 
-       (array_agg(idsandtypes))[17] = 'MEAN area' AND 
-       (array_agg(idsandtypes))[18] = 'SKIPPED' AND 
-       (array_agg(idsandtypes))[19] = 'SKIPPED'
+       (array_agg(idsandtypes))[8] = 'STATISTIC' AND 
+       (array_agg(idsandtypes))[9] = 'MIN number of vertexes' AND 
+       (array_agg(idsandtypes))[10] = 'MAX number of vertexes' AND 
+       (array_agg(idsandtypes))[11] = 'MEAN number of vertexes' AND 
+       (array_agg(idsandtypes))[12] = 'SKIPPED' AND 
+       (array_agg(idsandtypes))[13] = 'STATISTIC' AND 
+       (array_agg(idsandtypes))[14] = 'MIN area' AND 
+       (array_agg(idsandtypes))[15] = 'MAX area' AND 
+       (array_agg(idsandtypes))[16] = 'MEAN area' AND 
+       (array_agg(idsandtypes))[17] = 'SKIPPED' AND 
+       (array_agg(idsandtypes))[18] = 'SKIPPED'
 FROM ST_GeoTableSummary('public', 'test_geotablesummary', 'geom', 'id', null, 's1, GDUP, VERTX, s8', 's1')
 
 ---------------------------------------------------------------------------------------------------------
