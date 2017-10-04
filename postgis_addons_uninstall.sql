@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Uninstallation file
--- Version 1.36 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.37 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -71,4 +71,24 @@ DROP FUNCTION IF EXISTS ST_GeoTableSummary(name, name, name, name, int, text, te
 DROP FUNCTION IF EXISTS ST_SplitByGrid(geometry, double precision, double precision, double precision, double precision);
 
 DROP FUNCTION IF EXISTS ST_Histogram(text, text, text, int, text);
+
+DROP AGGREGATE IF EXISTS ST_RemoveOverlaps(geometry, double precision, text);
+DROP AGGREGATE IF EXISTS ST_RemoveOverlaps(geometry, double precision);
+DROP AGGREGATE IF EXISTS ST_RemoveOverlaps(geometry);
+DROP AGGREGATE IF EXISTS ST_RemoveOverlaps(geometry, text);
+
+DROP FUNCTION IF EXISTS _ST_RemoveOverlaps_FinalFN(geomvaltxt[]);
+
+DROP FUNCTION IF EXISTS _ST_RemoveOverlaps_StateFN(geomvaltxt[], geometry, double precision); 
+DROP FUNCTION IF EXISTS _ST_RemoveOverlaps_StateFN(geomvaltxt[], geometry, text);
+DROP FUNCTION IF EXISTS _ST_RemoveOverlaps_StateFN(geomvaltxt[], geometry);
+DROP FUNCTION IF EXISTS _ST_RemoveOverlaps_StateFN(geomvaltxt[], geometry, double precision, text);
+
+DROP FUNCTION IF EXISTS ST_RemoveOverlaps(geomval[], text);
+DROP FUNCTION IF EXISTS ST_RemoveOverlaps(geomval[]);
+DROP FUNCTION IF EXISTS ST_RemoveOverlaps(geometry[], text);
+DROP FUNCTION IF EXISTS ST_RemoveOverlaps(geometry[]);
+
+DROP TYPE IF EXISTS geomvaltxt;
+
 

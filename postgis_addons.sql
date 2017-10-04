@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.36 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.37 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -134,6 +134,8 @@
 --
 --   ST_Histogram - Set function returnings a table representing an histogram of the values
 --                  for the specifed column.
+--
+--   ST_RemoveOverlaps - Remove overlaps among an array or an aggregate of polygons.
 --
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
@@ -299,7 +301,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 --   seed numeric  - Value between -1.0 and 1.0, inclusive, setting the seek if repeatable
 --                   results are desired. Default to NULL.
 --
---   RETURNS set of points
+--   RETURNS SET OF geometry(point)
 --
 -- Generates points located randomly inside a geometry.
 -----------------------------------------------------------
@@ -439,7 +441,7 @@ CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
     schemaname name,
     tablename name,
     columnname name,
-    idxstring text 
+    idxstring text
 )
 RETURNS boolean AS $$
     DECLARE
@@ -461,14 +463,14 @@ RETURNS boolean AS $$
             RETURN NULL;
         END IF;
         IF NOT columnname IS NULL AND columnname != '' AND ST_ColumnExists(schemaname, tablename, columnname) THEN
-	    -- Determine the type of the column
-	    query := 'SELECT typname
-	    	      FROM pg_namespace
+        -- Determine the type of the column
+        query := 'SELECT typname
+                  FROM pg_namespace
                       LEFT JOIN pg_class ON (pg_namespace.oid = pg_class.relnamespace)
                       LEFT JOIN pg_attribute ON (pg_attribute.attrelid = pg_class.oid)
                       LEFT JOIN pg_type ON (pg_type.oid = pg_attribute.atttypid)
                   WHERE lower(nspname) = lower(''' || schemaname || ''') AND lower(relname) = lower(''' || tablename || ''') AND lower(attname) = lower(''' || columnname || ''');';
-	    EXECUTE QUERY query INTO coltype;
+        EXECUTE QUERY query INTO coltype;
         END IF;
 
         IF coltype IS NULL AND (idxstring IS NULL OR idxstring = '') THEN
@@ -498,7 +500,7 @@ RETURNS boolean AS $$
                       LEFT OUTER JOIN pg_class idxclass ON (idxclass.oid = pg_index.indexrelid)
                       --LEFT OUTER JOIN pg_am ON (pg_am.oid = idxclass.relam)
                       LEFT OUTER JOIN pg_attribute ON (pg_attribute.attrelid = relclass.oid AND indkey[0] = attnum)
-                      WHERE relclass.relkind = ''r'' 
+                      WHERE relclass.relkind = ''r''
                       AND lower(nspname) = lower(''' || schemaname || ''') AND lower(relclass.relname) = lower(''' || tablename || ''')';
             IF NOT idxstring IS NULL THEN
                 query := query || ' AND lower(idxclass.relname) LIKE lower(''%' || idxstring || '%'')';
@@ -1868,7 +1870,7 @@ CREATE AGGREGATE ST_BufferedUnion(geometry, double precision)
 --   nbrings int   - Number of rings to extract.
 --   comptype text - Determine how 'biggest' is interpreted. Can be 'AREA' or 'NBPOINTS'.
 --
--- RETURNS set of geometry
+-- RETURNS SET OF geometry
 --
 -- Returns the 'nbrings' biggest exterior rings of the provided geometry. Biggest
 -- can be defined in terms of the area of the ring (AREA) or in terms of the
@@ -1933,12 +1935,12 @@ $$ LANGUAGE plpgsql;
 --
 -- Self contained example:
 --
--- SELECT ST_GeomFromText('POLYGON((-0.5 1, -5 5, 0 2, -4 5, 
--- 5 5, 4.5 1, 5 0, 4 -1, 5 -5, 1 -3.5, 0 -5, -1 -3, -5 -5, -1 -1, -5 0, -0.5 1), 
+-- SELECT ST_GeomFromText('POLYGON((-0.5 1, -5 5, 0 2, -4 5,
+-- 5 5, 4.5 1, 5 0, 4 -1, 5 -5, 1 -3.5, 0 -5, -1 -3, -5 -5, -1 -1, -5 0, -0.5 1),
 -- (2 -2, 2 -1, 3 -1, 3 -2, 2 -2), (1 1, 1 3.5, 3.5 3.5, 3.5 1, 1 1))')
 -- UNION ALL
--- SELECT ST_BufferedSmooth(ST_GeomFromText('POLYGON((-0.5 1, -5 5, 0 2, -4 5, 
--- 5 5, 4.5 1, 5 0, 4 -1, 5 -5, 1 -3.5, 0 -5, -1 -3, -5 -5, -1 -1, -5 0, -0.5 1), 
+-- SELECT ST_BufferedSmooth(ST_GeomFromText('POLYGON((-0.5 1, -5 5, 0 2, -4 5,
+-- 5 5, 4.5 1, 5 0, 4 -1, 5 -5, 1 -3.5, 0 -5, -1 -3, -5 -5, -1 -1, -5 0, -0.5 1),
 -- (2 -2, 2 -1, 3 -1, 3 -2, 2 -2), (1 1, 1 3.5, 3.5 3.5, 3.5 1, 1 1))'), 1)
 --
 -- Typical example:
@@ -1971,7 +1973,7 @@ $$ LANGUAGE sql IMMUTABLE;
 -- the aggregate. This function is used to remove overlaps in a table of polygons.
 --
 -- The function will not remove the first geom2 identical to geom1. This allows returning
--- geom1 even when no other geometries overlap with it. Any other identical geom2 will 
+-- geom1 even when no other geometries overlap with it. Any other identical geom2 will
 -- however be removed.
 --
 -- Refer to the self contained example below. Each geometry MUST have a unique ID
@@ -2112,7 +2114,7 @@ CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry) (
 --
 -- Returns a multipolygon from which simple parts having an area smaller
 -- than the tolerance parameter have been removed. This includes points and linestrings
--- when a geometry collection is provided. When no tolerance is provided, minarea 
+-- when a geometry collection is provided. When no tolerance is provided, minarea
 -- default to 0.0 and this function becomes equivalent to ST_CollectionExtract(geom, 3).
 --
 -- This function is used by the ST_SplitAgg state function.
@@ -2418,12 +2420,12 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --
 --   'countsandareas' is the summary being computed. i.e. the number of duplicates, the
 --                    overlapping area, the number of geometry of a certain type, the min,
---                    max or mean number of vertexes, the number of geometries in each 
+--                    max or mean number of vertexes, the number of geometries in each
 --                    histogram interval.
 --
 --   'query' is the query you can use to generate the rows summarized on this line.
 --
---   'geom' is the duplicate or the overlapping part itself so you can display them 
+--   'geom' is the duplicate or the overlapping part itself so you can display them
 --          directly in your favorite GIS.
 --
 --
@@ -2636,22 +2638,22 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
 
             IF NOT ST_ColumnExists(newschemaname, tablename, newuidcolumn) THEN
                 RAISE NOTICE '  Adding new unique column ''%''...', newuidcolumn;
-                
+
                 --EXECUTE 'DROP SEQUENCE IF EXISTS ' || quote_ident(newschemaname || '_' || tablename || '_seq');
                 --EXECUTE 'CREATE SEQUENCE ' || quote_ident(newschemaname || '_' || tablename || '_seq');
-                
+
                 -- Add the new column and update it with nextval('sequence')
                 --EXECUTE 'ALTER TABLE ' || fqtn || ' ADD COLUMN ' || newuidcolumn || ' INTEGER';
                 --EXECUTE 'UPDATE ' || fqtn || ' SET ' || newuidcolumn || ' = nextval(''' || newschemaname || '_' || tablename || '_seq' || ''')';
-                
+
                 --EXECUTE 'CREATE INDEX ON ' || fqtn || ' USING btree(' || newuidcolumn || ');';
-                
+
                 query = 'SELECT ST_AddUniqueID(''' || newschemaname || ''', ''' || tablename || ''', ''' || newuidcolumn || ''', NULL, true);';
                 EXECUTE query;
             ELSE
                RAISE NOTICE '  Column ''%'' exists and is unique...', newuidcolumn;
             END IF;
-            
+
             -- Create a temporary unique index
             IF NOT ST_HasBasicIndex(newschemaname, tablename, newuidcolumn) THEN
                 RAISE NOTICE '  Creating % index on ''%''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), newuidcolumn;
@@ -2755,7 +2757,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
                  || E'      FROM ' || fqtn || whereclausewithwhere || E') foo\n'
                  || E'WHERE NOT ST_Intersects(geom, ST_ExteriorRing(buffer)) AND ST_Area(geom) > 0\n'
                  || E'ORDER BY countsandareas DESC;';
-        
+
             RETURN QUERY SELECT 'SUMMARY 4 - GAPS (GAPS or S4)'::text, ('GAPS IDS (generated on the fly)')::text, NULL::double precision, query, NULL::geometry;
             RAISE NOTICE 'Summary 4 - Gaps (GAPS or S4)...';
 
@@ -2928,7 +2930,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
         -----------------------------------------------
         -- Create an index on ST_Area(geom) if necessary so further queries are executed faster
         IF (dosummary IS NULL OR dosummary && dos8 OR dosummary && dos9 OR dosummary && dos10) AND (skipsummary IS NULL OR NOT (skipsummary && dos8 AND skipsummary && dos9 AND skipsummary && dos10)) AND
-           ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND 
+           ST_ColumnExists(newschemaname, tablename, geomcolumnname) AND
            NOT ST_HasBasicIndex(newschemaname, tablename, NULL, 'st_area'::text) THEN
             RAISE NOTICE 'Creating % index on ''ST_Area(%)''...', (CASE WHEN whereclausewithwhere = '' THEN 'an' ELSE 'a partial' END), geomcolumnname;
             query = 'CREATE INDEX ' || left(tablename || '_' || geomcolumnname, 51) || '_st_area_idx ON ' || fqtn || ' USING btree (ST_Area(' || geomcolumnname || '))' || whereclausewithwhere || ';';
@@ -3135,10 +3137,10 @@ $$ LANGUAGE sql VOLATILE;
 --
 -- Set function returnings the geometry splitted in multiple parts by a grid of the
 -- specified size and optionnaly shifted by the specified offset. Each part comes
--- with a unique identifier for each cell of the grid it intersects with, the x and 
+-- with a unique identifier for each cell of the grid it intersects with, the x and
 -- y coordinate of the cell and a geometry representin the cell itself.
--- The unique identifier returned remains the same for any subsequent call to the 
--- function so that all geometry parts inside the same cell, from call to call get 
+-- The unique identifier returned remains the same for any subsequent call to the
+-- function so that all geometry parts inside the same cell, from call to call get
 -- the same uid.
 --
 -- This function is usefull to parallelize some queries.
@@ -3212,7 +3214,7 @@ RETURNS TABLE (geom geometry, tid int8, x int, y int, tgeom geometry) AS $$
                 env = ST_MakeEnvelope(xminrounded + (x - 1) * xgridsize, yminrounded + (y - 1) * ygridsize, xminrounded + x * xgridsize, yminrounded + y * ygridsize, ST_SRID(ingeom));
                 IF ST_Intersects(env, ingeom) THEN
                      RETURN QUERY SELECT ST_Intersection(ingeom, env), ((xfloor::int8 + x) * 10000000 + (yfloor::int8 + y))::int8, xfloor + x, yfloor + y, env
-                            WHERE ST_Dimension(ST_Intersection(ingeom, env)) = ST_Dimension(ingeom) OR 
+                            WHERE ST_Dimension(ST_Intersection(ingeom, env)) = ST_Dimension(ingeom) OR
                                   ST_GeometryType(ST_Intersection(ingeom, env)) = ST_GeometryType(ingeom);
                  END IF;
             END LOOP;
@@ -3365,3 +3367,403 @@ RETURNS TABLE (intervals text, cnt int, query text) AS $$
 $$ LANGUAGE 'plpgsql' VOLATILE;
 
 -------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- ST_RemoveOverlaps (ARRAY[geometry] variant)
+--
+--   geom geometry[]  - ARRAY of geometry among which to remove overlaps.
+--
+--   method text      - Method used to merge (or not) overlapping parts with the
+--                      surrounding geometries. Default to NO_MERGE.
+--
+--   RETURNS SET OF geometry
+-------------------------------------------------------------------------------
+-- ST_RemoveOverlaps (ARRAY[geomval] variant)
+--
+--   geom geomval[]   - ARRAY of geomval (geometry, value records) among which to
+--                      remove overlaps.
+--
+--   method text      - Method used to merge (or not) overlapping parts with the
+--                      surrounding geometries. Default to LARGEST_VALUE.
+--
+--   RETURNS SET OF geometry
+-------------------------------------------------------------------------------
+-- ST_RemoveOverlaps (geometry AGGREGATE variant)
+--
+--   geom geometry    - Geometries among which to remove overlaps.
+--
+--   method text      - Method used to merge (or not) overlapping parts with the
+--                      surrounding geometries. Default to NO_MERGE.
+--
+--   RETURNS geometry[]
+-------------------------------------------------------------------------------
+-- ST_RemoveOverlaps (geomval AGGREGATE variant)
+--
+--   geom geomval     - geomvals (geometries and their accompanying values) among
+--                      which to remove overlaps.
+--
+--   method text      - Method used to merge (or not) overlapping parts with the
+--                      surrounding geometries. Default to LARGEST_VALUE.
+--
+--   RETURNS geometry[]
+--
+-- Set or array returning function handling overlapping parts among a set of
+-- gemometries. Can be used on an ARRAY of geometry or geomval or as an AGGREGATE
+-- function taking geometries or geomvals.
+--
+-- The geomval variants are used to pass values when using the LARGEST_VALUE and
+-- SMALLEST_VALUE methods.
+--
+-- The differrent methods to handle overlapping parts are:
+--
+--   - NO_MERGE: Returns input polygons and overlapping parts as independent
+--               polygons (one per overlspping parts).
+--
+--   - NO_MERGE_DUP: Returns input polygons and overlapping parts as independent
+--                   polygons (all overlspping parts, duplicates included).
+--
+--   - OVERLAPS_ONLY: Returns only the overlapping parts (one per overlspping parts).
+--
+--   - OVERLAPS_ONLY_DUP: Returns only the overlapping parts (all of them, duplicates
+--                        included).
+--
+--   - LARGEST_AREA: Merge overlapping parts with the touching polygon having
+--                   the largest area.
+--
+--   - SMALLEST_AREA: Merge overlapping parts with the touching polygon having
+--                    the smallest area.
+--
+--   - LONGEST_EDGE: Merge overlapping parts with the touching polygon sharing
+--                   the longest edge.
+--
+--   - SHORTEST_EDGE: Merge overlapping parts with the touching polygons sharing
+--                    the shortest edge.
+--
+--   - LARGEST_VALUE: Merge overlapping parts with the touching polygon having
+--                    the largest value (in the geomval record).
+--
+--   - SMALLEST_VALUE: Merge overlapping parts with the touching polygon having
+--                     the smallest value (in the geomval record).
+--
+-- NO_MERGE is the default for variants taking geometry and geometry[].
+-- LARGEST_VALUE is the default for variants taking geomval and geomval[].
+--
+-- Self contained and typical examples.
+--
+-- Note how geometries are aggregated together for the ARRAY variant and
+-- how results are unnested when using the AGGREGATE variant.
+--
+-- Note also that polygons IDs are lost when geometries are passed through
+-- ST_RemoveOverlaps(). The third part of the following example show how to
+-- reassign original IDs to the new overlaps free polygons.
+--
+-- WITH overlappingtable AS (
+--     SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1), (1.5 1.333, 2 1.333, 2 0.666, 1.5 0.666, 1.5 1.333))') geom
+--     UNION ALL
+--     SELECT 2 id, ST_GeomFromText('POLYGON((1 1, 3.8 2, 4 0, 1 1))') geom
+--     UNION ALL
+--     SELECT 3 id, ST_GeomFromText('POLYGON((2 1, 4.6 2, 5 0, 2 1))') geom
+--     UNION ALL
+--     SELECT 4 id, ST_GeomFromText('POLYGON((3 1, 5.4 2, 6 0, 3 1))') geom
+--     UNION ALL
+--     SELECT 5 id, ST_GeomFromText('POLYGON((3 1, 5.4 2, 6 0, 3 1))') geom
+--     UNION ALL
+--     SELECT 6 id, ST_GeomFromText('POLYGON((1.75 1, 1 2, 2 2, 1.75 1))') geom
+-- ), newpolys AS (
+--     SELECT ST_RemoveOverlaps(array_agg(geom), 'LONGEST_EDGE') geom -- First method with the ARRAY variant
+--     --SELECT unnest(ST_RemoveOverlaps(geom, 'LONGEST_EDGE')) geom -- Second method with the AGGREGATE variant
+--     --SELECT ST_RemoveOverlaps(array_agg((geom, id)::geomval), 'LARGEST_VALUE') geom -- Third method with the ARRAY variant taking a geomval[]
+--     FROM overlappingtable
+-- )
+-- SELECT DISTINCT ON (ST_AsEWKB(a.geom)) id, a.geom -- We have to DISTINCT because some ST_PointOnSurface() in the new polygons could be located in overlapping areas
+-- FROM newpolys a
+--      LEFT OUTER JOIN overlappingtable b
+--      ON (ST_Within(ST_PointOnSurface(a.geom), b.geom))
+-- ORDER BY ST_AsEWKB(a.geom), ST_Area(ST_Intersection(a.geom, b.geom)) DESC;
+--
+--
+-- Because it uses ST_Polygonize() internally, ST_RemoveOverlaps() can be very
+-- slow on large number of polygons and spatial indexes are of no help. It is
+-- advised to ST_SplitByGrid() and GROUP BY the polygons before passing them to
+-- ST_RemoveOverlaps().
+--
+-- Note that when splitting polygons and using the LARGEST_AREA or the
+-- SMALLEST_AREA methods, original areas can<t be properly computed by the function.
+-- In this example, to avoid this, we compute the area before spliting and we use the LARGEST_VALUE or the SMALLEST_VALUE methods with the original area instead.
+--
+-- WITH splitted_geoms AS (
+--     SELECT ST_Area(geom) area,
+--            ST_SplitByGrid(geom, 1000) splitgeom
+--     FROM large_polygon_table -- Should be indexed
+-- ), no_ovl_geoms AS (
+--     SELECT (splitgeom).tid,
+--            ST_RemoveOverlaps(array_agg((splitgeom).geom), 'LONGEST_EDGE') geom
+--            --ST_RemoveOverlaps(array_agg(((splitgeom).geom, area)::geomval), 'LARGEST_VALUE') geom -- ARRAY variant using original area
+--            --unnest(ST_RemoveOverlaps((splitgeom).geom, area, 'LARGEST_VALUE')) geom -- AGGREGATE variant using original area
+--     FROM splitted_geoms
+--     GROUP BY tid
+-- ), geoms_with_ids AS (
+--     SELECT DISTINCT ON (ST_AsEWKB(a.geom)) b.gid, a.geom
+--     FROM no_ovl_geoms a
+--       LEFT JOIN large_polygon_table b
+--       ON (ST_Within(ST_PointOnSurface(a.geom), b.geom))
+--     ORDER BY ST_AsEWKB(a.geom), ST_Area(ST_Intersection(a.geom, b.geom)) DESC
+-- )
+-- SELECT gid, ST_Union(geom) geom
+-- FROM geoms_with_ids
+-- GROUP BY gid;
+-----------------------------------------------------------
+-- Pierre Racine (pierre.racine@sbf.ulaval.ca)
+-- 04/10/2017 v1.37
+-----------------------------------------------------------
+-- Main function
+CREATE OR REPLACE FUNCTION ST_RemoveOverlaps(
+    gvarray geomval[],
+    mergemethod text
+)
+RETURNS SETOF geometry AS $$
+    DECLARE
+        query text;
+    BEGIN
+        mergemethod = upper(mergemethod);
+RAISE NOTICE 'method = %', mergemethod;
+        query = E'WITH geomvals AS (\n'
+             || E'  SELECT unnest($1) gv\n'
+             || E'), geoms AS (\n'
+             || E'  SELECT row_number() OVER () id, ST_CollectionExtract((gv).geom, 3) geom';
+        IF right(mergemethod, 4) = 'AREA' THEN
+            query = query || E', ST_Area((gv).geom) val\n';
+        ELSE
+            query = query || E', (gv).val\n';
+        END IF;
+        query = query || E'  FROM geomvals\n'
+                      || E'), polygons AS (\n'
+                      || E'  SELECT id, (ST_Dump(geom)).geom geom\n'
+                      || E'  FROM geoms\n'
+                      || E'), rings AS (\n'
+                      || E'  SELECT id, ST_ExteriorRing((ST_DumpRings(geom)).geom) geom\n'
+                      || E'  FROM polygons\n'
+                      || E'), extrings_union AS (\n'
+                      || E'  SELECT ST_Union(geom) geom\n'
+                      || E'  FROM rings\n'
+                      || E'), parts AS (\n'
+                      || E'  SELECT (ST_Dump(ST_Polygonize(geom))).geom \n'
+                      || E'  FROM extrings_union\n'
+                      || E'), assigned_parts AS (\n'
+                      || E'  SELECT id, \n'
+                      || E'         count(*) OVER (PARTITION BY ST_AsEWKB(geom)) cnt, \n'
+                      || E'         val, geom\n'
+                      || E'  FROM (SELECT id, val, parts.geom,\n'
+                      || E'               ST_Area(ST_Intersection(ori_polys.geom, parts.geom)) intarea\n'
+                      || E'        FROM parts,\n'
+                      || E'             (SELECT id, val, geom FROM geoms) ori_polys\n'
+                      || E'        WHERE ST_Intersects(ori_polys.geom, parts.geom)\n'
+                      || E'       ) foo\n'
+                      || E'  WHERE intarea > 0 AND abs(intarea - ST_Area(geom)) < 0.001\n';
+
+         IF right(mergemethod, 5) = '_EDGE' THEN
+             query = query || E'), edge_length AS (\n'
+                           || E'  SELECT a.id, b.id bid, \n'
+                           || E'         ST_Union(ST_AsEWKB(a.geom)::geometry) geom,\n'
+                           || E'         sum(ST_Length(ST_CollectionExtract(ST_Intersection(a.geom, b.geom), 2))) val\n'
+                           || E'  FROM (SELECT id, geom FROM assigned_parts WHERE cnt > 1) a \n'
+                           || E'      LEFT OUTER JOIN assigned_parts b \n'
+                           || E'   ON (ST_AsEWKB(a.geom) != ST_AsEWKB(b.geom) AND \n'
+                           || E'       ST_Touches(a.geom, b.geom) AND\n'
+                           || E'      ST_Length(ST_CollectionExtract(ST_Intersection(a.geom, b.geom), 2)) > 0)\n'
+                           || E'  GROUP BY a.id, b.id, ST_AsEWKB(a.geom)\n'
+                           || E'    ), keep_parts AS (\n'
+                           || E'   SELECT DISTINCT ON (ST_AsEWKB(geom)) id, geom\n'
+                           || E'   FROM edge_length\n'
+                           || E'   ORDER BY ST_AsEWKB(geom), val ';
+             IF left(mergemethod, 7) = 'LONGEST' THEN
+                 query = query || E'DESC';
+             END IF;
+             query = query || E', abs(id - bid)\n';
+
+         ELSEIF left(mergemethod, 8) != 'NO_MERGE' AND left(mergemethod, 4) != 'OVER' THEN
+             query = query || E'), keep_parts AS (\n'
+                           || E'   SELECT DISTINCT ON (ST_AsEWKB(geom)) id, val, geom\n'
+                           || E'   FROM assigned_parts\n'
+                           || E'   ORDER BY ST_AsEWKB(geom), val';
+
+
+             IF left(mergemethod, 7) = 'LARGEST' THEN
+                 query = query || E' DESC';
+             END IF;
+             query = query || E'\n';
+         END IF;
+
+         IF left(mergemethod, 8) = 'NO_MERGE' OR left(mergemethod, 13) = 'OVERLAPS_ONLY' THEN
+             query = query || E')\n';
+             IF right(mergemethod, 4) = '_DUP' THEN
+                    query = query || E'(SELECT geom\n';
+             ELSE
+                    query = query || E'(SELECT DISTINCT ON (ST_AsEWKB(geom)) geom\n';
+             END IF;
+             query = query || E' FROM assigned_parts\n'
+                           || E' WHERE cnt > 1)\n';
+             IF left(mergemethod, 8) = 'NO_MERGE' THEN
+                 query = query || E'UNION ALL\n'
+                               || E'(SELECT ST_Union(geom) geom\n'
+                               || E' FROM assigned_parts\n'
+                               || E' WHERE cnt = 1\n'
+                               || E' GROUP BY id);\n';
+             END IF;
+
+         ELSEIF right(mergemethod, 5) = '_EDGE' THEN
+            query = query || E')\n'
+                          || E'SELECT ST_Union(geom) geom\n'
+                          || E'FROM (SELECT id, geom FROM keep_parts\n'
+                          || E'      UNION ALL \n'
+                          || E'      SELECT id, geom FROM assigned_parts WHERE cnt = 1) foo\n'
+                          || E'GROUP BY id\n';
+
+         ELSE -- AREA or VALUE
+             query = query || E')\n'
+                           || E'SELECT ST_Union(geom) geom\n'
+                           || E'FROM keep_parts\n'
+                           || E'GROUP BY id;\n';
+         END IF;
+ RAISE NOTICE 'query = %', query;
+         RETURN QUERY EXECUTE query USING gvarray;
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+----------------------------------------------------------
+-- Variant taking a geometry[] instead of a geomval[]
+CREATE OR REPLACE FUNCTION ST_RemoveOverlaps(
+    geomarray geometry[],
+    mergemethod text
+)
+RETURNS SETOF geometry AS $$
+    WITH geoms AS (
+        SELECT unnest(geomarray) geom
+    )
+    SELECT ST_RemoveOverlaps(array_agg((geom, ST_Area(geom))::geomval), mergemethod) FROM geoms;
+$$ LANGUAGE sql VOLATILE;
+
+----------------------------------------------------------
+-- Variant defaulting mergemethod to LARGEST_VALUE
+CREATE OR REPLACE FUNCTION ST_RemoveOverlaps(
+    gvarray geomval[]
+)
+RETURNS SETOF geometry AS $$
+    SELECT ST_RemoveOverlaps(gvarray, 'LARGEST_VALUE');
+$$ LANGUAGE sql VOLATILE;
+
+----------------------------------------------------------
+-- Variant defaulting mergemethod to NO_MERGE
+CREATE OR REPLACE FUNCTION ST_RemoveOverlaps(
+    geomarray geometry[]
+)
+RETURNS SETOF geometry AS $$
+    WITH geoms AS (
+        SELECT unnest(geomarray) geom
+    )
+    SELECT ST_RemoveOverlaps(array_agg((geom, null)::geomval), 'NO_MERGE') FROM geoms;
+$$ LANGUAGE sql VOLATILE;
+
+----------------------------------------------------------
+-- New type to pass initial parameters to the final aggregate function
+CREATE TYPE geomvaltxt AS (
+    geom geometry,
+    val double precision,
+    txt text
+);
+
+----------------------------------------------------------
+-- Main aggregate state function
+CREATE OR REPLACE FUNCTION _ST_RemoveOverlaps_StateFN(
+    gvtarray geomvaltxt[],
+    geom geometry,
+    val double precision,
+    mergemethod text
+)
+RETURNS geomvaltxt[] AS $$
+    DECLARE
+        newgvtarray geomvaltxt[];
+    BEGIN
+        IF gvtarray IS NULL THEN
+            RETURN array_append(newgvtarray, (geom, val, mergemethod)::geomvaltxt);
+        END IF;
+    RETURN array_append(gvtarray, (geom, val, mergemethod)::geomvaltxt);
+    END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+----------------------------------------------------------
+-- Variant with default values for the compagion value and the mergemethod
+CREATE OR REPLACE FUNCTION _ST_RemoveOverlaps_StateFN(
+    gvtarray geomvaltxt[],
+    geom geometry
+)
+RETURNS geomvaltxt[] AS $$
+    SELECT _ST_RemoveOverlaps_StateFN($1, geom, NULL, 'NO_MERGE');
+$$ LANGUAGE sql VOLATILE;
+
+----------------------------------------------------------
+-- Variant defaulting the companion value to ST_Area()
+CREATE OR REPLACE FUNCTION _ST_RemoveOverlaps_StateFN(
+    gvtarray geomvaltxt[],
+    geom geometry,
+    mergemethod text
+)
+RETURNS geomvaltxt[] AS $$
+    SELECT _ST_RemoveOverlaps_StateFN($1, $2, ST_Area($2), $3);
+$$ LANGUAGE sql VOLATILE;
+
+----------------------------------------------------------
+-- Variant taking a companion value defaulting mergemethod to LARGEST_VALUE
+CREATE OR REPLACE FUNCTION _ST_RemoveOverlaps_StateFN(
+    gvtarray geomvaltxt[],
+    geom geometry,
+    val double precision
+)
+RETURNS geomvaltxt[] AS $$
+    SELECT _ST_RemoveOverlaps_StateFN($1, $2, $3, 'LARGEST_VALUE');
+$$ LANGUAGE sql VOLATILE;
+
+----------------------------------------------------------
+-- Aggregate final function
+CREATE OR REPLACE FUNCTION _ST_RemoveOverlaps_FinalFN(
+    gvtarray geomvaltxt[]
+)
+RETURNS geometry[] AS $$
+    WITH gvt AS (
+         SELECT unnest(gvtarray) gvt
+    ), geoms AS (
+         SELECT ST_RemoveOverlaps(array_agg(((gvt).geom, (gvt).val)::geomval), max((gvt).txt)) geom
+         FROM gvt
+    )
+    SELECT array_agg(geom) FROM geoms;
+$$ LANGUAGE sql VOLATILE;
+
+----------------------------------------------------------
+CREATE AGGREGATE ST_RemoveOverlaps(geometry, double precision, text)
+(
+    SFUNC=_ST_RemoveOverlaps_StateFN,
+    STYPE=geomvaltxt[],
+    FINALFUNC=_ST_RemoveOverlaps_FinalFN
+);
+
+CREATE AGGREGATE ST_RemoveOverlaps(geometry, double precision)
+(
+    SFUNC=_ST_RemoveOverlaps_StateFN,
+    STYPE=geomvaltxt[],
+    FINALFUNC=_ST_RemoveOverlaps_FinalFN
+);
+
+CREATE AGGREGATE ST_RemoveOverlaps(geometry)
+(
+    SFUNC=_ST_RemoveOverlaps_StateFN,
+    STYPE=geomvaltxt[],
+    FINALFUNC=_ST_RemoveOverlaps_FinalFN
+);
+
+CREATE AGGREGATE ST_RemoveOverlaps(geometry, text)
+(
+    SFUNC=_ST_RemoveOverlaps_StateFN,
+    STYPE=geomvaltxt[],
+    FINALFUNC=_ST_RemoveOverlaps_FinalFN
+);
+----------------------------------------------------------
