@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
--- Version 1.37 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.38 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -1963,21 +1963,43 @@ $$ LANGUAGE sql IMMUTABLE;
 -------------------------------------------------------------------------------
 -- ST_DifferenceAgg
 --
---   geom1 geometry - Geometry from which to remove subsequent geometries
---                    in the aggregate.
+--   geom1 geometry - Geometry on which to remove geom2.
 --   geom2 geometry - Geometry to remove from geom1.
 --
 -- RETURNS geometry
 --
--- Returns the first geometry after having removed all the subsequent geometries in
--- the aggregate. This function is used to remove overlaps in a table of polygons.
+-- Remove from geom1 the union of all geom2 passed as aggregate. This function is 
+-- used to remove overlaps in a table of polygons.
 --
--- The function will not remove the first geom2 identical to geom1. This allows returning
--- geom1 even when no other geometries overlap with it. Any other identical geom2 will
--- however be removed.
+-- Each geometry MUST have a unique ID to be used as in the example below and tables 
+-- with many rows should have an index on their geometry column.
 --
--- Refer to the self contained example below. Each geometry MUST have a unique ID
--- and, if the table contains a huge number of geometries, it should be indexed.
+-- ST_DifferenceAgg() is different from ST_RemoveOverlaps() in that the latter
+-- produces perfectly topological adjacent polygons where the former sometimes leaves very 
+-- tiny gaps between polygons. ST_DifferenceAgg() is a bit faster than ST_RemoveOverlaps()
+-- and does not require the use of ST_SplitByGrig() on large tables. ST_DifferenceAgg()
+-- also requires to LEFT JOIN join the table containing overlaps with itself, which is not
+-- the case for ST_RemoveOverlaps().
+--
+-- ST_DifferenceAgg() requires to carefully SELECT, with the WHERE clause, which 
+-- polygons are included in the group of second argument polygons and which are to 
+-- be removed from the first argument polygon. The WHERE clause must be built in a 
+-- way that if overlapping parts of polygons A are to be removed from polygon B, then 
+-- overlapping parts from polygons B MUST NOT be removed from polygon A. Otherwise 
+-- this would leave gaps. 
+-- 
+-- You can ensure this easily enough by creating a int or double precision ordering 
+-- value having no duplicates. You generally want to base this ordering on 
+-- properties that make some polygons to have a higher priority than others when  
+-- choosing which part to keep in case of overlaps. Time of validity or polygon size 
+-- are examples of properties which can be used to build such an ordering. In the
+-- following example, the order is based on polygon size, with bigger polygons having 
+-- a higher priority. i.e., when a large polygon overlaps with a smaller polygon, 
+-- the large one is passed as second argument when the smaller one is passed as 
+-- first argument (so larger polygons are removed from smaller ones) and the smaller 
+-- polygon is not passed as second argument when the larger one is passed as first 
+-- argument (so larger polygons are kept intact).
+--
 --
 -- Self contained and typical example removing, from every geometry, all
 -- the overlapping geometries having a bigger area. i.e larger polygons have priority:
@@ -1994,24 +2016,23 @@ $$ LANGUAGE sql IMMUTABLE;
 --   SELECT 5 id, ST_GeomFromText('POLYGON((3 1, 5.4 2, 6 0, 3 1))')
 -- )
 -- SELECT a.id, ST_DifferenceAgg(a.geom, b.geom) geom
--- FROM overlappingtable a,
---      overlappingtable b
--- WHERE a.id = b.id OR -- Make sure to pass at least once the polygon with itself
---       ((ST_Contains(a.geom, b.geom) OR -- Select all the containing, contained and overlapping polygons
---         ST_Contains(b.geom, a.geom) OR
---         ST_Overlaps(a.geom, b.geom)) AND
---        (ST_Area(a.geom) < ST_Area(b.geom) OR -- Make sure bigger polygons are removed from smaller ones
---         (ST_Area(a.geom) = ST_Area(b.geom) AND -- If areas are equal, arbitrarily remove one from the other but in a determined order so it's not done twice.
---          a.id < b.id)))
+-- FROM overlappingtable a
+--      LEFT JOIN overlappingtable b
+-- ON (ST_Contains(a.geom, b.geom) OR -- Select all the containing, contained and overlapping polygons
+--     ST_Contains(b.geom, a.geom) OR
+--     ST_Overlaps(a.geom, b.geom)) AND
+--    (ST_Area(a.geom) < ST_Area(b.geom) OR -- Make sure bigger polygons are removed from smaller ones
+--     (ST_Area(a.geom) = ST_Area(b.geom) AND -- If areas are equal, arbitrarily remove one from the other but in a determined order so it's not done twice.
+--      a.id < b.id))
 -- GROUP BY a.id
 -- HAVING ST_Area(ST_DifferenceAgg(a.geom, b.geom)) > 0 AND NOT ST_IsEmpty(ST_DifferenceAgg(a.geom, b.geom));
 --
--- The HAVING clause of the query makes sure that very small and empty remains not included in the result.
+-- The HAVING clause of the query makes sure that very small and empty remains not 
+-- included in the result.
 --
---
--- In some cases you may want to use the polygons ids instead of the
--- polygons areas to decide which one is removed from the other one.
--- You first have to ensure ids are unique for this to work. In that
+-- In some cases you may want to use the polygons unique IDs (or any other unique 
+-- value) instead of the polygons areas to decide which one is removed from the 
+-- other one. You first have to ensure IDs are unique for this to work. In that
 -- case you would simply replace:
 --
 --     ST_Area(a.geom) < ST_Area(b.geom) OR
@@ -2021,85 +2042,76 @@ $$ LANGUAGE sql IMMUTABLE;
 --
 --     a.id < b.id
 --
--- to cut all the polygons with greatest ids from the polygons with
--- smallest ids.
+-- to remove every polygons with greater IDs from polygons with smaller IDs.
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 10/18/2013 added in v1.14
 -----------------------------------------------------------
 -- ST_DifferenceAgg aggregate state function
 CREATE OR REPLACE FUNCTION _ST_DifferenceAgg_StateFN(
-    geom1 geomval,
+    geom1 geometry,
     geom2 geometry,
     geom3 geometry
 )
-RETURNS geomval AS $$
+RETURNS geometry AS $$
     DECLARE
-       newgeom geomval;
+       newgeom geometry;
        differ geometry;
-       equals boolean;
     BEGIN
         -- First pass: geom1 is NULL
-        IF geom1 IS NULL AND NOT ST_IsEmpty(geom2) AND ST_Area(geom3) > 0 THEN
-            newgeom = CASE
-                        WHEN ST_Equals(geom2, geom3) THEN (geom2, 1)
-                        WHEN ST_Area(ST_Intersection(geom2, geom3)) = 0 OR ST_IsEmpty(ST_Intersection(geom2, geom3)) THEN (geom2, 0)
-                        ELSE (ST_Difference(geom2, geom3), 0)
-                      END;
-        ELSIF NOT ST_IsEmpty((geom1).geom) AND ST_Area(geom3) > 0 THEN
-            equals = ST_Equals(geom2, geom3);
-            IF NOT equals THEN
+        IF geom1 IS NULL AND NOT ST_IsEmpty(geom2) THEN 
+            IF geom3 IS NULL OR ST_Area(geom3) = 0 THEN
+                newgeom = geom2;
+            ELSE
+                newgeom = CASE
+                              WHEN ST_Area(ST_Intersection(geom2, geom3)) = 0 OR ST_IsEmpty(ST_Intersection(geom2, geom3)) THEN geom2
+                              ELSE ST_Difference(geom2, geom3)
+                           END;
+            END IF;
+        ELSIF NOT ST_IsEmpty(geom1) AND ST_Area(geom3) > 0 THEN
+            BEGIN
+                differ = ST_Difference(geom1, geom3);
+            EXCEPTION
+            WHEN OTHERS THEN
                 BEGIN
-                    differ = ST_Difference((geom1).geom, geom3);
+                    RAISE NOTICE 'ST_DifferenceAgg(): Had to buffer geometries by 0.000001 to compute the difference...';
+                    differ = ST_Difference(ST_Buffer(geom1, 0.000001), ST_Buffer(geom3, 0.000001));
                 EXCEPTION
                 WHEN OTHERS THEN
                     BEGIN
-                        RAISE NOTICE 'ST_DifferenceAgg(): Had to buffer geometries by 0.000001 to compute the difference...';
-                        differ = ST_Difference(ST_Buffer((geom1).geom, 0.000001), ST_Buffer(geom3, 0.000001));
+                        RAISE NOTICE 'ST_DifferenceAgg(): Had to buffer geometries by 0.00001 to compute the difference...';
+                        differ = ST_Difference(ST_Buffer(geom1, 0.00001), ST_Buffer(geom3, 0.00001));
                     EXCEPTION
                     WHEN OTHERS THEN
-                        BEGIN
-                            RAISE NOTICE 'ST_DifferenceAgg(): Had to buffer geometries by 0.00001 to compute the difference...';
-                            differ = ST_Difference(ST_Buffer((geom1).geom, 0.00001), ST_Buffer(geom3, 0.00001));
-                        EXCEPTION
-                        WHEN OTHERS THEN
-                            differ = (geom1).geom;
-                        END;
+                        differ = geom1;
                     END;
                 END;
-            END IF;
+            END;
             newgeom = CASE
-                        WHEN equals AND (geom1).val = 0 THEN ((geom1).geom, 1)
-                        WHEN ST_Area(ST_Intersection((geom1).geom, geom3)) = 0 OR ST_IsEmpty(ST_Intersection((geom1).geom, geom3)) THEN ((geom1).geom, (geom1).val)
-                        ELSE (differ, (geom1).val)
+                          WHEN ST_Area(ST_Intersection(geom1, geom3)) = 0 OR ST_IsEmpty(ST_Intersection(geom1, geom3)) THEN geom1
+                          ELSE differ
                       END;
         ELSE
             newgeom = geom1;
         END IF;
 
-        IF NOT ST_IsEmpty((newgeom).geom) THEN
-            newgeom = (ST_CollectionExtract((newgeom).geom, 3), (newgeom).val);
+        IF NOT ST_IsEmpty(newgeom) THEN
+            newgeom = ST_CollectionExtract(newgeom, 3);
         END IF;
 
-        IF (newgeom).geom IS NULL THEN
-            newgeom = (ST_GeomFromText('MULTIPOLYGON EMPTY', ST_SRID(geom2)), (newgeom).val);
+        IF newgeom IS NULL THEN
+            newgeom = ST_GeomFromText('MULTIPOLYGON EMPTY', ST_SRID(geom2));
         END IF;
 
         RETURN newgeom;
     END;
 $$ LANGUAGE plpgsql IMMUTABLE;
------------------------------------------------------------
--- ST_DifferenceAgg aggregate final function
-CREATE OR REPLACE FUNCTION _ST_DifferenceAgg_FinalFN(gv geomval)
-  RETURNS geometry AS $$
-    SELECT ($1).geom
-$$ LANGUAGE sql VOLATILE STRICT;
+
 -----------------------------------------------------------
 -- ST_DifferenceAgg aggregate
 CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry) (
   SFUNC=_ST_DifferenceAgg_StateFN,
-  FINALFUNC=_ST_DifferenceAgg_FinalFN,
-  STYPE=geomval
+  STYPE=geometry
 );
 -------------------------------------------------------------------------------
 
@@ -3408,11 +3420,16 @@ $$ LANGUAGE 'plpgsql' VOLATILE;
 --   RETURNS geometry[]
 --
 -- Set or array returning function handling overlapping parts among a set of
--- gemometries. Can be used on an ARRAY of geometry or geomval or as an AGGREGATE
+-- gemometries. Can be used on an ARRAY of geometry or geomval, or as an AGGREGATE
 -- function taking geometries or geomvals.
 --
 -- The geomval variants are used to pass values when using the LARGEST_VALUE and
 -- SMALLEST_VALUE methods.
+--
+-- ST_RemoveOverlaps() is different from ST_DifferenceAgg() in that it produces 
+-- perfectly topological adjacent polyogns where ST_DifferenceAgg() leave some very 
+-- tiny gaps between polygons. ST_DifferenceAgg() is a bit faster than ST_RemoveOverlaps()
+-- and does not require the use of ST_SplitByGrig() on large tables.
 --
 -- The differrent methods to handle overlapping parts are:
 --

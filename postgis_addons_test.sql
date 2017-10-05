@@ -1,6 +1,6 @@
 ﻿-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
--- Version 1.37 for PostGIS 2.1.x and PostgreSQL 9.x
+-- Version 1.38 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
 --
 -- This is free software; you can redistribute and/or modify it under
@@ -1015,11 +1015,9 @@ SELECT '13.1'::text number,
        'Basic test'::text description,
        ST_Union(geom)::text = '010300000001000000130000000000000000000000000000000000F03F000000000000084000000000000000400000000000000840ABAAAAAAAAAAFA3F000000000000F03F000000000000F03F000000000000104000000000000000400000000000001040ABAAAAAAAAAAFA3F0000000000000040000000000000F03F000000000000144000000000000000400000000000001440ABAAAAAAAAAAFA3F0000000000000840000000000000F03F00000000000018400000000000000040000000000000184000000000000000000000000000001440565555555555D53F000000000000144000000000000000000000000000001040565555555555D53F000000000000104000000000000000000000000000000840565555555555D53F000000000000084000000000000000000000000000000000000000000000F03F' passed
 FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
-      FROM overlappingtable a, 
-           overlappingtable b
-      WHERE a.id = b.id OR 
-            ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND 
-             (a.id < b.id))
+      FROM overlappingtable a 
+          LEFT JOIN overlappingtable b
+          ON ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND a.id < b.id)
       GROUP BY a.id
      ) foo
 )
@@ -1039,11 +1037,9 @@ SELECT '13.2'::text number,
        'Null geometry'::text description,
        ST_Union(geom)::text = '0103000000010000000D0000000000000000000000000000000000F03F000000000000084000000000000000400000000000000840555555555555F53F000000000000144000000000000000400000000000001440ABAAAAAAAAAAFA3F0000000000000840000000000000F03F00000000000018400000000000000040000000000000184000000000000000000000000000001440565555555555D53F000000000000144000000000000000000000000000000840555555555555E53F000000000000084000000000000000000000000000000000000000000000F03F' passed
 FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
-      FROM overlapping a, 
-           overlapping b
-      WHERE a.id = b.id OR 
-            ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND 
-             (a.id < b.id))
+      FROM overlapping a
+          LEFT JOIN overlapping b
+          ON ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND a.id < b.id)
       GROUP BY a.id
      ) foo
 )
@@ -1061,11 +1057,9 @@ SELECT '13.3'::text number,
        'Make sure that only the first equivalent geometry is not removed (all the others should be removed.)'::text description,
        geom::text = '010300000001000000040000000000000000000000000000000000F03F00000000000008400000000000000040000000000000084000000000000000000000000000000000000000000000F03F' passed
 FROM (SELECT ST_DifferenceAgg(a.geom, b.geom) geom
-      FROM overlappingtable a, 
-           overlappingtable b
-      WHERE a.id = b.id OR 
-            ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND 
-             (a.id < b.id))
+      FROM overlappingtable a 
+          LEFT JOIN overlappingtable b
+          ON ((ST_Contains(a.geom, b.geom) OR ST_Contains(b.geom, a.geom) OR ST_Overlaps(a.geom, b.geom)) AND a.id < b.id)
       GROUP BY a.id
       HAVING ST_Area(ST_DifferenceAgg(a.geom, b.geom)) > 0.00001 AND NOT ST_IsEmpty(ST_DifferenceAgg(a.geom, b.geom))
      ) foo
