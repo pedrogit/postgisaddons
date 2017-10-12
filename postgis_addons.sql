@@ -27,34 +27,37 @@
 --
 -- To be included, a function:
 --
---   - must be written in pure PL/pgSQL or SQL code (no C or any compilable code),
+--   - must be written in pure PL/pgSQL or SQL code (no C or any compilable 
+--     code),
 --   - must be generic enough to be useful to other PostGIS users,
 --   - must follow functions and variables naming and indentation conventions
 --     already in use in the files,
 --   - must be documented according to the rules defined below in this file,
---   - must be accompagned by a series of test in the postgis_addons_test.sql file,
+--   - must be accompagned by a series of test in the postgis_addons_test.sql 
+--     file,
 --   - must be accompagned by the appropriate DROP statements in the
 --     expostgis_addons_uninstall.sql file.
 --
--- You must also accept to release your work under the same licence already in use for this product.
+-- You must also accept to release your work under the same licence already 
+-- in use for this product.
 --
 -------------------------------------------------------------------------------
 --
 -- File description
 --
---   - postgis_addons.sql             Main redistributable file containing all the
---                                    functions.
+--   - postgis_addons.sql             Main redistributable file containing all
+--                                    the functions.
 --   - postgis_addons_uninstall.sql   Uninstallation file.
---   - postgis_addons_test.sql        Self contained test file to be executed after
---                                    installation and before any commit of the main
---                                    file.
+--   - postgis_addons_test.sql        Self contained test file to be executed
+--                                    after installation and before any commit
+--                                    of the mainfile.
 --
 -------------------------------------------------------------------------------
 --
 -- Documentation
 --
--- Each function must be documented directly in the postgis_addons.sql file just
--- before the definition of the function.
+-- Each function must be documented directly in the postgis_addons.sql file
+-- just before the definition of the function.
 --
 -- Mandatory documentation elements for each function:
 --
@@ -67,8 +70,8 @@
 --   - Authors names with emails,
 --   - Date and version of availability (date of inclusion in PostGIS Add-ons).
 --
--- A short description of each new function should also be provided at the beginning
--- of the file (in the section below).
+-- A short description of each new function should also be provided at the
+-- beginning of the file (in the section below).
 --
 -------------------------------------------------------------------------------
 -- Function list
@@ -81,61 +84,69 @@
 --
 --   ST_ColumnExists - Returns true if a column exist in a table.
 --
---   ST_HasBasicIndex - Returns true if a table column has at least one index defined.
+--   ST_HasBasicIndex - Returns true if a table column has at least one index 
+--                      defined.
 --
---   ST_AddUniqueID - Adds a column to a table and fill it with a unique integer
---                    starting at 1.
+--   ST_AddUniqueID - Adds a column to a table and fill it with a unique
+--                    integer starting at 1.
 --
---   ST_AreaWeightedSummaryStats - Aggregate function computing statistics on a
---                                 series of intersected values weighted by the
---                                 area of the corresponding geometry.
+--   ST_AreaWeightedSummaryStats - Aggregate function computing statistics
+--                                 on a series of intersected values weighted
+--                                 by the area of the corresponding geometry.
 --
---   ST_ExtractToRaster - Compute a raster band by extracting values for the centroid
---                        or the footprint of each pixel from a global geometry
---                        coverage using different methods like count, min, max,
---                        mean, value of biggest geometry or area weighted mean
---                        of values.
+--   ST_ExtractToRaster - Compute a raster band by extracting values for the
+--                        centroid or the footprint of each pixel from a global
+--                        geometry coverage using different methods like count,
+--                        min, max, mean, value of biggest geometry or area
+--                        weighted mean of values.
 --
---   ST_GlobalRasterUnion - Build a new raster by extracting all the pixel values
---                          from a global raster coverage using different methods
---                          like count, min, max, mean, stddev and range. Similar
---                          and slower but more flexible than ST_Union.
+--   ST_GlobalRasterUnion - Build a new raster by extracting all the pixel
+--                          different values from a global raster coverage
+--                          using methods like count, min, max, mean, stddev
+--                          and range. Similar and slower but more flexible 
+--                          than ST_Union.
 --
---   ST_BufferedUnion - Alternative to ST_Union making a buffer around each geometry
---                      before unioning and removing it afterward. Used when ST_Union
---                      leaves internal undesirable vertexes after a complex union
---                      or when wanting to remove holes from the resulting union.
+--   ST_BufferedUnion - Alternative to ST_Union making a buffer around each
+--                      geometry before unioning and removing it afterward.
+--                      Used when ST_Union leaves internal undesirable vertexes
+--                      after a complex union or when wanting to remove holes 
+--                      from the resulting union.
 --
---   ST_NBiggestExteriorRings - Returns the n biggest exterior rings of the provided
---                              geometry based on their area or their number of vertex.
+--   ST_NBiggestExteriorRings - Returns the n biggest exterior rings of the
+--                              provided geometry based on their area or their
+--                              number of vertex.
 --
---   ST_BufferedSmooth - Returns a smoothed version of the geometry. The smoothing is
---                       done by making a buffer around the geometry and removing it
---                       afterward.
+--   ST_BufferedSmooth - Returns a smoothed version of the geometry. The
+--                       smoothing is done by making a buffer around the
+--                       geometry and removing it afterward.
 --
 --   ST_DifferenceAgg - Returns the first geometry after having removed all the
 --                      subsequent geometries in the aggregate. Used to remove
 --                      overlaps in a geometry table.
 --
---   ST_TrimMulti - Returns a multigeometry from which simple geometries having an area
---                  smaller than the tolerance parameter have been removed.
+--   ST_TrimMulti - Returns a multigeometry from which simple geometries having
+--                  an area smaller than the tolerance parameter have been
+--                  removed.
 --
---   ST_SplitAgg - Returns the first geometry as a set of geometries after being split
---                 by all the second geometries being part of the aggregate.
+--   ST_SplitAgg - Returns the first geometry as a set of geometries after
+--                 being split by all the second geometries being part of the
+--                 aggregate.
 --
---   ST_ColumnIsUnique - Returns true if all the values in this column are unique.
+--   ST_ColumnIsUnique - Returns true if all the values in this column are
+--                       unique.
 --
---   ST_GeoTableSummary - Returns a table summarysing a geometry table. Helps identify
---                        anomalies in geometry tables like duplicates, overlaps and
---                        very complex or very small geometries.
+--   ST_GeoTableSummary - Returns a table summarysing a geometry table. Helps
+--                        identify anomalies in geometry tables like duplicates, 
+--                        overlaps and very complex or very small geometries.
 --
---   ST_SplitByGrid - Set function returning a geometry splitted in multiple parts by a
---                    specified grid.
+--   ST_SplitByGrid - Set function returning a geometry splitted in multiple
+--                    parts by a specified grid.
 --
---   ST_Histogram - Set function returnings a table representing an histogram of the values
---                  for the specifed column.
+--   ST_Histogram - Set function returnings a table representing an histogram
+--                  of the values for the specifed column.
 --
---   ST_RemoveOverlaps - Remove overlaps among an array or an aggregate of polygons.
+--   ST_RemoveOverlaps - Remove overlaps among an array or an aggregate of
+--                       polygons.
 --
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
@@ -196,21 +207,28 @@ $$ LANGUAGE plpgsql VOLATILE;
 -------------------------------------------------------------------------------
 -- ST_CreateIndexRaster
 --
---   rast raster          - Raster from which are copied the metadata to build the new, index raster.
---                          Generally created from scratch with ST_MakeEmptyRaster().
---   pixeltype text       - Pixel type of the new index raster. The default is 32BUI.
---   startvalue int       - The first value assigned to the index raster. The default is 0.
---   incwithx boolean     - When true (default), indexes increase with the x raster coordinate of the pixel.
---   incwithy boolean     - When true (default), indexes increase with the y raster coordinate of the pixel.
---                          (When scaley is negative, indexes decrease with y.)
---   rowsfirst boolean    - When true (default), indexes increase vertically first, and then horizontally.
---   rowscanorder boolean - When true (default), indexes increase always in the same direction (row scan).
---                          When false indexes increase alternatively in direction and then in the other
---                          direction (row-prime scan).
---   colinc int           - Colums increment value. Must be greater than rowinc * (ST_Height() - 1) when
---                          columnfirst is true.
---   rowinc int           - Row increment value. Must be greater than colinc * (ST_Width() - 1) when
---                          columnfirst is false.
+--   rast raster          - Raster from which are copied the metadata to build 
+--                          the new, index raster. Generally created from 
+--                          scratch with ST_MakeEmptyRaster().
+--   pixeltype text       - Pixel type of the new index raster. The default is 
+--                          32BUI.
+--   startvalue int       - The first value assigned to the index raster. The
+--                          default is 0.
+--   incwithx boolean     - When true (default), indexes increase with the x
+--                          raster coordinate of the pixel.
+--   incwithy boolean     - When true (default), indexes increase with the y
+--                          raster coordinate of the pixel. (When scaley is 
+--                          negative, indexes decrease with y.)
+--   rowsfirst boolean    - When true (default), indexes increase vertically 
+--                          first, and then horizontally.
+--   rowscanorder boolean - When true (default), indexes increase always in 
+--                          the same direction (row scan). When false indexes 
+--                          increase alternatively in direction and then in
+--                          the other direction (row-prime scan).
+--   colinc int           - Colums increment value. Must be greater than
+--                          rowinc * (ST_Height() - 1) when columnfirst is true.
+--   rowinc int           - Row increment value. Must be greater than colinc * 
+--                          (ST_Width() - 1) when columnfirst is false.
 --
 --   RETURNS raster
 --
@@ -295,11 +313,11 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -------------------------------------------------------------------------------
 -- ST_RandomPoints
 --
---   geom geometry - Geometry in which to create the random points. Should be a polygon
---                   or a multipolygon.
+--   geom geometry - Geometry in which to create the random points. Should be a
+--                   polygon or a multipolygon.
 --   nb int        - Number of random points to create.
---   seed numeric  - Value between -1.0 and 1.0, inclusive, setting the seek if repeatable
---                   results are desired. Default to NULL.
+--   seed numeric  - Value between -1.0 and 1.0, inclusive, setting the seek if
+--                   repeatable results are desired. Default to NULL.
 --
 --   RETURNS SET OF geometry(point)
 --
@@ -309,7 +327,8 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 --
 -- SELECT ST_RandomPoints(ST_GeomFromText('POLYGON((-73 48,-72 49,-71 48,-69 49,-69 48,-71 47,-73 48))'), 1000, 0.5) geom;
 --
--- Typical example creating a table of 1000 points inside the union of all the geometries of a table:
+-- Typical example creating a table of 1000 points inside the union of all the
+-- geometries of a table:
 --
 -- CREATE TABLE random_points AS
 -- SELECT ST_RandomPoints(ST_Union(geom), 1000) geom FROM geomtable;
@@ -376,14 +395,16 @@ $$ LANGUAGE plpgsql VOLATILE;
 -------------------------------------------------------------------------------
 -- ST_ColumnExists
 --
---   schemaname name - Name of the schema containing the table in which to check for
---                     the existance of a column.
---   tablename name  - Name of the table in which to check for the existance of a column.
+--   schemaname name - Name of the schema containing the table in which to
+--                     check for the existance of a column.
+--   tablename name  - Name of the table in which to check for the existance of
+--                     a column.
 --   columnname name - Name of the column to check for the existence of.
 --
 --   RETURNS boolean
 --
--- Returns true if a column exist in a table. Mainly defined to be used by ST_AddUniqueID().
+-- Returns true if a column exist in a table. Mainly defined to be used by 
+-- ST_AddUniqueID().
 -----------------------------------------------------------
 -- Self contained example:
 --
@@ -420,11 +441,14 @@ $$ LANGUAGE sql VOLATILE STRICT;
 -------------------------------------------------------------------------------
 -- ST_HasBasicIndex
 --
---   schemaname name - Name of the schema containing the table for which to check for
---                     the existance of an index.
---   tablename name  - Name of the table for which to check for the existance of an index.
---   columnname name - Name of the column to check for the existence of an index.
---   idxstring       - Search for indexes containing idxstring in their names. Default to NULL.
+--   schemaname name - Name of the schema containing the table for which to 
+--                     check for the existance of an index.
+--   tablename name  - Name of the table for which to check for the existance
+--                     of an index.
+--   columnname name - Name of the column to check for the existence of an
+--                     index.
+--   idxstring       - Search for indexes containing idxstring in their names.
+--                     Default to NULL.
 --
 --   RETURNS boolean
 --
@@ -453,8 +477,9 @@ RETURNS boolean AS $$
             RETURN NULL;
         END IF;
         -- Check if schemaname is not actually a table name and idxstring actually a column name.
-        -- That's the only way to support a three parameter variant taking 'public' as a default schemaname
+        -- That's the only way to support a three parameters variant taking a schemaname, a tablename and a columnname
         IF ST_ColumnExists(tablename, columnname, idxstring) THEN
+            schemaname = tablename;
             tablename = columnname;
             columnname = idxstring;
             idxstring = NULL;
@@ -463,14 +488,14 @@ RETURNS boolean AS $$
             RETURN NULL;
         END IF;
         IF NOT columnname IS NULL AND columnname != '' AND ST_ColumnExists(schemaname, tablename, columnname) THEN
-        -- Determine the type of the column
-        query := 'SELECT typname
-                  FROM pg_namespace
-                      LEFT JOIN pg_class ON (pg_namespace.oid = pg_class.relnamespace)
-                      LEFT JOIN pg_attribute ON (pg_attribute.attrelid = pg_class.oid)
-                      LEFT JOIN pg_type ON (pg_type.oid = pg_attribute.atttypid)
-                  WHERE lower(nspname) = lower(''' || schemaname || ''') AND lower(relname) = lower(''' || tablename || ''') AND lower(attname) = lower(''' || columnname || ''');';
-        EXECUTE QUERY query INTO coltype;
+            -- Determine the type of the column
+            query := 'SELECT typname
+                      FROM pg_namespace
+                          LEFT JOIN pg_class ON (pg_namespace.oid = pg_class.relnamespace)
+                          LEFT JOIN pg_attribute ON (pg_attribute.attrelid = pg_class.oid)
+                          LEFT JOIN pg_type ON (pg_type.oid = pg_attribute.atttypid)
+                      WHERE lower(nspname) = lower(''' || schemaname || ''') AND lower(relname) = lower(''' || tablename || ''') AND lower(attname) = lower(''' || columnname || ''');';
+            EXECUTE QUERY query INTO coltype;
         END IF;
 
         IF coltype IS NULL AND (idxstring IS NULL OR idxstring = '') THEN
@@ -520,6 +545,7 @@ $$ LANGUAGE plpgsql VOLATILE;
 
 -----------------------------------------------------------
 -- ST_HasBasicIndex variant defaulting to the 'public' schemaname
+-- or taking a schemaname, a tablename and a columnname
 CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
     tablename name,
     columnname name,
@@ -528,6 +554,7 @@ CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
 RETURNS BOOLEAN AS $$
     SELECT ST_HasBasicIndex('public', $1, $2, $3)
 $$ LANGUAGE sql VOLATILE;
+
 -----------------------------------------------------------
 -- ST_HasBasicIndex variant defaulting to the 'public' schemaname
 CREATE OR REPLACE FUNCTION ST_HasBasicIndex(
@@ -542,19 +569,25 @@ $$ LANGUAGE sql VOLATILE;
 -------------------------------------------------------------------------------
 -- ST_AddUniqueID
 --
---   schemaname name       - Name of the schema containing the table in which to check for
---                           the existance of a column.
---   tablename name        - Name of the table in which to check for the existance of a column.
---   columnname name       - Name of the new id column to check for the existence of.
---   replacecolumn boolean - If set to true, drop and replace the new id column if it already exists. Default to false.
---   indexit boolean       - If set to true, create an index on the new id column. Default to true.
+--   schemaname name       - Name of the schema containing the table in which
+--                           to check for the existance of a column.
+--   tablename name        - Name of the table in which to check for the
+--                           existance of a column.
+--   columnname name       - Name of the new id column to check for the
+--                           existence of.
+--   replacecolumn boolean - If set to true, drop and replace the new id column
+--                           if it already exists. Default to false.
+--   indexit boolean       - If set to true, create an index on the new id
+--                           column. Default to true.
 --
 --   RETURNS boolean
 --
--- Adds a column to a table and fill it with a unique integer starting at 1. Returns
--- true if the operation succeeded, false otherwise.
--- This is useful when you don't want to create a new table for whatever reason.
--- If you want to create a new table instead of using this function just:
+-- Adds a column to a table and fill it with a unique integer starting at 1.
+-- Returns true if the operation succeeded, false otherwise.
+--
+-- This is useful when you don't want to create a new table for whatever
+-- reason. If you want to create a new table instead of using this function
+-- just:
 --
 -- CREATE SEQUENCE foo_id_seq;
 -- CREATE TABLE newtable AS
@@ -637,8 +670,8 @@ $$ LANGUAGE sql VOLATILE;
 -------------------------------------------------------------------------------
 -- ST_AreaWeightedSummaryStats
 --
---   geomval - A set of geomval couple (geometry, double precision) resulting from
---             ST_Intersection(raster, geometry).
+--   geomval - A set of geomval couple (geometry, double precision) resulting
+--             from ST_Intersection(raster, geometry).
 --             A variant taking a geometry and a value also exist.
 --
 --   Aggregate function computing statistics on a series of intersected
@@ -648,51 +681,58 @@ $$ LANGUAGE sql VOLATILE;
 --
 --   - count          - Total number of values in the aggregate.
 --   - distinctcount  - Number of different values in the aggregate.
---   - geom           - Geometric union of all the geometries involved in the aggregate.
---   - totalarea      - Total area of all the geometries involved in the aggregate (might
---                      be greater than the area of the unioned geometry if there are
---                      overlapping geometries).
+--   - geom           - Geometric union of all the geometries involved in the
+--                      aggregate.
+--   - totalarea      - Total area of all the geometries involved in the
+--                      aggregate (might be greater than the area of the
+--                      unioned geometry if there are overlapping geometries).
 --   - meanarea       - Mean area of the geometries involved in the aggregate.
---   - totalperimeter - Total perimeter of all the geometries involved in the aggregate.
---   - meanperimeter  - Mean perimeter of the geometries involved in the aggregate.
---   - weightedsum    - Sum of all the values involved in the aggregate multiplied by
---                      (weighted by) the area of each geometry.
+--   - totalperimeter - Total perimeter of all the geometries involved in the
+--                      aggregate.
+--   - meanperimeter  - Mean perimeter of the geometries involved in the
+--                      aggregate.
+--   - weightedsum    - Sum of all the values involved in the aggregate
+--                      multiplied by (weighted by) the area of each geometry.
 --   - weightedmean   - Weighted sum divided by the total area.
 --   - maxareavalue   - Value of the geometry having the greatest area.
 --   - minareavalue   - Value of the geometry having the smallest area.
---   - maxcombinedareavalue - Value of the geometry having the greatest area after
---                            geometries with the same value have been unioned.
---   - mincombinedareavalue - Value of the geometry having the smallest area after
---                            geometries with the same value have been unioned.
+--   - maxcombinedareavalue - Value of the geometry having the greatest area
+--                            after geometries with the same value have been
+--                            unioned.
+--   - mincombinedareavalue - Value of the geometry having the smallest area
+--                            after geometries with the same value have been
+--                            unioned.
 --   - sum            - Simple sum of all the values in the aggregate.
 --   - man            - Simple mean of all the values in the aggregate.
 --   - max            - Simple max of all the values in the aggregate.
 --   - min            - Simple min of all the values in the aggregate.
 --
--- This function aggregates the geometries and associated values when extracting values
--- from one table with a table of polygons using ST_Intersection. It was specially
--- written to be used with ST_Intersection(raster, geometry) which returns a set of
--- (geometry, value) which have to be aggregated considering the relative importance
--- of the area intersecting with each pixel of the raster. The function is provided
--- only to avoid having to write the correct, often tricky, syntax to aggregate those
--- values.
+-- This function aggregates the geometries and associated values when 
+-- extracting values from one table with a table of polygons using 
+-- ST_Intersection. It was specially written to be used with 
+-- ST_Intersection(raster, geometry) which returns a set of (geometry, value)
+-- which have to be aggregated considering the relative importance of the
+-- area intersecting with each pixel of the raster. The function is provided
+-- only to avoid having to write the correct, often tricky, syntax to 
+-- aggregate those values.
 --
 -- Since ST_AreaWeightedSummaryStats is an aggregate, you always have to
--- add a GROUP BY clause to tell which column to use to group the polygons parts and
--- aggregate the corresponding values.
+-- add a GROUP BY clause to tell which column to use to group the polygons
+-- parts and aggregate the corresponding values.
 --
--- Note that you will always get better performance by writing yourself the right code
--- to aggregate any of the values computed by ST_AreaWeightedSummaryStats. But for
--- relatively small datasets, it will often be faster to use this function than to try
--- to write the proper code.
+-- Note that you will always get better performance by writing yourself the 
+-- right code to aggregate any of the values computed by 
+-- ST_AreaWeightedSummaryStats. But for relatively small datasets, it will 
+-- often be faster to use this function than to try to write the proper code.
 --
--- Sometimes, for tricky reasons, the function might fail when it tries to recreate
--- the original geometry by ST_Unioning the intersected parts. When ST_Union
--- fails, the whole ST_AreaWeightedSummaryStats function fails. If this happens, you will
--- probably have to write your own aggregating code to avoid the unioning.
+-- Sometimes, for tricky reasons, the function might fail when it tries to
+-- recreate the original geometry by ST_Unioning the intersected parts. When
+-- ST_Union fails, the whole ST_AreaWeightedSummaryStats function fails. If
+-- this happens, you will probably have to write your own aggregating code
+-- to avoid the unioning.
 --
--- This function can also be used when intersecting two geometry tables where geometries
--- are split in multiple parts.
+-- This function can also be used when intersecting two geometry tables
+-- where geometries are split in multiple parts.
 -----------------------------------------------------------
 -- Self contained example:
 --
@@ -973,29 +1013,40 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 -- ST_ExtractToRaster
 --
 --   rast raster             - Raster in which new values will be computed.
---   band integer            - Band in which new values will be computed. A variant defaulting band to 1 exist.
---   schemaname text         - Name of the schema containing the table from which to extract values.
---   tablename text          - Name of the table from which to extract values from.
---   geomrastcolumnname text - Name of the column containing the geometry or the raster to use when extracting values.
---   valuecolumnname text    - Name of the column containing the value to use when extracting values. Should be NULL
---                             when extracting from a raster coverage and can be NULL for certain methods not implying
+--   band integer            - Band in which new values will be computed. A
+--                             variant defaulting band to 1 exist.
+--   schemaname text         - Name of the schema containing the table from
+--                             which to extract values.
+--   tablename text          - Name of the table from which to extract values
+--                             from.
+--   geomrastcolumnname text - Name of the column containing the geometry or
+--                             the raster to use when extracting values.
+--   valuecolumnname text    - Name of the column containing the value to use
+--                             when extracting values. Should be NULL when
+--                             extracting from a raster coverage and can be
+--                             NULL for certain methods not implying
 --                             geometries values.
---   method text             - Name of the method of value extraction. Default to 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'.
+--   method text             - Name of the method of value extraction.
+--                             Default to 'MEAN_OF_VALUES_AT_PIXEL_CENTROID'.
 --
 --   RETURNS raster
 --
--- Return a raster which values are extracted from a coverage using one spatial query for each pixel. It is
--- VERY important that the coverage from which values are extracted is spatially indexed.
+-- Return a raster which values are extracted from a coverage using one
+-- spatial query for each pixel. It is VERY important that the coverage from
+-- which values are extracted is spatially indexed.
 --
 -- Methods for computing the values can be grouped in two categories:
 --
 -- Values extracted at the pixel centroid:
 --
---   - COUNT_OF_VALUES_AT_PIXEL_CENTROID: Number of features intersecting with the pixel centroid.
---                                        Greater than 1 when many geometries overlaps.
+--   - COUNT_OF_VALUES_AT_PIXEL_CENTROID: Number of features intersecting with
+--                                        the pixel centroid. Greater than 1
+--                                        when many geometries overlaps.
 --
---   - MEAN_OF_VALUES_AT_PIXEL_CENTROID: Average of all values intersecting with the pixel centroid.
---                                       Many values are taken into account when many geometries overlaps.
+--   - MEAN_OF_VALUES_AT_PIXEL_CENTROID: Average of all values intersecting
+--                                       with the pixel centroid. Many values 
+--                                       are taken into account when many 
+--                                       geometries overlaps.
 --
 --   - COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID,
 --     FIRST_RASTER_VALUE_AT_PIXEL_CENTROID,
@@ -1006,58 +1057,78 @@ CREATE AGGREGATE ST_AreaWeightedSummaryStats(geometry)
 --     STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID and
 --     RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID
 --     are for the ST_GlobalRasterUnion() function. When those methods are used,
---     geomrastcolumnname should be a column of type raster and valuecolumnname should be NULL.
---
+--     geomrastcolumnname should be a column of type raster and valuecolumnname
+--     should be NULL.
+-------------------------------------------------------------------------------
 -- Values extracted for the whole square pixel:
 --
---   - COUNT_OF_POLYGONS: Number of polygons or multipolygons intersecting with the pixel.
+--   - COUNT_OF_POLYGONS: Number of polygons or multipolygons intersecting with
+--                        the pixel.
 --
---   - COUNT_OF_LINESTRINGS: Number of linestrings or multilinestrings intersecting with the pixel.
+--   - COUNT_OF_LINESTRINGS: Number of linestrings or multilinestrings 
+--                           intersecting with the pixel.
 --
---   - COUNT_OF_POINTS: Number of points or multipoints intersecting with the pixel.
+--   - COUNT_OF_POINTS: Number of points or multipoints intersecting with the 
+--                      pixel.
 --
---   - COUNT_OF_GEOMETRIES: Number of geometries (whatever they are) intersecting with the pixel.
+--   - COUNT_OF_GEOMETRIES: Number of geometries (whatever they are)
+--                          intersecting with the pixel.
 --
---   - VALUE_OF_BIGGEST: Value associated with the polygon covering the biggest area in the pixel.
+--   - VALUE_OF_BIGGEST: Value associated with the polygon covering the biggest
+--                       area in the pixel.
 --
---   - VALUE_OF_MERGED_BIGGEST: Value associated with the polygon covering the biggest area in the
---                              pixel. Same value polygons are merged first.
+--   - VALUE_OF_MERGED_BIGGEST: Value associated with the polygon covering the
+--                              biggest area in the pixel. Same value polygons
+--                              are merged first.
 --
---   - VALUE_OF_MERGED_SMALLEST: Value associated with the polygon covering the smallest area in the
---                               pixel. Same value polygons are merged first.
+--   - VALUE_OF_MERGED_SMALLEST: Value associated with the polygon covering the
+--                               smallest area in the pixel. Same value
+--                               polygons are merged first.
 --
 --   - MIN_AREA: Area of the geometry covering the smallest area in the pixel.
 --
---   - SUM_OF_AREAS: Sum of the areas of all polygons intersecting with the pixel.
+--   - SUM_OF_AREAS: Sum of the areas of all polygons intersecting with the
+--                   pixel.
 --
---   - SUM_OF_LENGTHS: Sum of the lengths of all linestrings intersecting with the pixel.
+--   - SUM_OF_LENGTHS: Sum of the lengths of all linestrings intersecting with
+--                     the pixel.
 --
---   - PROPORTION_OF_COVERED_AREA: Proportion, between 0.0 and 1.0, of the pixel area covered by the
---                                 conjunction of all the polygons intersecting with the pixel.
+--   - PROPORTION_OF_COVERED_AREA: Proportion, between 0.0 and 1.0, of the
+--                                 pixel area covered by the conjunction of
+--                                 all the polygons intersecting with the
+--                                 pixel.
 --
---   - AREA_WEIGHTED_MEAN_OF_VALUES: Mean of all polygon values weighted by the proportion of the area
---                                   of the target polygon they cover.
---                                   The weighted sum is divided by the maximum between the
---                                   area of the geometry and the sum of all the weighted geometry
---                                   areas. i.e. If the geometry being processed is not entirely
---                                   covered by other geometries, the value is multiplied by the
---                                   proportion of the covering area.
---
---   - AREA_WEIGHTED_MEAN_OF_VALUES_2: Mean of all polygon values weighted by the proportion of the area
---                                     of the target polygon they cover.
---                                     The weighted sum is divided by the sum of all the weighted
---                                     geometry areas. i.e. Even if a geometry is not entirely covered
---                                     by other geometries, it gets the full weighted value.
+--   - AREA_WEIGHTED_MEAN_OF_VALUES: Mean of all polygon values weighted by
+--                                   the proportion of the area of the target
+--                                   polygon they cover. The weighted sum is
+--                                   divided by the maximum between the area
+--                                   of the geometry and the sum of all the
+--                                   weighted geometry areas. i.e. If the
+--                                   geometry being processed is not entirely
+--                                   covered by other geometries, the value
+--                                   is multiplied by the proportion of the
+--                                   covering area.
+-------------------------------------------------------------------------------
+--   - AREA_WEIGHTED_MEAN_OF_VALUES_2: Mean of all polygon values weighted by
+--                                     the proportion of the area of the target
+--                                     polygon they cover. The weighted sum is
+--                                     divided by the sum of all the weighted
+--                                     geometry areas. i.e. Even if a geometry
+--                                     is not entirely covered by other
+--                                     geometries, it gets the full weighted
+--                                     value.
 --
 --   - AREA_WEIGHTED_SUM_OF_RASTER_VALUES,
 --     SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES,
 --     AREA_WEIGHTED_MEAN_OF_RASTER_VALUES and
 --     AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2
---     are for the ST_GlobalRasterUnion() function. When those methods are used,
---     geomrastcolumnname should be a column of type raster and valuecolumnname should be NULL.
+--     are for the ST_GlobalRasterUnion() function. When those methods are
+--     used, geomrastcolumnname should be a column of type raster and
+--     valuecolumnname should be NULL.
 --
--- Many more methods can be added over time. An almost exhaustive list of possible method can be find
--- at objective FV.27 in this page: http://trac.osgeo.org/postgis/wiki/WKTRaster/SpecificationWorking03
+-- Many more methods can be added over time. An almost exhaustive list of
+-- possible method can be find at objective FV.27 in this page: 
+-- http://trac.osgeo.org/postgis/wiki/WKTRaster/SpecificationWorking03
 --
 -- Self contained example:
 --
@@ -1578,11 +1649,13 @@ $$ LANGUAGE sql;
 -------------------------------------------------------------------------------
 -- ST_GlobalRasterUnion
 --
---   schemaname text       - Name of the schema containing the table from which to union rasters.
+--   schemaname text       - Name of the schema containing the table from which
+--                           to union rasters.
 --   tablename text        - Name of the table from which to union rasters.
 --   rastercolumnname text - Name of the column containing the raster to union.
---   pixeltype             - Pixel type of the new raster. Can be: 1BB, 2BUI, 4BUI, 8BSI, 8BUI,
---                           16BSI, 16BUI, 32BSI, 32BUI, 32BF, 64BF
+--   pixeltype             - Pixel type of the new raster. Can be: 1BB, 2BUI,
+--                           4BUI, 8BSI, 8BUI, 16BSI, 16BUI, 32BSI, 32BUI,
+--                           32BF, 64BF
 --   nodataval             - Nodata value of the new raster.
 --
 -- RETURNS raster
@@ -1594,88 +1667,115 @@ $$ LANGUAGE sql;
 --
 -- Differs from ST_Union in many ways:
 --
---  - Takes the names of a schema, a table and a raster column instead of rasters
---    themselves. That means the function works on a whole table and can not be used
---    on a selection or a group of rasters (unless you build a view on the table and
---    you pass the name of the view instead of the name of the table).
+--  - Takes the names of a schema, a table and a raster column instead of
+--    rasters themselves. That means the function works on a whole table and
+--    can not be used on a selection or a group of rasters (unless you build
+--    a view on the table and you pass the name of the view instead of the
+--    name of the table).
 --
---  - Works with unaligned rasters. The extent of the resulting raster is computed
---    from the global extent of the table and the pixel size is the minimum of all
---    pixel sizes of the rasters in the table.
+--  - Works with unaligned rasters. The extent of the resulting raster is
+--    computed from the global extent of the table and the pixel size is the
+--    minimum of all pixel sizes of the rasters in the table.
 --
 --  - Offers more methods for computing the value of each pixel. More can be
 --    easily implemented in the ST_ExtractPixelCentroidValue4ma and
 --    ST_ExtractPixelValue4ma functions.
 --
---  - Because methods are implemented in PL/pgSQL and involve a SQL query for
---    each pixel, ST_GlobalUnionToRaster will generally be way slower than
---    ST_Union. It is however more flexible, allows more value determination
---    methods and even might be faster on big coverages because it does not
---    require internal memory copy of progressively bigger and bigger raster
---    pieces.
+--  - Because methods are implemented in PL/pgSQL and involve a SQL query
+--    for each pixel, ST_GlobalUnionToRaster will generally be way slower
+--    than ST_Union. It is however more flexible, allows more value
+--    determination methods and even might be faster on big coverages
+--    because it does not require internal memory copy of progressively
+--    bigger and bigger raster pieces.
 --
--- When pixeltype is NULL, it is assumed to be identical for all rasters. If not,
--- the maximum of all pixel type stings is used. In some cases, this might not
--- make sense at all... e.g. Most rasters are 32BUI, one is 8BUI and 8BUI is used.
+-- When pixeltype is NULL, it is assumed to be identical for all rasters. If
+-- not, the maximum of all pixel type stings is used. In some cases, this might
+-- not make sense at all... e.g. Most rasters are 32BUI, one is 8BUI and 8BUI
+-- is used.
 --
--- When nodataval is NULL, nodata value is assumed to be identical for all rasters.
--- If not, the minimum of all raster nodata value is used.
+-- When nodataval is NULL, nodata value is assumed to be identical for all
+-- rasters. If not, the minimum of all raster nodata value is used.
 --
 -- For now, those methods are implemented:
 --
---   - COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Number of non null raster value intersecting with the
+--   - COUNT_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Number of non null raster
+--                                               value intersecting with the
 --                                               pixel centroid.
 --
---   - FIRST_RASTER_VALUE_AT_PIXEL_CENTROID: First raster value intersecting with the
---                                           pixel centroid. This is the default.
+--   - FIRST_RASTER_VALUE_AT_PIXEL_CENTROID: First raster value intersecting
+--                                           with the pixel centroid. This
+--                                           is the default.
 --
---   - MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Minimum of all raster values intersecting with the
---                                             pixel centroid.
+--   - MIN_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Minimum of all raster values
+--                                             intersecting with the pixel
+--                                             centroid.
 --
---   - MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Maximum of all raster values intersecting with the
---                                             pixel centroid.
+--   - MAX_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Maximum of all raster values
+--                                             intersecting with the pixel
+--                                             centroid.
 --
---   - SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Sum of all raster values intersecting with the
---                                             pixel centroid.
+--   - SUM_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Sum of all raster values
+--                                             intersecting with the pixel
+--                                             centroid.
 --
---   - MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Average of all raster values intersecting
---                                              with the pixel centroid.
+--   - MEAN_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Average of all raster values
+--                                              intersecting with the pixel 
+--                                              centroid.
 --
---   - STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Population standard deviation of all raster
---                                                 values intersecting with the pixel centroid.
+--   - STDDEVP_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Population standard
+--                                                 deviation of all raster
+--                                                 values intersecting with
+--                                                 the pixel centroid.
 --
---   - RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Range (maximun - minimum) of raster values
---                                               intersecting with the pixel centroid.
+--   - RANGE_OF_RASTER_VALUES_AT_PIXEL_CENTROID: Range (maximun - minimum)
+--                                               of raster values
+--                                               intersecting with the pixel
+--                                               centroid.
 --
---   - For the next methods, let's say that 2 pixels are intersecting with the target pixel and that:
---         - ia1 and ia2 are the areas of the intersection between the source pixel and the target pixel,
+--   - For the next methods, let's say that 2 pixels are intersecting with the
+--     target pixel and that:
+--         - ia1 and ia2 are the areas of the intersection between the source
+--           pixel and the target pixel,
 --         - v1 and v2 are the values of the source pixels,
 --         - sa1 and sa2 are the areas of the sources pixels,
 --         - ta is the area of the target pixel,
 --         - x is the value assigned to the target pixel.
 --
---   - AREA_WEIGHTED_SUM_OF_RASTER_VALUES: Sum of all source pixel values weighted by the proportion of
+--   - AREA_WEIGHTED_SUM_OF_RASTER_VALUES: Sum of all source pixel values
+--                                         weighted by the proportion of
 --                                         the target pixel they cover.
---                                         This is the first part of the area weighted mean.
+--                                         This is the first part of the
+--                                         area weighted mean.
 --                                         x = ia1 * v1 + ia2 * v2
 --
---   - SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES: Sum of all pixel values weighted by the proportion of their
---                                             intersecting parts with the source pixel.
+--   - SUM_OF_AREA_PROPORTIONAL_RASTER_VALUES: Sum of all pixel values
+--                                             weighted by the proportion
+--                                             of their intersecting parts
+--                                             with the source pixel.
 --                                             x = (ia1 * v1)/sa1 + (ia2 * v2)/sa2
---
---   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES: Mean of all source pixel values weighted by the proportion of
---                                          the target pixel they cover.
---                                          The weighted sum is divided by the maximum between the
---                                          area of the pixel and the sum of all the weighted pixel
---                                          areas. i.e. Target pixels at the edge of the source rasters
---                                          global extent are weighted by the proportion of the covering area.
+-------------------------------------------------------------------------------
+--   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES: Mean of all source pixel values
+--                                          weighted by the proportion of the
+--                                          target pixel they cover. The 
+--                                          weighted sum is divided by the
+--                                          maximum between the area of the
+--                                          pixel and the sum of all the
+--                                          weighted pixel areas. i.e. Target
+--                                          pixels at the edge of the source
+--                                          rasters global extent are weighted
+--                                          by the proportion of the covering
+--                                          area.
 --                                          x = (ia1 * v1 + ia2 * v2)/max(ia1 + ia2, ta)
 --
---   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2: Mean of all source pixel values weighted by the proportion of
+--   - AREA_WEIGHTED_MEAN_OF_RASTER_VALUES_2: Mean of all source pixel values 
+--                                            weighted by the proportion of
 --                                            the target pixel they cover.
---                                            The weighted sum is divided by the sum of all the weighted
---                                            pixel areas. i.e. Target pixels at the edge of the source rasters
---                                            global extent take the full weight of their area.
+--                                            The weighted sum is divided by
+--                                            the sum of all the weighted
+--                                            pixel areas. i.e. Target pixels
+--                                            at the edge of the source rasters
+--                                            global extent take the full weight
+--                                            of their area.
 --                                            x = (ia1 * v1 + ia2 * v2)/(ia1 + ia2)
 --
 -- Self contained and typical example:
@@ -1868,13 +1968,14 @@ CREATE AGGREGATE ST_BufferedUnion(geometry, double precision)
 --
 --   geom geometry - Geometry from which to extract exterior rings.
 --   nbrings int   - Number of rings to extract.
---   comptype text - Determine how 'biggest' is interpreted. Can be 'AREA' or 'NBPOINTS'.
+--   comptype text - Determine how 'biggest' is interpreted. Can be 'AREA' or 
+--                   'NBPOINTS'.
 --
 -- RETURNS SET OF geometry
 --
--- Returns the 'nbrings' biggest exterior rings of the provided geometry. Biggest
--- can be defined in terms of the area of the ring (AREA) or in terms of the
--- total number of vertexes in the ring (NBPOINT).
+-- Returns the 'nbrings' biggest exterior rings of the provided geometry.
+-- Biggest can be defined in terms of the area of the ring (AREA) or in terms
+-- of the total number of vertexes in the ring (NBPOINT).
 --
 -- Self contained example:
 --
@@ -1968,41 +2069,44 @@ $$ LANGUAGE sql IMMUTABLE;
 --
 -- RETURNS geometry
 --
--- Remove from geom1 the union of all geom2 passed as aggregate. This function is 
--- used to remove overlaps in a table of polygons.
+-- Remove from geom1 the union of all geom2 passed as aggregate. This function
+-- is used to remove overlaps in a table of polygons.
 --
--- Each geometry MUST have a unique ID to be used as in the example below and tables 
--- with many rows should have an index on their geometry column.
+-- Each geometry MUST have a unique ID to be used as in the example below and
+-- tables with many rows should have an index on their geometry column.
 --
 -- ST_DifferenceAgg() is different from ST_RemoveOverlaps() in that the latter
--- produces perfectly topological adjacent polygons where the former sometimes leaves very 
--- tiny gaps between polygons. ST_DifferenceAgg() is a bit faster than ST_RemoveOverlaps()
--- and does not require the use of ST_SplitByGrig() on large tables. ST_DifferenceAgg()
--- also requires to LEFT JOIN join the table containing overlaps with itself, which is not
--- the case for ST_RemoveOverlaps().
+-- produces perfectly topological adjacent polygons where the former sometimes
+-- leaves very tiny gaps between polygons. ST_DifferenceAgg() is a bit faster
+-- than ST_RemoveOverlaps() and does not require the use of ST_SplitByGrig()
+-- on large tables. ST_DifferenceAgg() also requires to LEFT JOIN join the
+-- table containing overlaps with itself, which is not the case for
+-- ST_RemoveOverlaps().
 --
--- ST_DifferenceAgg() requires to carefully SELECT, with the WHERE clause, which 
--- polygons are included in the group of second argument polygons and which are to 
--- be removed from the first argument polygon. The WHERE clause must be built in a 
--- way that if overlapping parts of polygons A are to be removed from polygon B, then 
--- overlapping parts from polygons B MUST NOT be removed from polygon A. Otherwise 
--- this would leave gaps. 
+-- ST_DifferenceAgg() requires to carefully SELECT, with the WHERE clause,
+-- which polygons are included in the group of second argument polygons and
+-- which are to be removed from the first argument polygon. The WHERE clause
+-- must be built in a way that if overlapping parts of polygons A are to be
+-- removed from polygon B, then overlapping parts from polygons B MUST NOT be
+-- removed from polygon A. Otherwise this would leave gaps. 
 -- 
--- You can ensure this easily enough by creating a int or double precision ordering 
--- value having no duplicates. You generally want to base this ordering on 
--- properties that make some polygons to have a higher priority than others when  
--- choosing which part to keep in case of overlaps. Time of validity or polygon size 
--- are examples of properties which can be used to build such an ordering. In the
--- following example, the order is based on polygon size, with bigger polygons having 
--- a higher priority. i.e., when a large polygon overlaps with a smaller polygon, 
--- the large one is passed as second argument when the smaller one is passed as 
--- first argument (so larger polygons are removed from smaller ones) and the smaller 
--- polygon is not passed as second argument when the larger one is passed as first 
+-- You can ensure this easily enough by creating a int or double precision
+-- ordering value having no duplicates. You generally want to base this
+-- ordering on properties that make some polygons to have a higher priority
+-- than others when choosing which part to keep in case of overlaps. Time of
+-- validity or polygon size are examples of properties which can be used to
+-- build such an ordering. In the following example, the order is based on
+-- polygon size, with bigger polygons having a higher priority. i.e., when a
+-- large polygon overlaps with a smaller polygon, the large one is passed as
+-- second argument when the smaller one is passed as first argument (so
+-- larger polygons are removed from smaller ones) and the smaller polygon is
+-- not passed as second argument when the larger one is passed as first 
 -- argument (so larger polygons are kept intact).
 --
 --
--- Self contained and typical example removing, from every geometry, all
--- the overlapping geometries having a bigger area. i.e larger polygons have priority:
+-- Self contained and typical example removing, from every geometry, all the
+-- overlapping geometries having a bigger area. i.e larger polygons have
+-- priority:
 --
 -- WITH overlappingtable AS (
 --   SELECT 1 id, ST_GeomFromText('POLYGON((0 1, 3 2, 3 0, 0 1), (1.5 1.333, 2 1.333, 2 0.666, 1.5 0.666, 1.5 1.333))') geom
@@ -2027,13 +2131,13 @@ $$ LANGUAGE sql IMMUTABLE;
 -- GROUP BY a.id
 -- HAVING ST_Area(ST_DifferenceAgg(a.geom, b.geom)) > 0 AND NOT ST_IsEmpty(ST_DifferenceAgg(a.geom, b.geom));
 --
--- The HAVING clause of the query makes sure that very small and empty remains not 
--- included in the result.
+-- The HAVING clause of the query makes sure that very small and empty remains
+-- not included in the result.
 --
--- In some cases you may want to use the polygons unique IDs (or any other unique 
--- value) instead of the polygons areas to decide which one is removed from the 
--- other one. You first have to ensure IDs are unique for this to work. In that
--- case you would simply replace:
+-- In some cases you may want to use the polygons unique IDs (or any other
+-- unique value) instead of the polygons areas to decide which one is removed
+-- from the other one. You first have to ensure IDs are unique for this to work.
+-- In that case you would simply replace:
 --
 --     ST_Area(a.geom) < ST_Area(b.geom) OR
 --     (ST_Area(a.geom) = ST_Area(b.geom) AND a.id < b.id)
@@ -2125,9 +2229,10 @@ CREATE AGGREGATE ST_DifferenceAgg(geometry, geometry) (
 -- RETURNS geometry
 --
 -- Returns a multipolygon from which simple parts having an area smaller
--- than the tolerance parameter have been removed. This includes points and linestrings
--- when a geometry collection is provided. When no tolerance is provided, minarea
--- default to 0.0 and this function becomes equivalent to ST_CollectionExtract(geom, 3).
+-- than the tolerance parameter have been removed. This includes points and
+-- linestrings when a geometry collection is provided. When no tolerance is
+-- provided, minarea default to 0.0 and this function becomes equivalent to
+-- ST_CollectionExtract(geom, 3).
 --
 -- This function is used by the ST_SplitAgg state function.
 --
@@ -2157,17 +2262,19 @@ $$ LANGUAGE sql IMMUTABLE;
 --
 --   geom1 geometry - Geometry to split.
 --   geom2 geometry - Geometry used to split the first geometry.
---   tolerance - Minimal area necessary for split slivers to be kept in the result.
+--   tolerance - Minimal area necessary for split slivers to be kept in the
+--   result.
 --
 -- RETURNS geometry[]
 --
 -- Returns the first geometry as a set of geometries after being split by all
 -- the second geometries being part of the aggregate.
 --
--- This function is used to remove overlaps in a table of polygons or to generate
--- the equivalent of a ArcGIS union (see http://trac.osgeo.org/postgis/wiki/UsersWikiExamplesOverlayTables).
--- As it does not involve the union of all the polygons (or the extracted linestring)
--- of the table, it works much better on very large tables than the solutions
+-- This function is used to remove overlaps in a table of polygons or to
+-- generate the equivalent of a ArcGIS union (see 
+-- http://trac.osgeo.org/postgis/wiki/UsersWikiExamplesOverlayTables).
+-- As it does not involve the union of all the polygons (or the extracted
+-- linestring) of the table, it works much better on very large tables than the solutions
 -- provided in the wiki.
 --
 --
@@ -2292,10 +2399,10 @@ CREATE AGGREGATE ST_SplitAgg(geometry, geometry) (
 -------------------------------------------------------------------------------
 -- ST_ColumnIsUnique
 --
---   schemaname name - Name of the schema containing the table in which to check for
---                     the unicity of the values of a column.
---   tablename name  - Name of the table in which to check for the unicity of the
---                     values of a column.
+--   schemaname name - Name of the schema containing the table in which to
+--                     check for the unicity of the values of a column.
+--   tablename name  - Name of the table in which to check for the unicity of
+--                     the values of a column.
 --   columnname name - Name of the column to check for unicity of the values.
 --
 --   RETURNS boolean
@@ -2385,60 +2492,66 @@ $$ LANGUAGE sql VOLATILE STRICT;
 --   dosummary  - List of summaries to do. Can be any of:
 --                'S1' or 'IDDUP': Summary of duplicate IDs.
 --                'S2' or 'GDUP', 'GEODUP': Summary duplicate geometries.
---                'S3' or 'OVL': Summary of overlapping geometries. Skipped by default.
+--                'S3' or 'OVL': Summary of overlapping geometries. Skipped by
+--                               default.
 --                'S4' or 'GAPS': Summary of gaps. Skipped by default.
---                'S5' or 'TYPES': Summary of the geometry types (number of NULL,
---                                 INVALID, EMPTY, POINTS, LINESTRING, POLYGON,
---                                 MULTIPOINT, MULTILINESTRING, MULTIPOLYGON,
---                                 GEOMETRYCOLLECTION geometries).
---                'S6' or 'VERTX': Summary of geometries number of vertexes (min, max
---                                 and mean number of vertexes).
+--                'S5' or 'TYPES': Summary of the geometry types (number of
+--                                 NULL, INVALID, EMPTY, POINTS, LINESTRING,
+--                                 POLYGON, MULTIPOINT, MULTILINESTRING,
+--                                 MULTIPOLYGON, GEOMETRYCOLLECTION geometries).
+--                'S6' or 'VERTX': Summary of geometries number of vertexes
+--                                 (min, max and mean number of vertexes).
 --                'S7' or 'VHISTO': Histogram of geometries number of vertexes.
---                'S8' or 'AREAS', 'AREA': Summary of geometries areas (min, max, mean
---                                         geometries areas). Extra bins are added for
---                                         very small areas in addition to the number
---                                         requested.
+--                'S8' or 'AREAS', 'AREA': Summary of geometries areas (min,
+--                                         max, mean geometries areas). Extra
+--                                         bins are added for very small areas
+--                                         in addition to the number requested.
 --                'S9' or 'AHISTO': Histogram of geometries areas.
 --                'S10' or 'SACOUNT': Count of very small geometries.
 --                'ALL': Compute all summaries.
 --
---                e.g. ARRAY['TYPES', 'S7'] will compute only those two summaries.
+--                e.g. ARRAY['TYPES', 'S7'] will compute only those two
+--                summaries.
 --
---                Default to ARRAY['IDDUP', 'GDUP', 'TYPES', 'VERTX', 'VHISTO', 'AREAS', 'AHISTO']
---                skipping the overlap summary because it fails when encountering invalid
---                geometries and prevent other summaries to complete.
+--                Default to ARRAY['IDDUP', 'GDUP', 'TYPES', 'VERTX', 'VHISTO',
+--                'AREAS', 'AHISTO'] skipping the overlap summary because it
+--                fails when encountering invalid geometries and prevent other
+--                summaries to complete.
 --
 --   skipsummary - List of summaries to skip. Can be the same value as for the
---                 'dosummary' parameter. The list of summaries to skip has precedence
---                 over the dosummary list. i.e. if a summary is listed in part of both
---                 parameters, it will not be performed.
+--                 'dosummary' parameter. The list of summaries to skip has
+--                 precedence over the dosummary list. i.e. if a summary is 
+--                 listed in part of both parameters, it will not be performed.
 --
---   whereclause - Simple WHERE clause to add to the summary queries in order to
---                 limit the analysis to certain lines of the table.
+--   whereclause - Simple WHERE clause to add to the summary queries in order
+--                 to limit the analysis to certain lines of the table.
 --
 --   RETURNS TABLE (summary text, idsandtypes text, nb double precision, geom geometry, query text)
 --
--- Returns a table summarysing a geometry table. Computed summaries help finding anomalies
--- in geometry tables like duplicates, overlaps and very complex or very small geometries.
+-- Returns a table summarysing a geometry table. Computed summaries help
+-- finding anomalies in geometry tables like duplicates, overlaps and very
+-- complex or very small geometries.
 --
 -- The return table contains 5 columns:
 --
---   'summary' is the number number of the summary so that it is possible to filter
---             in or out lines associated with some summaries.
+--   'summary' is the number number of the summary so that it is possible
+--             to filter in or out lines associated with some summaries.
 --
---   'idsandtypes' contains the ids of duplicate or overlapping geometries or the
---                 type of the metric being summarized (min, max, mean, lower and
---                 upper bounds of the histogram interval).
+--   'idsandtypes' contains the ids of duplicate or overlapping geometries
+--                 or the type of the metric being summarized (min, max, mean,
+--                 lower and upper bounds of the histogram interval).
 --
---   'countsandareas' is the summary being computed. i.e. the number of duplicates, the
---                    overlapping area, the number of geometry of a certain type, the min,
---                    max or mean number of vertexes, the number of geometries in each
---                    histogram interval.
+--   'countsandareas' is the summary being computed. i.e. the number of
+--                    duplicates, the overlapping area, the number of geometry
+--                    of a certain type, the min, max or mean number of
+--                    vertexes, the number of geometries in each histogram
+--                    interval.
 --
---   'query' is the query you can use to generate the rows summarized on this line.
+--   'query' is the query you can use to generate the rows summarized on this
+--           line.
 --
---   'geom' is the duplicate or the overlapping part itself so you can display them
---          directly in your favorite GIS.
+--   'geom' is the duplicate or the overlapping part itself so you can display
+--          them directly in your favorite GIS.
 --
 --
 -- Self contained and typical example:
@@ -2500,7 +2613,7 @@ RETURNS TABLE (summary text, idsandtypes text, countsandareas double precision, 
         createidx boolean := FALSE;
         uidcolumncnt int := 0;
         whereclausewithwhere text := '';
-        sval text[] = ARRAY['S1', 'IDDUP', 'S2', 'GDUP', 'GEODUP', 'S3', 'OVL', 'S4', 'GAPS', 'S5', 'TYPES', 'S6', 'VERTX', 'S7', 'VHISTO', 'S8', 'AREAS', 'AREA', 'S9', 'AHISTO', 'S10', 'SACOUNT', 'ALL'];
+        sval text[] = ARRAY['S1', 'IDDUP', 'S2', 'GDUP', 'GEODUP', 'S3', 'OVL', 'S4', 'GAPS', 'S5', 'TYPES', 'GTYPES', 'GEOTYPES', 'S6', 'VERTX', 'S7', 'VHISTO', 'S8', 'AREAS', 'AREA', 'S9', 'AHISTO', 'S10', 'SACOUNT', 'ALL'];
         dos1 text[] = ARRAY['S1', 'IDDUP', 'ALL'];
         dos2 text[] = ARRAY['S2', 'GDUP', 'GEODUP', 'ALL'];
         dos3 text[] = ARRAY['S3', 'OVL', 'ALL'];
@@ -3385,18 +3498,21 @@ $$ LANGUAGE 'plpgsql' VOLATILE;
 --
 --   geom geometry[]  - ARRAY of geometry among which to remove overlaps.
 --
---   method text      - Method used to merge (or not) overlapping parts with the
---                      surrounding geometries. Default to NO_MERGE.
+--   mergemethod text - Method used to merge (or not) overlapping parts with 
+--                      adjacent polygons. Default to NO_MERGE.
 --
 --   RETURNS SET OF geometry
 -------------------------------------------------------------------------------
 -- ST_RemoveOverlaps (ARRAY[geomval] variant)
 --
---   geom geomval[]   - ARRAY of geomval (geometry, value records) among which to
---                      remove overlaps.
+--   gvarr geomval[]  - ARRAY of geomval (geometries and their companion value) 
+--                      among which to remove overlaps. When the LARGEST_VALUE 
+--                      or the SMALLEST_VALUE methods area used, values 
+--                      determine with which adjacent polygons to merge 
+--                      overlapping parts.
 --
---   method text      - Method used to merge (or not) overlapping parts with the
---                      surrounding geometries. Default to LARGEST_VALUE.
+--   mergemethod text - Method used to merge (or not) overlapping parts with 
+--                      adjacent polygons. Default to LARGEST_VALUE.
 --
 --   RETURNS SET OF geometry
 -------------------------------------------------------------------------------
@@ -3404,66 +3520,74 @@ $$ LANGUAGE 'plpgsql' VOLATILE;
 --
 --   geom geometry    - Geometries among which to remove overlaps.
 --
---   method text      - Method used to merge (or not) overlapping parts with the
---                      surrounding geometries. Default to NO_MERGE.
+--   mergemethod text - Method used to merge (or not) overlapping parts with 
+--                      adjacent polygons. Default to NO_MERGE.
 --
 --   RETURNS geometry[]
 -------------------------------------------------------------------------------
--- ST_RemoveOverlaps (geomval AGGREGATE variant)
+-- ST_RemoveOverlaps (geometry value AGGREGATE variant)
 --
---   geom geomval     - geomvals (geometries and their accompanying values) among
---                      which to remove overlaps.
+--   geom geometry        - Geometries among which to remove overlaps.
 --
---   method text      - Method used to merge (or not) overlapping parts with the
---                      surrounding geometries. Default to LARGEST_VALUE.
+--   val double precision - geometry companion value used to determine with
+--                          which adjacent polygons to merge overlapping parts
+--                          when the LARGEST_VALUE or the SMALLEST_VALUE methods 
+--                          area are used.
+--
+--   mergemethod text     - Method used to merge (or not) overlapping parts 
+--                          with adjacent polygons. Default to 
+--                          LARGEST_VALUE.
 --
 --   RETURNS geometry[]
+-------------------------------------------------------------------------------
 --
 -- Set or array returning function handling overlapping parts among a set of
--- gemometries. Can be used on an ARRAY of geometry or geomval, or as an AGGREGATE
--- function taking geometries or geomvals.
+-- gemometries. Can be used on an ARRAY of geometry or geomval, or as an
+-- AGGREGATE function taking geometries or geomvals.
 --
--- The geomval variants are used to pass values when using the LARGEST_VALUE and
--- SMALLEST_VALUE methods.
+-- The geomval variants are used to pass values when using the LARGEST_VALUE 
+-- and SMALLEST_VALUE methods.
 --
--- ST_RemoveOverlaps() is different from ST_DifferenceAgg() in that it produces 
--- perfectly topological adjacent polyogns where ST_DifferenceAgg() leave some very 
--- tiny gaps between polygons. ST_DifferenceAgg() is a bit faster than ST_RemoveOverlaps()
--- and does not require the use of ST_SplitByGrig() on large tables.
+-- ST_RemoveOverlaps() is different from ST_DifferenceAgg() in that it  
+-- produces perfectly topological adjacent polyogns where ST_DifferenceAgg() 
+-- leave some very tiny gaps between polygons. ST_DifferenceAgg() is a bit 
+-- faster than ST_RemoveOverlaps() and does not require the use of 
+-- ST_SplitByGrig() on large tables.
 --
 -- The differrent methods to handle overlapping parts are:
 --
 --   - NO_MERGE: Returns input polygons and overlapping parts as independent
---               polygons (one per overlspping parts).
+--               polygons (one per overlapping part). Default for variant 
+--               not taking companion values.
 --
---   - NO_MERGE_DUP: Returns input polygons and overlapping parts as independent
---                   polygons (all overlspping parts, duplicates included).
+--   - NO_MERGE_DUP: Returns input polygons and overlapping parts as 
+--                   independent polygons (all overlspping parts, duplicates 
+--                   included).
 --
---   - OVERLAPS_ONLY: Returns only the overlapping parts (one per overlspping parts).
+--   - OVERLAPS_ONLY: Returns only the overlapping parts (one per overlspping 
+--                    part).
 --
---   - OVERLAPS_ONLY_DUP: Returns only the overlapping parts (all of them, duplicates
---                        included).
+--   - OVERLAPS_ONLY_DUP: Returns only the overlapping parts (all of them, 
+--                        duplicates included).
 --
---   - LARGEST_AREA: Merge overlapping parts with the touching polygon having
---                   the largest area.
+--   - LARGEST_AREA: Merge overlapping parts with adjacent polygons having
+--                   the largest areaa.
 --
---   - SMALLEST_AREA: Merge overlapping parts with the touching polygon having
---                    the smallest area.
+--   - SMALLEST_AREA: Merge overlapping parts with adjacent polygons
+--                    having the smallest areas.
 --
---   - LONGEST_EDGE: Merge overlapping parts with the touching polygon sharing
---                   the longest edge.
+--   - LONGEST_EDGE: Merge overlapping parts with adjacent polygons
+--                   sharing the longest edges.
 --
---   - SHORTEST_EDGE: Merge overlapping parts with the touching polygons sharing
---                    the shortest edge.
+--   - SHORTEST_EDGE: Merge overlapping parts with adjacent polygons
+--                    sharing the shortest edges.
 --
---   - LARGEST_VALUE: Merge overlapping parts with the touching polygon having
---                    the largest value (in the geomval record).
+--   - LARGEST_VALUE: Merge overlapping parts with adjacent polygons
+--                    having the largest companion values. Default for 
+--                    variants taking companion values.
 --
---   - SMALLEST_VALUE: Merge overlapping parts with the touching polygon having
---                     the smallest value (in the geomval record).
---
--- NO_MERGE is the default for variants taking geometry and geometry[].
--- LARGEST_VALUE is the default for variants taking geomval and geomval[].
+--   - SMALLEST_VALUE: Merge overlapping parts with adjacent polygons
+--                     having the smallest companion values.
 --
 -- Self contained and typical examples.
 --
@@ -3543,7 +3667,7 @@ RETURNS SETOF geometry AS $$
         query text;
     BEGIN
         mergemethod = upper(mergemethod);
-RAISE NOTICE 'method = %', mergemethod;
+--RAISE NOTICE 'method = %', mergemethod;
         query = E'WITH geomvals AS (\n'
              || E'  SELECT unnest($1) gv\n'
              || E'), geoms AS (\n'
@@ -3642,7 +3766,7 @@ RAISE NOTICE 'method = %', mergemethod;
                            || E'FROM keep_parts\n'
                            || E'GROUP BY id;\n';
          END IF;
- RAISE NOTICE 'query = %', query;
+ --RAISE NOTICE 'query = %', query;
          RETURN QUERY EXECUTE query USING gvarray;
     END;
 $$ LANGUAGE plpgsql IMMUTABLE;
@@ -3783,4 +3907,5 @@ CREATE AGGREGATE ST_RemoveOverlaps(geometry, text)
     STYPE=geomvaltxt[],
     FINALFUNC=_ST_RemoveOverlaps_FinalFN
 );
-----------------------------------------------------------
+-------------------------------------------------------------------------------
+
