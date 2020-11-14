@@ -1,4 +1,4 @@
-﻿-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Main installation file
 -- Version 1.38 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
@@ -148,6 +148,15 @@
 --   ST_RemoveOverlaps - Remove overlaps among an array or an aggregate of
 --                       polygons.
 --
+-------------------------------------------------------------------------------
+-- Begin Types Definitions...
+----------------------------------------------------------
+-- New type to pass extra initial parameters to final aggregate functions
+CREATE TYPE geomvaltxt AS (
+    geom geometry,
+    val double precision,
+    txt text
+);
 -------------------------------------------------------------------------------
 -- Begin Function Definitions...
 -------------------------------------------------------------------------------
@@ -1887,13 +1896,15 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 --   geom geometry            - Set of geometry to union.
 --   bufsize double precision - Radius of the buffer to add to every geometry
 --                              before union (and to remove after).
+--   tolerance float          - Tolerance when simplifying intermediate geometries
 --
 -- RETURNS geometry
 --
--- Aggregate function alternative to ST_Union making a buffer around
--- each geometry before unioning and removing it afterward. Used
--- when ST_Union leaves internal undesirable vertexes after a complex
--- union (which is sometimes the case when unioning all the extents of
+-- Aggregate function, alternative to ST_Union(), making a ST_Buffer() 
+-- around and simplifying each geometry with the ST_Simplify() function 
+-- before unioning and removing itthe buffer at the end. Used when 
+-- ST_Union() leaves internal undesirable vertexes after a complex union 
+-- (which is sometimes the case when unioning all the extents of
 -- a raster coverage loaded with raster2pgsql), when ST_Union fails or
 -- when remaining holes have to be removed from the resulting union.
 --
@@ -1920,46 +1931,100 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -----------------------------------------------------------
 -- Pierre Racine (pierre.racine@sbf.ulaval.ca)
 -- 10/18/2013 added in v1.13
+-- 11/13/2021 added tolerance
 -----------------------------------------------------------
 -- ST_BufferedUnion aggregate state function
-CREATE OR REPLACE FUNCTION _ST_BufferedUnion_StateFN(
+-- CREATE OR REPLACE FUNCTION _ST_BufferedUnion_StateFN1(
+--     gvt geomvaltxt,
+--     geom geometry,
+--     bufsize double precision,
+--     tolerance double precision
+-- )
+-- RETURNS geomvaltxt AS $$
+--     SELECT CASE WHEN gvt IS NULL AND geom IS NULL THEN NULL
+--                 WHEN gvt IS NULL THEN (ST_Buffer(geom, coalesce(bufsize, 0.0), 'endcap=square join=mitre'), coalesce(bufsize, 0.0), coalesce(tolerance, 0.0)::text)::geomvaltxt -- first polygon
+--                 WHEN geom IS NULL THEN gvt
+--                 WHEN tolerance IS NULL OR tolerance = 0 OR (random()*10)::int != 4 THEN (ST_Union((gvt).geom, ST_Buffer(geom, coalesce(bufsize, 0.0), 'endcap=square join=mitre')), bufsize, coalesce(tolerance, 0.0))::geomvaltxt
+--                 ELSE (ST_SimplifyPreserveTopology(ST_Union((gvt).geom, ST_Buffer(geom, coalesce(bufsize, 0.0), 'endcap=square join=mitre')), coalesce(tolerance, 0.0)), coalesce(bufsize, 0.0), coalesce(tolerance, 0.0)::text)::geomvaltxt
+--            END;
+-- $$ LANGUAGE sql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION _ST_BufferedUnion_StateFN1(
+    gvt geomvaltxt,
+    geom geometry,
+    bufsize double precision,
+    tolerance double precision
+)
+RETURNS geomvaltxt AS $$
+  DECLARE
+  BEGIN
+--RAISE NOTICE '0000 bufsize=%, tolerance=%', bufsize, tolerance;
+    bufsize = coalesce(bufsize, 0.0);
+    tolerance = coalesce(tolerance, 0.0);
+--RAISE NOTICE '1111 bufsize=%, tolerance=%', bufsize, tolerance;
+    IF (gvt).geom IS NULL AND geom IS NULL THEN
+      RETURN NULL;
+    END IF;
+    IF (gvt).geom IS NULL THEN
+--RAISE NOTICE '2222';
+      RETURN (ST_Buffer(geom, bufsize, 'endcap=square join=mitre'), bufsize, tolerance::text)::geomvaltxt; -- first polygon
+    END IF;
+    IF geom IS NULL THEN
+--RAISE NOTICE '3333';
+      RETURN gvt;
+    END IF;
+    IF tolerance IS NULL OR tolerance = 0 OR (random()*10)::int != 4 THEN
+--RAISE NOTICE '4444';
+      RETURN (ST_Union((gvt).geom, ST_Buffer(geom, bufsize, 'endcap=square join=mitre')), bufsize, tolerance::text)::geomvaltxt;
+    END IF;
+--RAISE NOTICE '5555';
+    RETURN (ST_SimplifyPreserveTopology(ST_Union((gvt).geom, ST_Buffer(geom, bufsize, 'endcap=square join=mitre')), tolerance), bufsize, tolerance::text)::geomvaltxt; 
+  END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+-----------------------------------------------------------
+-- ST_BufferedUnion aggregate state function
+CREATE OR REPLACE FUNCTION _ST_BufferedUnion_StateFN2(
     gv geomval,
     geom geometry,
-    bufsize double precision DEFAULT 0.0
+    bufsize double precision
 )
 RETURNS geomval AS $$
-    SELECT CASE WHEN $1 IS NULL AND $2 IS NULL THEN
-                    NULL
-                WHEN $1 IS NULL THEN
-                    (ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre'),
-                     CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END
-                    )::geomval
-                WHEN $2 IS NULL THEN
-                    $1
-                ELSE (ST_Union(($1).geom,
-                           ST_Buffer($2, CASE WHEN $3 IS NULL THEN 0.0 ELSE $3 END, 'endcap=square join=mitre')
-                          ),
-                  ($1).val
-                 )::geomval
-       END;
+    SELECT ((gvt).geom, (gvt).val)::geomval
+    FROM (SELECT _ST_BufferedUnion_StateFN1(((gv).geom, (gv).val, NULL)::geomvaltxt, geom, bufsize, NULL) gvt) foo;
 $$ LANGUAGE sql IMMUTABLE;
-
 -----------------------------------------------------------
 -- ST_BufferedUnion aggregate final function
-CREATE OR REPLACE FUNCTION _ST_BufferedUnion_FinalFN(
+CREATE OR REPLACE FUNCTION _ST_BufferedUnion_FinalFN1(
+    gvt geomvaltxt
+)
+RETURNS geometry AS $$
+    SELECT ST_SimplifyPreserveTopology(ST_Buffer((gvt).geom, coalesce(-(gvt).val, 0.0), 'endcap=square join=mitre'), coalesce((gvt).txt::double precision, 0.0));
+$$ LANGUAGE sql IMMUTABLE STRICT;
+-----------------------------------------------------------
+-- ST_BufferedUnion aggregate final function
+CREATE OR REPLACE FUNCTION _ST_BufferedUnion_FinalFN2(
     gv geomval
 )
 RETURNS geometry AS $$
-    SELECT ST_Buffer(($1).geom, -($1).val, 'endcap=square join=mitre')
+    SELECT ST_Buffer((gv).geom, -(gv).val, 'endcap=square join=mitre');
 $$ LANGUAGE sql IMMUTABLE STRICT;
+
+-----------------------------------------------------------
+-- ST_BufferedUnion aggregate definition
+CREATE AGGREGATE ST_BufferedUnion(geometry, double precision, double precision)
+(
+    SFUNC = _ST_BufferedUnion_StateFN1,
+    STYPE = geomvaltxt,
+    FINALFUNC = _ST_BufferedUnion_FinalFN1
+);
 
 -----------------------------------------------------------
 -- ST_BufferedUnion aggregate definition
 CREATE AGGREGATE ST_BufferedUnion(geometry, double precision)
 (
-    SFUNC = _ST_BufferedUnion_StateFN,
+    SFUNC = _ST_BufferedUnion_StateFN2,
     STYPE = geomval,
-    FINALFUNC = _ST_BufferedUnion_FinalFN
+    FINALFUNC = _ST_BufferedUnion_FinalFN2
 );
 -------------------------------------------------------------------------------
 
@@ -3804,14 +3869,6 @@ RETURNS SETOF geometry AS $$
     )
     SELECT ST_RemoveOverlaps(array_agg((geom, null)::geomval), 'NO_MERGE') FROM geoms;
 $$ LANGUAGE sql VOLATILE;
-
-----------------------------------------------------------
--- New type to pass initial parameters to the final aggregate function
-CREATE TYPE geomvaltxt AS (
-    geom geometry,
-    val double precision,
-    txt text
-);
 
 ----------------------------------------------------------
 -- Main aggregate state function

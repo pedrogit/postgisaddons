@@ -1,4 +1,4 @@
-﻿-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Uninstallation file
 -- Version 1.38 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
@@ -40,9 +40,12 @@ DROP FUNCTION IF EXISTS ST_ExtractToRaster(raster, name, name, name, text);
 
 DROP FUNCTION IF EXISTS ST_GlobalRasterUnion(name, name, name, text, text, double precision);
 
+DROP AGGREGATE IF EXISTS ST_BufferedUnion(geometry, double precision, double precision);
 DROP AGGREGATE IF EXISTS ST_BufferedUnion(geometry, double precision);
-DROP FUNCTION IF EXISTS _ST_BufferedUnion_StateFN(geomval, geometry, double precision);
-DROP FUNCTION IF EXISTS _ST_BufferedUnion_FinalFN(geomval);
+DROP FUNCTION IF EXISTS _ST_BufferedUnion_StateFN1(geomvaltxt, geometry, double precision, double precision);
+DROP FUNCTION IF EXISTS _ST_BufferedUnion_StateFN2(geomval, geometry, double precision);
+DROP FUNCTION IF EXISTS _ST_BufferedUnion_FinalFN1(geomvaltxt);
+DROP FUNCTION IF EXISTS _ST_BufferedUnion_FinalFN2(geomval);
 
 DROP FUNCTION IF EXISTS ST_NBiggestExteriorRings(geometry, integer, text);
 

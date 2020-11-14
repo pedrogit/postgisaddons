@@ -1,4 +1,4 @@
-﻿-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- PostGIS PL/pgSQL Add-ons - Test file
 -- Version 1.38 for PostGIS 2.1.x and PostgreSQL 9.x
 -- http://github.com/pedrogit/postgisaddons
@@ -133,7 +133,7 @@ WITH test_nb AS (
     SELECT 'ST_AreaWeightedSummaryStats'::text,   6,          2         UNION ALL
     SELECT 'ST_ExtractToRaster'::text,            8,         17         UNION ALL
     SELECT 'ST_GlobalRasterUnion'::text,          9,         12         UNION ALL
-    SELECT 'ST_BufferedUnion'::text,             10,          3         UNION ALL
+    SELECT 'ST_BufferedUnion'::text,             10,          4         UNION ALL
     SELECT 'ST_NBiggestExteriorRings'::text,     11,          2         UNION ALL
     SELECT 'ST_BufferedSmooth'::text,            12,          1         UNION ALL
     SELECT 'ST_DifferenceAgg'::text,             13,          3         UNION ALL
@@ -946,12 +946,21 @@ UNION ALL
 SELECT '10.3'::text number,
        'ST_BufferedUnion'::text function_tested,
        'Null buffer size'::text description,
-       ST_AsText(ST_BufferedUnion(geom, null)) = 'POLYGON((0 0,10 0,20 0,20 -9.9999,10 -10,10 -9.9999,0 -10,0 0))' passed
+       ST_AsText(ST_BufferedUnion(geom, NULL)) = 'POLYGON((0 0,10 0,20 0,20 -9.9999,10 -10,10 -9.9999,0 -10,0 0))' passed
 FROM (SELECT 1 id, 'POLYGON((0 0,10 0,10 -9.9999,0 -10,0 0))'::geometry geom
       UNION ALL
       SELECT 2 id, 'POLYGON((10 0,20 0,20 -9.9999,10 -10,10 0))'::geometry
      ) foo
-
+---------------------------------------------------------
+UNION ALL
+SELECT '10.4'::text number,
+       'ST_BufferedUnion'::text function_tested,
+       'Null buffer size and tolerance'::text description,
+       ST_AsText(ST_BufferedUnion(geom, NULL, NULL)) = 'POLYGON((0 0,20 0,20 -9.9999,10 -10,10 -9.9999,0 -10,0 0))' passed
+FROM (SELECT 1 id, 'POLYGON((0 0,10 0,10 -9.9999,0 -10,0 0))'::geometry geom
+      UNION ALL
+      SELECT 2 id, 'POLYGON((10 0,20 0,20 -9.9999,10 -10,10 0))'::geometry
+     ) foo
 ---------------------------------------------------------
 -- Test 11 - ST_NBiggestExteriorRings
 ---------------------------------------------------------
