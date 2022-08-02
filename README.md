@@ -7,3 +7,7 @@ release cycle.
 
 A quick description of every new function can be found at the beginning of the
 postgis_addons.sql file. A detailed description precede each function definition. 
+
+Installation:
+
+Simply run the postgis_addons.sql file in your PostgreSQL/PostGIS installation.
