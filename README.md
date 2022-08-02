@@ -10,4 +10,4 @@ postgis_addons.sql file. A detailed description precede each function definition
 
 Installation:
 
-Simply run the postgis_addons.sql file in your PostgreSQL/PostGIS installation.
+Simply run the postgis_addons.sql file in your PostgreSQL/PostGIS database. PostGIS must already be installed.
