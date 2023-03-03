@@ -2374,7 +2374,7 @@ $$ LANGUAGE sql IMMUTABLE;
 --   UNION ALL
 --   SELECT 4 id, ST_GeomFromText('MULTIPOLYGON(((3 0, 3 2, 5 2, 5 0, 3 0)), ((4 3, 4 4, 5 4, 5 3, 4 3)))') geom
 -- )
--- SELECT DISTINCT ON (geom) a.id, unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom
+-- SELECT DISTINCT ON (a.geom) a.id, unnest(ST_SplitAgg(a.geom, b.geom, 0.00001)) geom
 -- FROM geomtable a,
 --      geomtable b
 -- WHERE ST_Equals(a.geom, b.geom) OR
